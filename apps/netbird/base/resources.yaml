@@ -2,10 +2,20 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: app-netbird
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
   labels:
     app.kubernetes.io/part-of: public-cluster
+    app.kubernetes.io/managed-by: argocd
+    core.sedware.net/owner: tobias
+    core.sedware.net/purpose: application
     core.sedware.net/environment: dev
     pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: v1.35
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.35
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.35
 ---
 apiVersion: v1
 kind: LimitRange
@@ -40,6 +50,8 @@ kind: Service
 metadata: { name: netbird-stun, namespace: app-netbird }
 spec:
   selector: { app.kubernetes.io/name: netbird-server }
+  # externalIPs sind die HAProxy-Host-IPs — hartkodiert, nicht overlay-konfigurierbar.
+  # Bei IP-Änderungen muss dieser Wert manuell aktualisiert werden.
   externalIPs: [192.168.101.10, 192.168.101.11]
   ports:
     - { name: stun, protocol: UDP, port: 3478, targetPort: stun }
@@ -181,6 +193,7 @@ spec:
         - namespaceSelector: {}
         - ipBlock: { cidr: 192.168.101.0/24 }
         - ipBlock: { cidr: 10.42.0.0/16 }
+    # UDP 3478: STUN muss von allen externen Quellen erreichbar sein (kein from-Feld beabsichtigt).
     - ports:
         - { protocol: UDP, port: 3478 }
   egress:

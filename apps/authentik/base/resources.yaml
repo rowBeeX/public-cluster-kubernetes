@@ -2,10 +2,20 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: app-authentik
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
   labels:
     app.kubernetes.io/part-of: public-cluster
+    app.kubernetes.io/managed-by: argocd
+    core.sedware.net/owner: tobias
+    core.sedware.net/purpose: application
     core.sedware.net/environment: dev
     pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: v1.35
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.35
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.35
 ---
 apiVersion: v1
 kind: LimitRange
@@ -110,6 +120,7 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: authentik-valkey }
     spec:
+      nodeSelector: { public.sedware.net/control-plane: "true" }
       containers:
         - name: valkey
           image: docker.io/valkey/valkey:8-alpine@sha256:18c7010efe0a74c334ee01bd2c5632735d2c0d9518f85b9ad3d995314c6a0b7a

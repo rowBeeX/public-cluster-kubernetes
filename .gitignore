@@ -1,5 +1,6 @@
 local-secrets/
 .playwright-mcp/
+.codex/
 .env
 *.log
 *.tmp
