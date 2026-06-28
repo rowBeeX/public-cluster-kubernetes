@@ -249,5 +249,6 @@ spec:
         - podSelector: {}
         - namespaceSelector: {}
         - ipBlock: { cidr: 192.168.101.0/24 }
+        - ipBlock: { cidr: 10.42.0.0/16 }
   egress:
     - {}
