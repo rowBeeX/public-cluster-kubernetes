@@ -75,7 +75,7 @@ spec:
             - { name: health, containerPort: 9000 }
           readinessProbe:
             httpGet: { path: /health, port: health }
-            initialDelaySeconds: 10
+            initialDelaySeconds: 3
           livenessProbe:
             httpGet: { path: /health, port: health }
             initialDelaySeconds: 30
@@ -152,6 +152,17 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: nginx-tmp, mountPath: /var/lib/nginx/tmp }
+            - { name: nginx-logs, mountPath: /var/lib/nginx/logs }
+            - { name: nginx-run, mountPath: /run/nginx }
+      volumes:
+        - name: nginx-tmp
+          emptyDir: { sizeLimit: 64Mi }
+        - name: nginx-logs
+          emptyDir: { sizeLimit: 64Mi }
+        - name: nginx-run
+          emptyDir: { sizeLimit: 16Mi }
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -171,6 +182,7 @@ spec:
         - podSelector: {}
         - namespaceSelector: {}
         - ipBlock: { cidr: 192.168.101.0/24 }
+        - ipBlock: { cidr: 10.42.0.0/16 }
     - ports:
         - { protocol: UDP, port: 3478 }
   egress:
