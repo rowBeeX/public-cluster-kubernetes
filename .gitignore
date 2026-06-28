@@ -1,0 +1,6 @@
+local-secrets/
+.playwright-mcp/
+.env
+*.log
+*.tmp
+rendered/
