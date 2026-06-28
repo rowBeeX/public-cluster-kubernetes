@@ -14,7 +14,6 @@ spec:
   limits:
     - type: Container
       defaultRequest: { cpu: 50m, memory: 128Mi }
-      default: { cpu: "1", memory: 1Gi }
 ---
 apiVersion: v1
 kind: ResourceQuota
@@ -23,8 +22,6 @@ spec:
   hard:
     requests.cpu: "2"
     requests.memory: 3Gi
-    limits.cpu: "6"
-    limits.memory: 7Gi
     persistentvolumeclaims: "3"
     requests.storage: 40Gi
     pods: "10"
@@ -79,7 +76,6 @@ spec:
             initialDelaySeconds: 30
           resources:
             requests: { cpu: 100m, memory: 256Mi }
-            limits: { cpu: "1", memory: 1Gi }
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: [ALL] }
@@ -123,7 +119,6 @@ spec:
           readinessProbe: { exec: { command: [valkey-cli, ping] }, initialDelaySeconds: 3 }
           resources:
             requests: { cpu: 25m, memory: 64Mi }
-            limits: { cpu: 250m, memory: 256Mi }
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: [ALL] }
@@ -180,7 +175,6 @@ spec:
             periodSeconds: 30
           resources:
             requests: { cpu: 150m, memory: 384Mi }
-            limits: { cpu: "1", memory: 1536Mi }
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: [ALL] }
@@ -218,7 +212,6 @@ spec:
             - { name: AUTHENTIK_ERROR_REPORTING__ENABLED, value: "false" }
           resources:
             requests: { cpu: 100m, memory: 384Mi }
-            limits: { cpu: "1", memory: 1536Mi }
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: [ALL] }

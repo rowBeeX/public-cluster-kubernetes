@@ -2,3 +2,22 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: netbird-dashboard
+        namespace: app-netbird
+      spec:
+        template:
+          spec:
+            containers:
+              - name: dashboard
+                env:
+                  - name: NETBIRD_MGMT_API_ENDPOINT
+                    value: https://netbird-control.dev0.sedware.net
+                  - name: NETBIRD_MGMT_GRPC_API_ENDPOINT
+                    value: https://netbird-control.dev0.sedware.net
+                  - name: AUTH_AUTHORITY
+                    value: https://netbird-control.dev0.sedware.net/oauth2

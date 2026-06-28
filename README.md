@@ -6,7 +6,6 @@ HAProxy, CrowdSec, certificates and Argo CD itself are managed by the sibling
 
 Applications currently managed here:
 
-- `public-home`: two-replica public landing and health endpoint;
 - `authentik`: public identity provider with PostgreSQL and Valkey;
 - `netbird`: self-hosted control plane and dashboard;
 - `adguard-home`: NetBird-only DNS and administration UI.
@@ -19,7 +18,7 @@ introduced.
 ## Validation
 
 ```bash
-./scripts/validate.sh
+bash cluster-testing/public-cluster/kubernetes/validate.sh
 ```
 
 The script renders every dev overlay and validates YAML/Kustomize structure.

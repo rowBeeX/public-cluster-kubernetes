@@ -14,7 +14,6 @@ spec:
   limits:
     - type: Container
       defaultRequest: { cpu: 50m, memory: 128Mi }
-      default: { cpu: "1", memory: 1Gi }
 ---
 apiVersion: v1
 kind: ResourceQuota
@@ -23,8 +22,6 @@ spec:
   hard:
     requests.cpu: "1"
     requests.memory: 2Gi
-    limits.cpu: "4"
-    limits.memory: 5Gi
     requests.storage: 20Gi
     persistentvolumeclaims: "2"
     pods: "8"
@@ -83,7 +80,6 @@ spec:
             periodSeconds: 30
           resources:
             requests: { cpu: 100m, memory: 256Mi }
-            limits: { cpu: "2", memory: 2Gi }
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: [ALL], add: [NET_BIND_SERVICE] }
@@ -134,11 +130,8 @@ spec:
         - name: dashboard
           image: docker.io/netbirdio/dashboard:v2.39.0@sha256:9c31fa6ea31945b05915ea989003caf07eee9afa8604c84f89abe924246fb3da
           env:
-            - { name: NETBIRD_MGMT_API_ENDPOINT, value: https://netbird-control.dev0.sedware.net }
-            - { name: NETBIRD_MGMT_GRPC_API_ENDPOINT, value: https://netbird-control.dev0.sedware.net }
             - { name: AUTH_AUDIENCE, value: netbird-dashboard }
             - { name: AUTH_CLIENT_ID, value: netbird-dashboard }
-            - { name: AUTH_AUTHORITY, value: https://netbird-control.dev0.sedware.net/oauth2 }
             - { name: USE_AUTH0, value: "false" }
             - { name: AUTH_SUPPORTED_SCOPES, value: openid profile email groups }
             - { name: AUTH_REDIRECT_URI, value: /nb-auth }
@@ -150,9 +143,10 @@ spec:
             initialDelaySeconds: 5
           resources:
             requests: { cpu: 25m, memory: 64Mi }
-            limits: { cpu: 500m, memory: 512Mi }
           securityContext:
             allowPrivilegeEscalation: false
+            # nginx needs CHOWN/SETUID/SETGID to drop privileges from root;
+            # DAC_OVERRIDE for log file access.
             capabilities:
               drop: [ALL]
               add: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID, DAC_OVERRIDE]

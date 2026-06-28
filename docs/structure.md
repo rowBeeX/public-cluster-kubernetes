@@ -1,34 +1,63 @@
 # Repo-Struktur
 
-Kubernetes-Manifeste für den öffentlichen Cluster (Authentik, NetBird, AdGuard, Vault).
+Kubernetes-Manifeste für den öffentlichen Cluster (Authentik, NetBird, AdGuard).
+ArgoCD im Public-Cluster deployed diese Apps via GitOps.
+Kein Ingress-Controller — HAProxy terminiert TLS direkt auf NodePort.
 
-## Ordner
+## Dateibaum
 
-| Pfad | Inhalt |
-|------|--------|
-| `apps/` | Kubernetes-Anwendungen als Kustomize-Overlays (base + dev-Overlay) |
-| `apps/<app>/base/` | Basis-Ressourcen der Anwendung (HelmRelease, ConfigMap, …) |
-| `apps/<app>/overlays/dev/` | Dev-spezifische Überschreibungen |
-| `docs/` | Dokumentation zur Repo-Struktur |
+```
+README.md                       Kurzübersicht: Zweck, Apps, Traffic-Fluss
+.gitignore                      Schließt lokale Secrets und Nix-Ergebnisse aus
 
-## Wichtige Dateien
+apps/
+  adguard-home/                 AdGuard Home DNS (NodePort 30300)
+    argocd.yaml                 ArgoCD Application-Manifest: Sync-Policy, Namespace, Source
+    base/
+      kustomization.yaml        Kustomize-Basis-Ressourcenliste
+      resources.yaml            Kubernetes-Ressourcen: Namespace, Deployment, Service, PVC, NetworkPolicies
+    overlays/
+      dev/
+        kustomization.yaml      Dev-spezifische Überschreibungen: Image-Tag, Ressourcen
 
-| Datei | Inhalt |
-|-------|--------|
-| `apps/<app>/argocd.yaml` | ArgoCD Application-Manifest |
-| `apps/<app>/base/kustomization.yaml` | Kustomize-Basis-Ressourcenliste |
+  authentik/                    Authentik SSO / OIDC-Provider (NodePort 30900)
+    argocd.yaml                 ArgoCD Application-Manifest: Sync-Policy, Namespace, Source
+    base/
+      kustomization.yaml        Kustomize-Basis-Ressourcenliste
+      resources.yaml            Kubernetes-Ressourcen: Namespace, Deployment, Service, PVC, Secret-Refs, NetworkPolicies
+    overlays/
+      dev/
+        kustomization.yaml      Dev-spezifische Überschreibungen: Image-Tag, Ressourcen
+
+  netbird/                      NetBird VPN (Dashboard NodePort 30810, Signal/Relay NodePort 30811)
+    argocd.yaml                 ArgoCD Application-Manifest: Sync-Policy, Namespace, Source
+    base/
+      kustomization.yaml        Kustomize-Basis-Ressourcenliste
+      resources.yaml            Kubernetes-Ressourcen: Namespace, Deployment, Services, PVC, ConfigMap, NetworkPolicies
+    overlays/
+      dev/
+        kustomization.yaml      Dev-spezifische Überschreibungen: Image-Tag, Ressourcen
+
+docs/
+  architecture.md               Systemüberblick: Traffic-Fluss, HAProxy→NodePort→Pod, TLS-Terminierung
+  structure.md                  Diese Datei
+```
 
 ## Apps-Übersicht
 
 | App | Dienst | NodePort |
 |-----|--------|----------|
-| `authentik` | Authentik SSO | 30900 |
+| `authentik` | Authentik SSO / OIDC-Provider | 30900 |
 | `netbird` | NetBird Dashboard + Control | 30810 / 30811 |
-| `adguard-home` | AdGuard DNS | 30300 |
-| `vault` | HashiCorp Vault | 30820 |
+| `adguard-home` | AdGuard Home DNS | 30300 |
 
-Der Traffic-Fluss: `HAProxy :443 → NodePort → Pod`.
-Keine Ingress-Controller — HAProxy terminiert TLS direkt auf NodePort.
+Vault wird direkt über k3s-Helm-Manifeste in `public-cluster-nix` deployed, nicht über ArgoCD.
+
+## Traffic-Fluss
+
+```
+Internet → HAProxy :443 (TLS-Terminierung) → NodePort → Kubernetes-Pod
+```
 
 ## Tests und Validierung
 

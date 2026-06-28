@@ -15,7 +15,6 @@ spec:
   limits:
     - type: Container
       defaultRequest: { cpu: 25m, memory: 64Mi }
-      default: { cpu: 500m, memory: 512Mi }
 ---
 apiVersion: v1
 kind: ResourceQuota
@@ -24,8 +23,6 @@ spec:
   hard:
     requests.cpu: "500m"
     requests.memory: 512Mi
-    limits.cpu: "2"
-    limits.memory: 2Gi
     requests.storage: 10Gi
     persistentvolumeclaims: "2"
     pods: "4"
@@ -88,7 +85,6 @@ spec:
             initialDelaySeconds: 30
           resources:
             requests: { cpu: 50m, memory: 64Mi }
-            limits: { cpu: 500m, memory: 512Mi }
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: [ALL], add: [NET_BIND_SERVICE] }
@@ -112,3 +108,25 @@ spec:
   selector: { app.kubernetes.io/name: adguard-home }
   ports:
     - { name: http, port: 3000, targetPort: http }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny, namespace: app-adguard-home }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-required, namespace: app-adguard-home }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: {}
+        - namespaceSelector: {}
+        - ipBlock: { cidr: 192.168.101.0/24 }
+        - ipBlock: { cidr: 10.42.0.0/16 }
+  egress:
+    - {}
