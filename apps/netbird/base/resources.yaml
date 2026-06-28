@@ -151,7 +151,9 @@ spec:
             limits: { cpu: 500m, memory: 512Mi }
           securityContext:
             allowPrivilegeEscalation: false
-            capabilities: { drop: [ALL] }
+            capabilities:
+              drop: [ALL]
+              add: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID, DAC_OVERRIDE]
           volumeMounts:
             - { name: nginx-tmp, mountPath: /var/lib/nginx/tmp }
             - { name: nginx-logs, mountPath: /var/lib/nginx/logs }
