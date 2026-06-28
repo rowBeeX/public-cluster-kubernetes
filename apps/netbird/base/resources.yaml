@@ -74,11 +74,12 @@ spec:
             - { name: metrics, containerPort: 9090 }
             - { name: health, containerPort: 9000 }
           readinessProbe:
-            httpGet: { path: /health, port: health }
-            initialDelaySeconds: 3
+            httpGet: { path: /oauth2, port: http }
+            initialDelaySeconds: 2
+            periodSeconds: 5
           livenessProbe:
             httpGet: { path: /health, port: health }
-            initialDelaySeconds: 30
+            initialDelaySeconds: 120
           resources:
             requests: { cpu: 100m, memory: 256Mi }
             limits: { cpu: "2", memory: 2Gi }
