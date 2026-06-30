@@ -19,15 +19,15 @@ metadata:
 ---
 apiVersion: v1
 kind: LimitRange
-metadata: { name: defaults, namespace: app-netbird }
+metadata: {name: defaults, namespace: app-netbird}
 spec:
   limits:
-    - type: Container
-      defaultRequest: { cpu: 50m, memory: 128Mi }
+  - type: Container
+    defaultRequest: {cpu: 50m, memory: 128Mi}
 ---
 apiVersion: v1
 kind: ResourceQuota
-metadata: { name: quota, namespace: app-netbird }
+metadata: {name: quota, namespace: app-netbird}
 spec:
   hard:
     requests.cpu: "1"
@@ -38,163 +38,221 @@ spec:
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: netbird-server, namespace: app-netbird }
+metadata: {name: netbird-server, namespace: app-netbird}
 spec:
-  selector: { app.kubernetes.io/name: netbird-server }
+  selector: {app.kubernetes.io/name: netbird-server}
   ports:
-    - { name: http, port: 80, targetPort: http }
-    - { name: metrics, port: 9090, targetPort: metrics }
+  - {name: http, port: 80, targetPort: http, appProtocol: kubernetes.io/h2c}
+  - {name: metrics, port: 9090, targetPort: metrics}
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: netbird-stun, namespace: app-netbird }
+metadata: {name: netbird-stun, namespace: app-netbird}
 spec:
-  selector: { app.kubernetes.io/name: netbird-server }
-  # externalIPs sind die HAProxy-Host-IPs — hartkodiert, nicht overlay-konfigurierbar.
+  selector: {app.kubernetes.io/name: netbird-server}
+  # externalIPs sind die öffentlichen Gateway-Node-IPs; Cilium annonciert den
+  # UDP-Service direkt und benötigt dafür keinen Host-Proxy.
   # Bei IP-Änderungen muss dieser Wert manuell aktualisiert werden.
   externalIPs: [192.168.101.10, 192.168.101.11]
   ports:
-    - { name: stun, protocol: UDP, port: 3478, targetPort: stun }
+  - {name: stun, protocol: UDP, port: 3478, targetPort: stun}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
-metadata: { name: netbird-server, namespace: app-netbird }
+metadata: {name: netbird-server, namespace: app-netbird}
 spec:
   serviceName: netbird-server
   replicas: 1
   selector:
-    matchLabels: { app.kubernetes.io/name: netbird-server }
+    matchLabels: {app.kubernetes.io/name: netbird-server}
   template:
     metadata:
-      labels: { app.kubernetes.io/name: netbird-server }
+      labels: {app.kubernetes.io/name: netbird-server}
     spec:
-      nodeSelector: { public.sedware.net/control-plane: "true" }
+      nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
-        - name: netbird-server
-          image: docker.io/netbirdio/netbird-server:0.72.4@sha256:9ab98a37002517204010ee88a0c7f5e76b1fe6e2a736043db60efb7a02fbded3
-          args: [--config, /etc/netbird/config.yaml]
-          env:
-            - { name: NB_DISABLE_GEOLOCATION, value: "true" }
-            - { name: NB_PEER_UPDATE_INTERVAL_MS, value: "1" }
-            - { name: NB_PEER_UPDATE_STARTUP_PERIOD_S, value: "1" }
-          ports:
-            - { name: http, containerPort: 80 }
-            - { name: stun, protocol: UDP, containerPort: 3478 }
-            - { name: metrics, containerPort: 9090 }
-            - { name: health, containerPort: 9000 }
-          readinessProbe:
-            httpGet: { path: /oauth2, port: http }
-            initialDelaySeconds: 2
-            periodSeconds: 5
-          livenessProbe:
-            httpGet: { path: /oauth2, port: http }
-            initialDelaySeconds: 30
-            periodSeconds: 30
-          resources:
-            requests: { cpu: 100m, memory: 256Mi }
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities: { drop: [ALL], add: [NET_BIND_SERVICE] }
-            readOnlyRootFilesystem: true
-          volumeMounts:
-            - { name: config, mountPath: /etc/netbird, readOnly: true }
-            - { name: data, mountPath: /var/lib/netbird }
-            - { name: tmp, mountPath: /tmp }
-      volumes:
-        - name: config
-          secret: { secretName: netbird-config }
-        - name: tmp
-          emptyDir: { sizeLimit: 256Mi }
-  volumeClaimTemplates:
-    - metadata: { name: data }
-      spec:
-        accessModes: [ReadWriteOnce]
-        storageClassName: local-path
+      - name: netbird-server
+        image: 
+          docker.io/netbirdio/netbird-server:0.72.4@sha256:9ab98a37002517204010ee88a0c7f5e76b1fe6e2a736043db60efb7a02fbded3
+        args: [--config, /etc/netbird/config.yaml]
+        env:
+        - {name: NB_DISABLE_GEOLOCATION, value: "true"}
+        - {name: NB_PEER_UPDATE_INTERVAL_MS, value: "1"}
+        - {name: NB_PEER_UPDATE_STARTUP_PERIOD_S, value: "1"}
+        ports:
+        - {name: http, containerPort: 80}
+        - {name: stun, protocol: UDP, containerPort: 3478}
+        - {name: metrics, containerPort: 9090}
+        - {name: health, containerPort: 9000}
+        readinessProbe:
+          httpGet: {path: /oauth2, port: http}
+          initialDelaySeconds: 2
+          periodSeconds: 5
+        livenessProbe:
+          httpGet: {path: /oauth2, port: http}
+          initialDelaySeconds: 30
+          periodSeconds: 30
         resources:
-          requests: { storage: 10Gi }
+          requests: {cpu: 100m, memory: 256Mi}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL], add: [NET_BIND_SERVICE]}
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - {name: config, mountPath: /etc/netbird, readOnly: true}
+        - {name: data, mountPath: /var/lib/netbird}
+        - {name: tmp, mountPath: /tmp}
+      volumes:
+      - name: config
+        secret: {secretName: netbird-config}
+      - name: tmp
+        emptyDir: {sizeLimit: 256Mi}
+  volumeClaimTemplates:
+  - metadata: {name: data}
+    spec:
+      accessModes: [ReadWriteOnce]
+      storageClassName: local-path
+      resources:
+        requests: {storage: 10Gi}
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: netbird-dashboard, namespace: app-netbird }
+metadata: {name: netbird-dashboard, namespace: app-netbird}
 spec:
-  selector: { app.kubernetes.io/name: netbird-dashboard }
+  selector: {app.kubernetes.io/name: netbird-dashboard}
   ports:
-    - { name: http, port: 80, targetPort: http }
+  - {name: http, port: 80, targetPort: http}
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata: { name: netbird-dashboard, namespace: app-netbird }
+metadata: {name: netbird-dashboard, namespace: app-netbird}
 spec:
   replicas: 2
   selector:
-    matchLabels: { app.kubernetes.io/name: netbird-dashboard }
+    matchLabels: {app.kubernetes.io/name: netbird-dashboard}
   template:
     metadata:
-      labels: { app.kubernetes.io/name: netbird-dashboard }
+      labels: {app.kubernetes.io/name: netbird-dashboard}
     spec:
       topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: ScheduleAnyway
-          labelSelector:
-            matchLabels: { app.kubernetes.io/name: netbird-dashboard }
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels: {app.kubernetes.io/name: netbird-dashboard}
       containers:
-        - name: dashboard
-          image: docker.io/netbirdio/dashboard:v2.39.0@sha256:9c31fa6ea31945b05915ea989003caf07eee9afa8604c84f89abe924246fb3da
-          env:
-            - { name: AUTH_AUDIENCE, value: netbird-dashboard }
-            - { name: AUTH_CLIENT_ID, value: netbird-dashboard }
-            - { name: USE_AUTH0, value: "false" }
-            - { name: AUTH_SUPPORTED_SCOPES, value: openid profile email groups }
-            - { name: AUTH_REDIRECT_URI, value: /nb-auth }
-            - { name: AUTH_SILENT_REDIRECT_URI, value: /nb-silent-auth }
-          ports:
-            - { name: http, containerPort: 80 }
-          readinessProbe:
-            httpGet: { path: /, port: http }
-            initialDelaySeconds: 5
-          resources:
-            requests: { cpu: 25m, memory: 64Mi }
-          securityContext:
-            allowPrivilegeEscalation: false
+      - name: dashboard
+        image: 
+          docker.io/netbirdio/dashboard:v2.39.0@sha256:9c31fa6ea31945b05915ea989003caf07eee9afa8604c84f89abe924246fb3da
+        env:
+        - {name: AUTH_AUDIENCE, value: netbird-dashboard}
+        - {name: AUTH_CLIENT_ID, value: netbird-dashboard}
+        - {name: USE_AUTH0, value: "false"}
+        - {name: AUTH_SUPPORTED_SCOPES, value: openid profile email groups}
+        - {name: AUTH_REDIRECT_URI, value: /nb-auth}
+        - {name: AUTH_SILENT_REDIRECT_URI, value: /nb-silent-auth}
+        ports:
+        - {name: http, containerPort: 80}
+        readinessProbe:
+          httpGet: {path: /, port: http}
+          initialDelaySeconds: 5
+        resources:
+          requests: {cpu: 25m, memory: 64Mi}
+        securityContext:
+          allowPrivilegeEscalation: false
             # nginx needs CHOWN/SETUID/SETGID to drop privileges from root;
             # DAC_OVERRIDE for log file access.
-            capabilities:
-              drop: [ALL]
-              add: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID, DAC_OVERRIDE]
-          volumeMounts:
-            - { name: nginx-tmp, mountPath: /var/lib/nginx/tmp }
-            - { name: nginx-logs, mountPath: /var/lib/nginx/logs }
-            - { name: nginx-run, mountPath: /run/nginx }
+          capabilities:
+            drop: [ALL]
+            add: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID, DAC_OVERRIDE]
+        volumeMounts:
+        - {name: nginx-tmp, mountPath: /var/lib/nginx/tmp}
+        - {name: nginx-logs, mountPath: /var/lib/nginx/logs}
+        - {name: nginx-run, mountPath: /run/nginx}
       volumes:
-        - name: nginx-tmp
-          emptyDir: { sizeLimit: 64Mi }
-        - name: nginx-logs
-          emptyDir: { sizeLimit: 64Mi }
-        - name: nginx-run
-          emptyDir: { sizeLimit: 16Mi }
+      - name: nginx-tmp
+        emptyDir: {sizeLimit: 64Mi}
+      - name: nginx-logs
+        emptyDir: {sizeLimit: 64Mi}
+      - name: nginx-run
+        emptyDir: {sizeLimit: 16Mi}
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata: { name: default-deny, namespace: app-netbird }
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: default-deny, namespace: app-netbird}
 spec:
-  podSelector: {}
-  policyTypes: [Ingress, Egress]
+  endpointSelector: {}
+  ingress: []
+  egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata: { name: allow-required, namespace: app-netbird }
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-required-cilium-flows, namespace: app-netbird}
 spec:
-  podSelector: {}
-  policyTypes: [Ingress, Egress]
+  endpointSelector: {}
   ingress:
-    - from:
-        - podSelector: {}
-        - namespaceSelector: {}
-        - ipBlock: { cidr: 192.168.101.0/24 }
-        - ipBlock: { cidr: 10.42.0.0/16 }
-    # UDP 3478: STUN muss von allen externen Quellen erreichbar sein (kein from-Feld beabsichtigt).
+  - fromEntities:
+    - ingress
+    toPorts:
     - ports:
-        - { protocol: UDP, port: 3478 }
+      - port: '80'
+        protocol: TCP
+  - fromEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: '3478'
+        protocol: UDP
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: app-netbird
+    toPorts:
+    - ports:
+      - port: '80'
+        protocol: TCP
+      - port: '9090'
+        protocol: TCP
   egress:
-    - {}
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: '53'
+        protocol: UDP
+      - port: '53'
+        protocol: TCP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: netbird-dashboard, namespace: app-netbird}
+spec:
+  parentRefs:
+  - {name: public-dev, namespace: gateway-system, sectionName: https}
+  hostnames: [netbird.dev1.sedware.net]
+  rules:
+  - backendRefs:
+    - {name: netbird-dashboard, port: 80}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: netbird-control-http, namespace: app-netbird}
+spec:
+  parentRefs:
+  - {name: public-dev, namespace: gateway-system, sectionName: https}
+  hostnames: [netbird-control.dev1.sedware.net]
+  rules:
+  - backendRefs:
+    - {name: netbird-server, port: 80}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata: {name: netbird-control-grpc, namespace: app-netbird}
+spec:
+  parentRefs:
+  - {name: public-dev, namespace: gateway-system, sectionName: https}
+  hostnames: [netbird-control.dev1.sedware.net]
+  rules:
+  - backendRefs:
+    - {name: netbird-server, port: 80}

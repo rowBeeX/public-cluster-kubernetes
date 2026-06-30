@@ -15,6 +15,6 @@ Kubernetes-Manifeste für die drei öffentlichen Cluster-Apps. Deployment erfolg
 
 - Alle Ressourcen je App in einer monolithischen `base/resources.yaml`
 - Overlays: `overlays/dev/` (aktive Generation), `overlays/prod/` noch nicht vorhanden
-- NodePort-Services für HAProxy-Routing sind in `public-cluster-nix` definiert,
-  nicht hier — siehe `modules/kubernetes/manifests/platform/nodeports/services.yaml`
+- HTTP wird ausschließlich per `HTTPRoute` an das Cilium Dev-Gateway gebunden.
+- STUN/DNS-Sonderprotokolle bleiben explizite Cilium Services.
 - Secrets kommen ausschließlich aus SOPS (via `public-cluster-nix/secrets/`)

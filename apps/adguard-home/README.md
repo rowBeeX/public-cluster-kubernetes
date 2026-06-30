@@ -11,5 +11,5 @@ DNS-Resolver mit Rewrite-Regeln für den Public-Cluster.
 
 ## Zugang
 
-- Web-UI: `https://adguard.dev0.sedware.net/` (nur über NetBird)
-- DNS: UDP/TCP 53 auf den HAProxy-Hosts (192.168.101.10, 192.168.101.11)
+- Web-UI: `https://adguard.dev1.sedware.net/` (nur über NetBird)
+- DNS: UDP/TCP 53 direkt auf den Cilium-Gateway-Nodes

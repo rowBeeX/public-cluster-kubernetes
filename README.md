@@ -1,8 +1,8 @@
 # Public Cluster Kubernetes
 
-Argo CD application source for the Sedware public k3s cluster. The bootstrap,
-HAProxy, CrowdSec, certificates and Argo CD itself are managed by the sibling
-`public-cluster-nix` repository.
+Argo CD application source for the Sedware public k3s cluster. The Cilium
+dataplane, Gateway API, cert-manager, CrowdSec and Argo CD itself are
+managed by the sibling `public-cluster-nix` repository.
 
 Applications currently managed here:
 
