@@ -296,7 +296,7 @@ metadata: {name: authentik, namespace: app-authentik}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [authentik.dev1.sedware.net]
+  hostnames: [authentik.dev2.sedware.net]
   rules:
   - backendRefs:
     - {name: authentik, port: 9000}

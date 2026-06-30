@@ -19,5 +19,5 @@ WireGuard-basiertes VPN-Management für den Public-Cluster und verbundene Client
 
 ## Zugang
 
-- Dashboard: `https://netbird.dev1.sedware.net/` (nur über VPN)
+- Dashboard: `https://netbird.dev2.sedware.net/` (nur über VPN)
 - Management API: intern via `netbird-server.app-netbird.svc`

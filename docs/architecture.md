@@ -1,6 +1,6 @@
 # Public Dev application architecture
 
-Cloudflare round-robin DNS maps `*.dev1.sedware.net` to both public nodes.
+Cloudflare round-robin DNS maps `*.dev2.sedware.net` to both public nodes.
 Cilium's host-network Gateway listens on 80/443, terminates the Dev wildcard
 certificate issued by cert-manager and forwards accepted HTTPRoutes to
 ClusterIP services. No HAProxy, Traefik, HTTP NodePort or Kubernetes Ingress is

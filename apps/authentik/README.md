@@ -20,5 +20,5 @@ Kommen aus SOPS via `public-cluster-nix/secrets/dev/public-cluster-host-1.yaml`:
 
 ## Zugang
 
-- Admin-UI: `https://authentik.dev1.sedware.net/if/admin/` (nur über NetBird)
-- OIDC-Issuer: `https://authentik.dev1.sedware.net/application/o/<client>/`
+- Admin-UI: `https://authentik.dev2.sedware.net/if/admin/` (nur über NetBird)
+- OIDC-Issuer: `https://authentik.dev2.sedware.net/application/o/<client>/`

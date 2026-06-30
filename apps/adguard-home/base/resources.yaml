@@ -157,7 +157,7 @@ metadata: {name: adguard-home, namespace: app-adguard-home}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [adguard.dev1.sedware.net]
+  hostnames: [adguard.dev2.sedware.net]
   rules:
   - backendRefs:
     - {name: adguard-home, port: 3000}
