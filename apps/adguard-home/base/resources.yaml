@@ -159,5 +159,7 @@ spec:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
   hostnames: [adguard.dev2.sedware.net]
   rules:
-  - backendRefs:
+  - matches:
+    - path: {type: PathPrefix, value: /}
+    backendRefs:
     - {name: adguard-home, port: 3000}
