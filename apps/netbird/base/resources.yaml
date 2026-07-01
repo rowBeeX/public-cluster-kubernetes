@@ -223,10 +223,8 @@ spec:
         protocol: UDP
       - port: '53'
         protocol: TCP
-  # netbird-server validiert den OIDC-Issuer (authentik.<publicDomain>), indem es
-  # das Discovery-Dokument ueber das host-network-Gateway laedt. Split-Horizon-DNS
-  # loest authentik.<publicDomain> auf die Node-LAN-IP auf -> Egress zum Host-/
-  # Remote-Node-Netzwerk auf 443 erlauben, sonst 422 "issuer unreachable".
+  # netbird-server validates the Authentik OIDC issuer through the second
+  # host-network Gateway node selected by split-horizon DNS.
   - toEntities:
     - host
     - remote-node
