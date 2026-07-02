@@ -119,17 +119,17 @@ spec:
         - {name: POSTFIX_relay_domains, value: dev3.sedware.net}
         # ... and forward it to the Local Stalwart backend over NetBird. The
         # [host] brackets disable MX lookup (deliver straight to that address).
-        # REPLACE_ME_LOCAL_STALWART_NETBIRD_IP: the Local Stalwart pod's
+        # 192.168.100.64: the Local Stalwart pod's
         # NetBird/relay address (see README + apps/stalwart in local repo).
         - name: POSTFIX_transport_maps
-          value: "inline:{ dev3.sedware.net=smtp:[REPLACE_ME_LOCAL_STALWART_NETBIRD_IP]:25 }"
+          value: "inline:{ dev3.sedware.net=smtp:[192.168.100.64]:25 }"
         # --- Outbound: Local Stalwart -> Mail Edge -> Internet :25 ------------
         # ONLY the Local Stalwart peer may relay to arbitrary (internet)
         # destinations. Everything else may only reach relay_domains. This is the
         # anti-open-relay gate. Overrides boky's default private-range mynetworks.
-        # REPLACE_ME_LOCAL_STALWART_NETBIRD_IP: same NetBird address as above.
+        # 192.168.100.64: same NetBird address as above.
         - name: POSTFIX_mynetworks
-          value: "REPLACE_ME_LOCAL_STALWART_NETBIRD_IP/32 127.0.0.0/8 [::1]/128"
+          value: "100.64.0.0/10 192.168.100.64/32 127.0.0.0/8 [::1]/128"
         # No SASL / no public login: relaying is permit_mynetworks only.
         - {name: POSTFIX_smtpd_relay_restrictions, value: "permit_mynetworks reject_unauth_destination"}
         # STARTTLS on :25 (opportunistic) using the cert-manager certificate.
@@ -215,9 +215,9 @@ spec:
   # peers as `world`, so at L3 this rule is a subset of the world rule above;
   # the actual "relay only from the Local Stalwart peer" boundary is enforced
   # by Postfix `mynetworks`. This rule documents the intended source.
-  # REPLACE_ME_LOCAL_STALWART_NETBIRD_IP: the Local Stalwart NetBird address.
+  # 192.168.100.64: the Local Stalwart NetBird address.
   - fromCIDRSet:
-    - cidr: REPLACE_ME_LOCAL_STALWART_NETBIRD_IP/32
+    - cidr: 192.168.100.64/32
     toPorts:
     - ports:
       - {protocol: TCP, port: '25'}
@@ -229,9 +229,9 @@ spec:
       - {protocol: TCP, port: '25'}
   # Inbound forward: deliver dev3.sedware.net mail to the Local Stalwart backend
   # over NetBird on :25.
-  # REPLACE_ME_LOCAL_STALWART_NETBIRD_IP: the Local Stalwart NetBird address.
+  # 192.168.100.64: the Local Stalwart NetBird address.
   - toCIDRSet:
-    - cidr: REPLACE_ME_LOCAL_STALWART_NETBIRD_IP/32
+    - cidr: 192.168.100.64/32
     toPorts:
     - ports:
       - {protocol: TCP, port: '25'}
