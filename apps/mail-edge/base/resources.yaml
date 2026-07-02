@@ -117,19 +117,23 @@ spec:
         # --- Inbound: Internet :25 -> Mail Edge -> Local Stalwart -------------
         # Accept inbound mail addressed to dev3.sedware.net ...
         - {name: POSTFIX_relay_domains, value: dev3.sedware.net}
-        # ... and forward it to the Local Stalwart backend over NetBird. The
-        # [host] brackets disable MX lookup (deliver straight to that address).
-        # 192.168.100.64: the Local Stalwart pod's
-        # NetBird/relay address (see README + apps/stalwart in local repo).
+        # ... and forward it to the Local Stalwart backend over NetBird via the
+        # Local Private Edge (Envoy) mail-smtp listener. The [host] brackets
+        # disable MX lookup (deliver straight to that address).
+        # 100.83.243.245: the Local Private Edge (dev-manager) NetBird address;
+        # its :25 TCPRoute forwards to the Stalwart ClusterIP. mail-edge egresses
+        # to this NetBird IP (masqueraded by its node) — no ingress-DNAT needed.
         - name: POSTFIX_transport_maps
-          value: "inline:{ dev3.sedware.net=smtp:[192.168.100.64]:25 }"
+          value: "inline:{ dev3.sedware.net=smtp:[100.83.243.245]:25 }"
         # --- Outbound: Local Stalwart -> Mail Edge -> Internet :25 ------------
         # ONLY the Local Stalwart peer may relay to arbitrary (internet)
         # destinations. Everything else may only reach relay_domains. This is the
         # anti-open-relay gate. Overrides boky's default private-range mynetworks.
         # 192.168.100.64: same NetBird address as above.
+        # Relay (outbound to internet) permitted only from the NetBird overlay
+        # (the Local Stalwart, reaching mail-edge over NetBird). Anti-open-relay.
         - name: POSTFIX_mynetworks
-          value: "100.64.0.0/10 192.168.100.64/32 127.0.0.0/8 [::1]/128"
+          value: "100.64.0.0/10 127.0.0.0/8 [::1]/128"
         # No SASL / no public login: relaying is permit_mynetworks only.
         - {name: POSTFIX_smtpd_relay_restrictions, value: "permit_mynetworks reject_unauth_destination"}
         # STARTTLS on :25 (opportunistic) using the cert-manager certificate.
@@ -214,10 +218,10 @@ spec:
   # mail on the same :25 listener. NOTE: Cilium classifies NetBird (CGNAT)
   # peers as `world`, so at L3 this rule is a subset of the world rule above;
   # the actual "relay only from the Local Stalwart peer" boundary is enforced
-  # by Postfix `mynetworks`. This rule documents the intended source.
-  # 192.168.100.64: the Local Stalwart NetBird address.
+  # by Postfix `mynetworks` (100.64.0.0/10). This rule documents the source:
+  # the Local Stalwart reaching mail-edge over NetBird.
   - fromCIDRSet:
-    - cidr: 192.168.100.64/32
+    - cidr: 100.64.0.0/10
     toPorts:
     - ports:
       - {protocol: TCP, port: '25'}
@@ -228,10 +232,10 @@ spec:
     - ports:
       - {protocol: TCP, port: '25'}
   # Inbound forward: deliver dev3.sedware.net mail to the Local Stalwart backend
-  # over NetBird on :25.
-  # 192.168.100.64: the Local Stalwart NetBird address.
+  # over NetBird on :25, via the Local Private Edge (Envoy) mail-smtp listener.
+  # 100.83.243.245: the Local Private Edge (dev-manager) NetBird address.
   - toCIDRSet:
-    - cidr: 192.168.100.64/32
+    - cidr: 100.83.243.245/32
     toPorts:
     - ports:
       - {protocol: TCP, port: '25'}

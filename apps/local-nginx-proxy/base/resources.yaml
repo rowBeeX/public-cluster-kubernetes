@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-local-nginx-proxy
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  labels:
+    app.kubernetes.io/part-of: public-cluster
+    app.kubernetes.io/managed-by: argocd
+    core.sedware.net/owner: tobias
+    core.sedware.net/purpose: application
+    core.sedware.net/environment: dev
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.35
+---
+# Public edge entry for the LOCAL cluster's nginx test server.
+#
+# The local cluster has no public NIC (LAN + NetBird only); the public cluster is
+# the only internet edge. So `local-nginx.dev3.sedware.net` is published HERE, on
+# the public Envoy edge, and forwarded over NetBird to the nginx running in the
+# local cluster — the same public→local pattern the Mail Edge uses for SMTP.
+#
+#   Internet ─▶ public Envoy edge (TLS, *.dev3.sedware.net wildcard)
+#            ─▶ (NetBird) ─▶ local-nginx Service externalIP 192.168.100.10:8080
+#
+# The public edge terminates TLS with the shared wildcard cert; the hop to the
+# local cluster is plain HTTP inside the encrypted NetBird tunnel, so the client
+# still gets valid HTTPS end-to-end.
+#
+# This app owns no pods — only the route + a selector-less Service whose endpoints
+# are managed by the EndpointSlice below (the k8s-native way to route a Gateway
+# HTTPRoute at an out-of-cluster address).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: local-nginx, namespace: app-local-nginx-proxy}
+spec:
+  parentRefs:
+    - {name: public-dev, namespace: gateway-system, sectionName: https}
+  hostnames: [local-nginx.dev3.sedware.net]
+  rules:
+    - matches:
+        - path: {type: PathPrefix, value: /}
+      backendRefs:
+        - {name: local-nginx-upstream, port: 80}
+---
+# Selector-less Service — endpoints come from the manual EndpointSlice below.
+apiVersion: v1
+kind: Service
+metadata: {name: local-nginx-upstream, namespace: app-local-nginx-proxy}
+spec:
+  type: ClusterIP
+  ports:
+    - {name: http, port: 80, protocol: TCP, targetPort: 8080}
+---
+# The cross-cluster upstream: the local-nginx Service externalIP, reachable from
+# the public gateway nodes over NetBird. 192.168.100.10 is the local manager's LAN
+# IP (the local-nginx Service in local-cluster-kubernetes announces its externalIP
+# there); NetBird routes 192.168.100.0/24 to the local peer (same route Mail Edge
+# relies on).
+#
+# INTEGRATOR: confirm this matches the local-nginx externalIP+port and that a
+# NetBird route to 192.168.100.0/24 exists (mirrors Mail Edge's REPLACE_ME step).
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: local-nginx-upstream
+  namespace: app-local-nginx-proxy
+  labels:
+    kubernetes.io/service-name: local-nginx-upstream
+addressType: IPv4
+endpoints:
+  - addresses: [192.168.100.10]
+ports:
+  - {name: http, port: 8080, protocol: TCP}
