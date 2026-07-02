@@ -1,11 +1,11 @@
 # local-nginx-proxy — public edge entry for the local cluster's nginx
 
-Publishes **https://local-nginx.dev3.sedware.net** on the public Envoy edge and
+Publishes **https://local-nginx.dev4.sedware.net** on the public Envoy edge and
 forwards it, over NetBird, to the nginx test server that runs in the **local**
 cluster (`apps/local-nginx` in `local-cluster-kubernetes`).
 
 ```
-Internet ─▶ public Envoy edge (TLS, *.dev3.sedware.net wildcard)
+Internet ─▶ public Envoy edge (TLS, *.dev4.sedware.net wildcard)
          ─▶ (NetBird) ─▶ local-nginx Service externalIP 192.168.100.10:8080 ─▶ nginx :8080
 ```
 
@@ -13,11 +13,11 @@ Internet ─▶ public Envoy edge (TLS, *.dev3.sedware.net wildcard)
 
 The local cluster has **no public NIC** — it is reachable only over LAN/NetBird,
 and the public cluster is the only internet edge. To give a *local-cluster*
-service a real internet HTTPS URL under `dev3.sedware.net`, the request must enter
+service a real internet HTTPS URL under `dev4.sedware.net`, the request must enter
 at the public edge and be proxied across. This mirrors the **Mail Edge**
 (`apps/mail-edge`) public→local pattern, but for HTTP:
 
-- The public `public-dev` Gateway already serves `*.dev3.sedware.net` with the
+- The public `public-dev` Gateway already serves `*.dev4.sedware.net` with the
   wildcard cert, so **no platform change is needed on the public side** — TLS
   terminates at the edge with a valid cert.
 - The route's backend is a **selector-less Service** whose endpoints are set by a

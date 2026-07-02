@@ -62,7 +62,7 @@ metadata:
 spec:
   parentRefs:
     - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [smoke.dev3.sedware.net]
+  hostnames: [smoke.dev4.sedware.net]
   rules:
     - matches:
         - path: {type: PathPrefix, value: /}

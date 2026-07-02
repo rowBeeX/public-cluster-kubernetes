@@ -16,11 +16,11 @@ metadata:
 # Public edge entry for the LOCAL cluster's nginx test server.
 #
 # The local cluster has no public NIC (LAN + NetBird only); the public cluster is
-# the only internet edge. So `local-nginx.dev3.sedware.net` is published HERE, on
+# the only internet edge. So `local-nginx.dev4.sedware.net` is published HERE, on
 # the public Envoy edge, and forwarded over NetBird to the nginx running in the
 # local cluster — the same public→local pattern the Mail Edge uses for SMTP.
 #
-#   Internet ─▶ public Envoy edge (TLS, *.dev3.sedware.net wildcard)
+#   Internet ─▶ public Envoy edge (TLS, *.dev4.sedware.net wildcard)
 #            ─▶ (NetBird) ─▶ local-nginx Service externalIP 192.168.100.10:8080
 #
 # The public edge terminates TLS with the shared wildcard cert; the hop to the
@@ -36,7 +36,7 @@ metadata: {name: local-nginx, namespace: app-local-nginx-proxy}
 spec:
   parentRefs:
     - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [local-nginx.dev3.sedware.net]
+  hostnames: [local-nginx.dev4.sedware.net]
   rules:
     - matches:
         - path: {type: PathPrefix, value: /}

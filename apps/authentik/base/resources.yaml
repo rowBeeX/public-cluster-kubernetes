@@ -300,7 +300,7 @@ metadata: {name: authentik, namespace: app-authentik}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [authentik.dev3.sedware.net]
+  hostnames: [authentik.dev4.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}

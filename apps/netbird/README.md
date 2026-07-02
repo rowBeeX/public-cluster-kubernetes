@@ -9,7 +9,7 @@ WireGuard-basiertes VPN-Management für den Public-Cluster und verbundene Client
 | netbird-server StatefulSet | Management-Server (HTTP + STUN UDP 3478) |
 | netbird-dashboard Deployment | Web-UI (2 Replicas) |
 | netbird-stun Service | STUN-Dienst mit `externalIPs` auf den Cilium-Nodes |
-| netbird-relay Deployment | WebSocket-Relay (§8/§21), Port 33080, öffentlich `rels://netbird-relay.dev3.sedware.net:443` |
+| netbird-relay Deployment | WebSocket-Relay (§8/§21), Port 33080, öffentlich `rels://netbird-relay.dev4.sedware.net:443` |
 
 ## Besonderheiten
 
@@ -34,16 +34,16 @@ werden — hier werden **keine** echten Secret-Werte hinterlegt:
 
    ```json
    "Relay": {
-       "Addresses": ["rels://netbird-relay.dev3.sedware.net:443"],
+       "Addresses": ["rels://netbird-relay.dev4.sedware.net:443"],
        "CredentialsTTL": "24h",
        "Secret": "<gleicher Wert wie NB_AUTH_SECRET>"
    }
    ```
 
-3. DNS-Record `netbird-relay.dev3.sedware.net` auf die Gateway-Nodes zeigen lassen
-   (analog zu den übrigen `*.dev3.sedware.net` Hosts).
+3. DNS-Record `netbird-relay.dev4.sedware.net` auf die Gateway-Nodes zeigen lassen
+   (analog zu den übrigen `*.dev4.sedware.net` Hosts).
 
 ## Zugang
 
-- Dashboard: `https://netbird.dev3.sedware.net/` (nur über VPN)
+- Dashboard: `https://netbird.dev4.sedware.net/` (nur über VPN)
 - Management API: intern via `netbird-server.app-netbird.svc`

@@ -1,17 +1,17 @@
 # public-nginx — public internet-facing test server
 
-A minimal static nginx served at **https://public-nginx.dev3.sedware.net** over
+A minimal static nginx served at **https://public-nginx.dev4.sedware.net** over
 the public Envoy edge. Sibling of [`smoke`](../smoke); it exists to demonstrate
 an ordinary web app reaching the internet end-to-end from the public cluster.
 
 ```
-Internet ─▶ public Envoy edge (TLS, *.dev3.sedware.net wildcard cert) ─▶ public-nginx :8080
+Internet ─▶ public Envoy edge (TLS, *.dev4.sedware.net wildcard cert) ─▶ public-nginx :8080
 ```
 
 ## Why it "just works"
 
 The public `public-dev` Gateway already has an `https` listener for
-`*.dev3.sedware.net` with the `public-dev-wildcard-tls` LE certificate, and the
+`*.dev4.sedware.net` with the `public-dev-wildcard-tls` LE certificate, and the
 public edge binds the real `:80`/`:443` dual-stack. So no platform change is
 needed — only this app plus a DNS record.
 

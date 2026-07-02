@@ -243,7 +243,7 @@ metadata: {name: netbird-dashboard, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird.dev3.sedware.net]
+  hostnames: [netbird.dev4.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
@@ -256,7 +256,7 @@ metadata: {name: netbird-control-http, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev3.sedware.net]
+  hostnames: [netbird-control.dev4.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
@@ -269,7 +269,7 @@ metadata: {name: netbird-control-grpc, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev3.sedware.net]
+  hostnames: [netbird-control.dev4.sedware.net]
   rules:
   - backendRefs:
     - {name: netbird-server, port: 80}
@@ -309,7 +309,7 @@ spec:
         - {name: NB_LISTEN_ADDRESS, value: ":33080"}
         # Public WSS endpoint advertised to peers by the management server.
         # Scheme rels:// = WebSocket-over-TLS (TLS terminated at the Gateway).
-        - {name: NB_EXPOSED_ADDRESS, value: "rels://netbird-relay.dev3.sedware.net:443"}
+        - {name: NB_EXPOSED_ADDRESS, value: "rels://netbird-relay.dev4.sedware.net:443"}
         # Shared HMAC secret with the management server. Provided out-of-band via
         # the same SOPS/public-cluster-nix mechanism as the netbird-config Secret;
         # its value MUST equal management config Relay.Secret (see README).
@@ -343,7 +343,7 @@ metadata: {name: netbird-relay, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-relay.dev3.sedware.net]
+  hostnames: [netbird-relay.dev4.sedware.net]
   # WebSocket upgrades are enabled by default on Envoy Gateway HTTP routes,
   # so no extra BackendTrafficPolicy protocol-upgrade config is required here.
   rules:

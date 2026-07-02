@@ -36,8 +36,8 @@ docs/configuration/index.md, docs/migration/proxy/…) and the boky/postfix READ
 
 ## How the two directions are configured
 
-- **Inbound MX** — `POSTFIX_relay_domains=dev3.sedware.net` accepts mail for the
-  domain; `POSTFIX_transport_maps=inline:{ dev3.sedware.net=smtp:[<stalwart>]:25 }`
+- **Inbound MX** — `POSTFIX_relay_domains=dev4.sedware.net` accepts mail for the
+  domain; `POSTFIX_transport_maps=inline:{ dev4.sedware.net=smtp:[<stalwart>]:25 }`
   forwards it to the Local Stalwart backend (`[...]` = no MX lookup).
 - **Outbound relay** — `POSTFIX_mynetworks` lists **only** the Local Stalwart
   NetBird address (+ loopback), so only that peer may relay to arbitrary
@@ -45,7 +45,7 @@ docs/configuration/index.md, docs/migration/proxy/…) and the boky/postfix READ
   is the anti-open-relay boundary (`smtpd_relay_restrictions =
   permit_mynetworks reject_unauth_destination`, no SASL).
 - **TLS** — STARTTLS on :25 using the cert-manager `Certificate` `mail-edge-tls`
-  (`mail.dev3.sedware.net`, DNS-01 via ClusterIssuer `letsencrypt-dev`). The
+  (`mail.dev4.sedware.net`, DNS-01 via ClusterIssuer `letsencrypt-dev`). The
   gateway-system wildcard secret is deliberately not reused cross-namespace.
 
 ## Exposure & security
@@ -80,6 +80,6 @@ docs/configuration/index.md, docs/migration/proxy/…) and the boky/postfix READ
    `apps/stalwart/README.md` (data-store smarthost routing).
 3. **Image digest.** Pin `docker.io/boky/postfix:v4.4.0@sha256:…` before merge
    (repo convention). The tag could not be digest-verified offline.
-4. **DNS.** Publish an MX record for `dev3.sedware.net` → `mail.dev3.sedware.net`
-   and an A record for `mail.dev3.sedware.net` → the public gateway IP(s), plus
+4. **DNS.** Publish an MX record for `dev4.sedware.net` → `mail.dev4.sedware.net`
+   and an A record for `mail.dev4.sedware.net` → the public gateway IP(s), plus
    SPF/DKIM/DMARC as appropriate (out of scope for this manifest).

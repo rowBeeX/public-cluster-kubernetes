@@ -53,7 +53,7 @@ spec:
     kind: ClusterIssuer
     name: letsencrypt-dev
   dnsNames:
-    - mail.dev3.sedware.net
+    - mail.dev4.sedware.net
 ---
 # Durable queue spool. A mail relay defers mail for temporarily-unreachable
 # destinations, so the Postfix queue (/var/spool/postfix) must survive pod
@@ -109,14 +109,14 @@ spec:
         # public internet can submit inbound MX mail), authorization is by
         # recipient (relay_domains) and by source network (mynetworks) below.
         - {name: ALLOW_EMPTY_SENDER_DOMAINS, value: "true"}
-        - {name: POSTFIX_myhostname, value: mail.dev3.sedware.net}
+        - {name: POSTFIX_myhostname, value: mail.dev4.sedware.net}
         - {name: POSTFIX_inet_protocols, value: ipv4}
-        # This box is final destination for NO domain (dev3 is a *relay* domain,
+        # This box is final destination for NO domain (dev4 is a *relay* domain,
         # delivered onward to the Local Stalwart backend, not a local mailbox).
         - {name: POSTFIX_mydestination, value: ""}
         # --- Inbound: Internet :25 -> Mail Edge -> Local Stalwart -------------
-        # Accept inbound mail addressed to dev3.sedware.net ...
-        - {name: POSTFIX_relay_domains, value: dev3.sedware.net}
+        # Accept inbound mail addressed to dev4.sedware.net ...
+        - {name: POSTFIX_relay_domains, value: dev4.sedware.net}
         # ... and forward it to the Local Stalwart backend over NetBird via the
         # Local Private Edge (Envoy) mail-smtp listener. The [host] brackets
         # disable MX lookup (deliver straight to that address).
@@ -124,7 +124,7 @@ spec:
         # its :25 TCPRoute forwards to the Stalwart ClusterIP. mail-edge egresses
         # to this NetBird IP (masqueraded by its node) — no ingress-DNAT needed.
         - name: POSTFIX_transport_maps
-          value: "inline:{ dev3.sedware.net=smtp:[100.83.243.245]:25 }"
+          value: "inline:{ dev4.sedware.net=smtp:[100.83.243.245]:25 }"
         # --- Outbound: Local Stalwart -> Mail Edge -> Internet :25 ------------
         # ONLY the Local Stalwart peer may relay to arbitrary (internet)
         # destinations. Everything else may only reach relay_domains. This is the
@@ -231,7 +231,7 @@ spec:
     toPorts:
     - ports:
       - {protocol: TCP, port: '25'}
-  # Inbound forward: deliver dev3.sedware.net mail to the Local Stalwart backend
+  # Inbound forward: deliver dev4.sedware.net mail to the Local Stalwart backend
   # over NetBird on :25, via the Local Private Edge (Envoy) mail-smtp listener.
   # 100.83.243.245: the Local Private Edge (dev-manager) NetBird address.
   - toCIDRSet:
