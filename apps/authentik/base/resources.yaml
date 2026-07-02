@@ -250,8 +250,12 @@ metadata: {name: allow-required-cilium-flows, namespace: app-authentik}
 spec:
   endpointSelector: {}
   ingress:
+  # Public HTTP edge is now the Envoy Gateway. Its proxies run hostNetwork on the
+  # gateway nodes, so Cilium sees them as host / remote-node (not the removed
+  # Cilium-gateway reserved:ingress identity).
   - fromEntities:
-    - ingress
+    - host
+    - remote-node
     toPorts:
     - ports:
       - port: '9000'
@@ -296,7 +300,7 @@ metadata: {name: authentik, namespace: app-authentik}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [authentik.dev2.sedware.net]
+  hostnames: [authentik.dev3.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}

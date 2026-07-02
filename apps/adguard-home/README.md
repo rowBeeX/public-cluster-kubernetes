@@ -11,5 +11,5 @@ DNS-Resolver mit Rewrite-Regeln für den Public-Cluster.
 
 ## Zugang
 
-- Web-UI: `https://adguard.dev2.sedware.net/` (nur über NetBird)
-- DNS: UDP/TCP 53 direkt auf den Cilium-Gateway-Nodes
+- Web-UI: nur über NetBird erreichbar (keine öffentliche Envoy-Route, kein öffentlicher DNS-Eintrag)
+- DNS: UDP/TCP 53 direkt auf Host-1 (hostNetwork), nur für NetBird-Peers und ausdrücklich erlaubte interne Quellen — kein offener öffentlicher Resolver

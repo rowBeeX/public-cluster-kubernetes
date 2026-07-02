@@ -11,7 +11,7 @@ description: Operate and diagnose the public k3s cluster and its Argo CD applica
   resources live.
 - Host 1 is the single control plane; Host 2 is an agent. This is deliberately
   not HA.
-- HTTP path: external Dev DNS (`*.dev2.sedware.net`) -> public Dev Gateway
+- HTTP path: external Dev DNS (`*.dev3.sedware.net`) -> public Dev Gateway
   nodes -> Cilium Gateway API -> HTTPRoute -> ClusterIP Service -> Pod. TLS is
   terminated at the Cilium Gateway with the cert-manager wildcard certificate
   (Cloudflare DNS-01). There is no HAProxy, Traefik, NodePort or Kubernetes

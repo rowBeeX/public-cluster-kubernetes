@@ -191,12 +191,16 @@ metadata: {name: allow-required-cilium-flows, namespace: app-netbird}
 spec:
   endpointSelector: {}
   ingress:
+  # Dashboard / Management API / Signal gRPC arrive via the Envoy Gateway, whose
+  # hostNetwork proxies present as host / remote-node (was reserved:ingress).
   - fromEntities:
-    - ingress
+    - host
+    - remote-node
     toPorts:
     - ports:
       - port: '80'
         protocol: TCP
+  # STUN stays a protocol-specific edge path straight from the internet (§9).
   - fromEntities:
     - world
     toPorts:
@@ -239,7 +243,7 @@ metadata: {name: netbird-dashboard, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird.dev2.sedware.net]
+  hostnames: [netbird.dev3.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
@@ -252,7 +256,7 @@ metadata: {name: netbird-control-http, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev2.sedware.net]
+  hostnames: [netbird-control.dev3.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
@@ -265,7 +269,127 @@ metadata: {name: netbird-control-grpc, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev2.sedware.net]
+  hostnames: [netbird-control.dev3.sedware.net]
   rules:
   - backendRefs:
     - {name: netbird-server, port: 80}
+---
+# NetBird Relay (§8/§21): WebSocket relay for peers that cannot NAT-traverse.
+# TLS is terminated at the Envoy Gateway (https listener, 443); the relay itself
+# speaks plain HTTP/1.1 + WebSocket on a high, unprivileged port (33080), so the
+# client-facing endpoint uses the rels:// (WSS) scheme via the public hostname.
+apiVersion: v1
+kind: Service
+metadata: {name: netbird-relay, namespace: app-netbird}
+spec:
+  selector: {app.kubernetes.io/name: netbird-relay}
+  ports:
+  - {name: relay, port: 80, targetPort: relay}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: netbird-relay, namespace: app-netbird}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: netbird-relay}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: netbird-relay}
+    spec:
+      nodeSelector: {public.sedware.net/control-plane: "true"}
+      containers:
+      - name: relay
+        # No digest pinned: could not verify one offline. Pin @sha256:... to
+        # match the repo convention before merge (tag tracks the NetBird release).
+        image: docker.io/netbirdio/relay:0.72.4@sha256:69efb9388a1f2908459757e407cdd63fc33d65751fc9e3f6749bfd4d14e5e5da
+        env:
+        - {name: NB_LOG_LEVEL, value: info}
+        # Unprivileged listen port keeps the container Restricted-PSS compliant.
+        - {name: NB_LISTEN_ADDRESS, value: ":33080"}
+        # Public WSS endpoint advertised to peers by the management server.
+        # Scheme rels:// = WebSocket-over-TLS (TLS terminated at the Gateway).
+        - {name: NB_EXPOSED_ADDRESS, value: "rels://netbird-relay.dev3.sedware.net:443"}
+        # Shared HMAC secret with the management server. Provided out-of-band via
+        # the same SOPS/public-cluster-nix mechanism as the netbird-config Secret;
+        # its value MUST equal management config Relay.Secret (see README).
+        - name: NB_AUTH_SECRET
+          valueFrom:
+            secretKeyRef: {name: netbird-relay-auth, key: NB_AUTH_SECRET}
+        ports:
+        - {name: relay, containerPort: 33080}
+        readinessProbe:
+          tcpSocket: {port: relay}
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket: {port: relay}
+          initialDelaySeconds: 15
+          periodSeconds: 30
+        resources:
+          requests: {cpu: 25m, memory: 64Mi}
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+          readOnlyRootFilesystem: true
+          seccompProfile: {type: RuntimeDefault}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: netbird-relay, namespace: app-netbird}
+spec:
+  parentRefs:
+  - {name: public-dev, namespace: gateway-system, sectionName: https}
+  hostnames: [netbird-relay.dev3.sedware.net]
+  # WebSocket upgrades are enabled by default on Envoy Gateway HTTP routes,
+  # so no extra BackendTrafficPolicy protocol-upgrade config is required here.
+  rules:
+  - matches:
+    - path: {type: PathPrefix, value: /}
+    backendRefs:
+    - {name: netbird-relay, port: 80}
+---
+# Edge ingress for the relay. Envoy proxies run hostNetwork, so Cilium sees the
+# terminated edge traffic as reserved:host / reserved:remote-node (same pattern
+# as allow-required-cilium-flows). default-deny + the namespace-wide egress DNS
+# rule in allow-required-cilium-flows already cover this pod; this policy only
+# opens the relay's WebSocket port to the Gateway nodes.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-relay-edge-ingress, namespace: app-netbird}
+spec:
+  endpointSelector:
+    matchLabels: {app.kubernetes.io/name: netbird-relay}
+  ingress:
+  - fromEntities:
+    - host
+    - remote-node
+    toPorts:
+    - ports:
+      - port: '33080'
+        protocol: TCP
+---
+# Envoy Gateway v1.8 (gateway.envoyproxy.io/v1alpha1). Reproduces the old Cilium
+# edge setting proxy-stream-idle-timeout-seconds=86400: Envoy's per-stream idle
+# timeout defaults to 5 minutes and silently kills NetBird's long-lived signal
+# gRPC and relay WebSocket streams. BackendTrafficPolicy attaches to routes in
+# this namespace (policy attachment is same-namespace only), so it is owned by
+# this app rather than the gateway-system Gateway.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata: {name: netbird-longlived-streams, namespace: app-netbird}
+spec:
+  targetRefs:
+  - {group: gateway.networking.k8s.io, kind: GRPCRoute, name: netbird-control-grpc}
+  - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: netbird-relay}
+  timeout:
+    http:
+      # was Cilium proxy-stream-idle-timeout-seconds=86400 (default 5m).
+      streamIdleTimeout: 24h
+      # keep the upstream HTTP connection warm across quiet periods (default 1h).
+      connectionIdleTimeout: 24h
+      # never force-close a healthy long-lived stream (0s = unlimited).
+      maxStreamDuration: 0s
