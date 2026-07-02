@@ -31,7 +31,4 @@ needed — only this app plus a DNS record.
 publishes A/AAAA round-robin to both public hosts. Run `cloudflare_dns.py` +
 `cloudflare_dns_verify.py` to apply.
 
-## Placeholders an integrator MUST fill in
-
-- **Image digest** — pin `docker.io/nginxinc/nginx-unprivileged:1.29-alpine@sha256:…`
-  before merge (repo convention; the tag could not be digest-verified offline).
+The nginx image is digest-pinned (`nginx-unprivileged:1.29-alpine@sha256:0c79d56…`).
