@@ -14,7 +14,6 @@ apps/
       resources.yaml          workloads, Services, routes and Cilium policies
     overlays/dev/
       kustomization.yaml      active Dev substitutions
-  smoke/                      stateless public lightweight edge smoke app
 docs/
   architecture.md
   structure.md

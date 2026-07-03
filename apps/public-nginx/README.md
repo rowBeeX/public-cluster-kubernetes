@@ -1,8 +1,9 @@
 # public-nginx — public internet-facing test server
 
 A minimal static nginx served at **https://public-nginx.dev5.sedware.net** over
-the public Envoy edge. Sibling of [`smoke`](../smoke); it exists to demonstrate
-an ordinary web app reaching the internet end-to-end from the public cluster.
+the public Envoy edge. It is the single public-edge test app and exists to
+demonstrate an ordinary web app reaching the internet end-to-end from the public
+cluster.
 
 ```
 Internet ─▶ public Envoy edge (TLS, *.dev5.sedware.net wildcard cert) ─▶ public-nginx :8080
@@ -22,7 +23,7 @@ needed — only this app plus a DNS record.
   `readOnlyRootFilesystem`, `drop: [ALL]`; writable dirs are `emptyDir`s).
 - `HTTPRoute` attaches to `gateway-system/public-dev` `sectionName: https`.
 - CiliumNetworkPolicies: `default-deny` + `allow-edge-ingress` (ingress only from
-  the hostNetwork Envoy proxies, seen as `host`/`remote-node`), matching `smoke`.
+  the hostNetwork Envoy proxies, seen as `host`/`remote-node`).
 
 ## Required outside this repo
 

@@ -12,8 +12,12 @@ metadata:
     core.sedware.net/environment: dev
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/enforce-version: v1.35
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.35
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.35
 ---
-# Public internet-facing test server (sibling of `smoke`). Serves a static page
+# Public internet-facing test server. Serves a static page
 # at https://public-nginx.dev5.sedware.net over the public Envoy edge, proving an
 # ordinary web app reaches the internet end-to-end (IPv4+IPv6, TLS, routing).
 # nginx-unprivileged listens on 8080 as a non-root user so the namespace can
@@ -36,10 +40,10 @@ metadata: {name: public-nginx, namespace: app-public-nginx}
 spec:
   replicas: 2
   selector:
-    matchLabels: {app: public-nginx}
+    matchLabels: {app.kubernetes.io/name: public-nginx}
   template:
     metadata:
-      labels: {app: public-nginx}
+      labels: {app.kubernetes.io/name: public-nginx}
     spec:
       securityContext:
         runAsNonRoot: true
@@ -56,7 +60,6 @@ spec:
             readOnlyRootFilesystem: true
           resources:
             requests: {cpu: 5m, memory: 16Mi}
-            limits: {memory: 32Mi}
           volumeMounts:
             - {name: html, mountPath: /usr/share/nginx/html, readOnly: true}
             - {name: cache, mountPath: /var/cache/nginx}
@@ -73,7 +76,7 @@ apiVersion: v1
 kind: Service
 metadata: {name: public-nginx, namespace: app-public-nginx}
 spec:
-  selector: {app: public-nginx}
+  selector: {app.kubernetes.io/name: public-nginx}
   ports:
     - {name: http, port: 80, targetPort: http}
 ---
