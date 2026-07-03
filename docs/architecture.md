@@ -17,7 +17,7 @@ IPv4-only; only the Envoy edge accepts external IPv6.
 
 Public HTTP/gRPC/WebSocket services on Envoy Gateway: Authentik (public OIDC
 provider), the NetBird dashboard, management API, signal gRPC and relay WebSocket
-endpoints, and a stateless lightweight smoke app that proves the edge
+endpoints, and a stateless `public-nginx` test app that proves the edge
 (IPv4/IPv6, TLS, HTTP/2, routing, logs, policy).
 
 Non-HTTP protocols get their own protocol-specific paths, never Envoy:
@@ -53,8 +53,7 @@ flowchart TB
     authentik["authentik (OIDC/SSO :9000)"]
     nbdash["netbird dashboard"]
     nbmgmt["netbird mgmt API + signal gRPC + relay WSS"]
-    pubnginx["public-nginx"]
-    smoke["smoke (whoami)"]
+    pubnginx["public-nginx (whoami)"]
     lnproxy["local-nginx-proxy (HTTPRoute + Backend + BackendTLSPolicy)"]
     stunsvc["netbird-stun Service (externalIPs UDP 3478)"]
     mailedge["mail-edge Postfix (externalIPs :25 STARTTLS mail.dev5)"]
@@ -66,7 +65,6 @@ flowchart TB
   envoy -->|HTTPRoute| nbdash
   envoy -->|HTTPRoute / GRPCRoute| nbmgmt
   envoy -->|HTTPRoute| pubnginx
-  envoy -->|HTTPRoute| smoke
   envoy -->|"HTTPRoute URLRewrite Host local-nginx.local.dev5"| lnproxy
   lnproxy -->|"re-encrypt, verify *.local.dev5 (NetBird)"| localedge
 

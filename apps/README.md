@@ -13,7 +13,6 @@ Kubernetes-Manifeste für die öffentlichen Cluster-Apps. Deployment erfolgt
 | `mail-edge` | `app-mailedge` | Mail Edge / MX-Relay (SMTP :25) vor dem Local-Stalwart-Backend |
 | `public-nginx` | `app-public-nginx` | Öffentlicher nginx-Testserver am Envoy-Edge |
 | `local-nginx-proxy` | `app-local-nginx-proxy` | Öffentlicher Edge-Eingang, re-encrypt zum nginx des lokalen Clusters über NetBird |
-| `smoke` | `app-smoke` | Smoke-Test-App (whoami), prüft den öffentlichen Envoy-Edge end-to-end (kein Produktivdienst) |
 
 ## Konventionen
 
