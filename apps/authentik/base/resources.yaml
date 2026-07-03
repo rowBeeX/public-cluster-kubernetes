@@ -185,6 +185,10 @@ spec:
           exec: {command: [ak, healthcheck]}
           initialDelaySeconds: 60
           periodSeconds: 30
+          # `ak healthcheck` forks a Python process; the default 1s timeout always
+          # expires under load and SIGTERMs the server into a crash loop.
+          timeoutSeconds: 10
+          failureThreshold: 5
         resources:
           requests: {cpu: 150m, memory: 384Mi}
         securityContext:
