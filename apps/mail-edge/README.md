@@ -11,28 +11,9 @@ Outbound: Local Stalwart ─▶ Mail Edge (over NetBird) :25 ─▶ Internet :25
 Direct Internet→Local-Stalwart and direct Local-Stalwart→Internet are forbidden;
 this pod is the only path in both directions.
 
-## Implementation choice — Postfix (not Stalwart)
-
-The brief recommended a file-based (ConfigMap-only) Stalwart relay. That is **not
-cleanly achievable on Stalwart v0.16.x**: the objects that make Stalwart a relay
-— `MtaRoute` (relay/MX routing), the RCPT-stage relay/`allowRelaying` policy and
-the local-domain directory — live in Stalwart's **settings/config STORE** and are
-provisioned through the web-admin / settings API, not as declarative TOML keys.
-The on-disk `--config` file in v0.16 is only a store definition (`{"@type":"RocksDb",...}`),
-and Stalwart's only pure-TOML mode is an L7 **mail proxy** (credential-based
-reverse proxy for IMAP/SMTP/HTTP), which does not do MX lookups or outbound
-internet delivery. A file-only Stalwart relay would therefore still need a data
-store + a settings-API seed Job — exactly the non-declarative pattern we are
-trying to avoid.
-
-So this app uses **Postfix** (`boky/postfix`), the canonical, fully-declarative
-k8s-native SMTP relay. All configuration is expressed as env vars (the image
-applies each `POSTFIX_<param>` via `postconf`), no data store and no accounts.
-
-Docs consulted: Stalwart MTA routing / RCPT relay
-(`/stalwartlabs/website` — docs/mta/outbound/routing.md, docs/mta/inbound/rcpt.md,
-docs/configuration/index.md, docs/migration/proxy/…) and the boky/postfix README
-(<https://github.com/bokysan/docker-postfix>).
+The edge runs **Postfix** (`boky/postfix`): a fully-declarative, k8s-native SMTP
+relay whose entire configuration is env vars (the image applies each
+`POSTFIX_<param>` via `postconf`), with no data store and no accounts.
 
 ## How the two directions are configured
 
@@ -52,7 +33,7 @@ docs/configuration/index.md, docs/migration/proxy/…) and the boky/postfix READ
 
 - Inbound Service `mail-edge-smtp` uses `externalIPs: [192.168.101.10,
   192.168.101.11]` (the netbird-stun "no host proxy" pattern), Cilium-announced.
-  Not via the Envoy/Cilium Gateway (HTTP-only). On node-IP changes, update the
+  Not via the Envoy Gateway (which is HTTP-only). On node-IP changes, update the
   Service and the firewall rule in `public-cluster-nix`.
 - Host firewall: TCP 25 is opened on the gateway nodes' LAN/WAN interface in
   `public-cluster-nix` (`roles/public/cluster-server.nix` + `cluster-agent.nix`),
@@ -67,19 +48,16 @@ docs/configuration/index.md, docs/migration/proxy/…) and the boky/postfix READ
 - Single replica + RWO PVC `mail-edge-spool` for the queue (deferred mail must
   survive restarts; a Postfix spool cannot be shared across replicas).
 
-## Placeholders / manual steps an integrator MUST fill in
+## Integration points
 
-1. **`REPLACE_ME_LOCAL_STALWART_NETBIRD_IP`** (in `base/resources.yaml`, three
-   places: `POSTFIX_transport_maps`, `POSTFIX_mynetworks`, and both the ingress
-   and egress `cidr` fields of the `allow-mail-flows` CNP). Set to the Local
-   Stalwart pod's NetBird/relay address. Not knowable at manifest time.
-2. **Local Stalwart → Mail Edge reachability.** For the outbound direction, the
-   Local cluster must be able to dial this pod over NetBird (a NetBird network
-   route to the Mail Edge Service/pod). The address the Local Stalwart smarthost
-   points at is `REPLACE_ME_MAIL_EDGE_NETBIRD_IP` — see the Local repo
-   `apps/stalwart/README.md` (data-store smarthost routing).
-3. **Image digest.** Pin `docker.io/boky/postfix:v4.4.0@sha256:…` before merge
-   (repo convention). The tag could not be digest-verified offline.
-4. **DNS.** Publish an MX record for `dev5.sedware.net` → `mail.dev5.sedware.net`
-   and an A record for `mail.dev5.sedware.net` → the public gateway IP(s), plus
-   SPF/DKIM/DMARC as appropriate (out of scope for this manifest).
+- **Local Stalwart backend.** `POSTFIX_transport_maps` forwards `dev5.sedware.net`
+  to `smtp:[dev-manager.nb.dev5.sedware.net]:25` — the stable NetBird peer FQDN of
+  the Local Private Edge, resolved at delivery time. Outbound relay is allowed only
+  from the NetBird CGNAT range `100.64.0.0/10` (`POSTFIX_mynetworks`), so only the
+  Local Stalwart peer may relay to arbitrary destinations.
+- **Local Stalwart → Mail Edge reachability.** For the outbound direction the Local
+  cluster dials this pod over NetBird; the Local Stalwart smarthost points at this
+  edge — see the Local repo `apps/stalwart/README.md`.
+- **DNS.** An MX record `dev5.sedware.net` → `mail.dev5.sedware.net` and an A/AAAA
+  record `mail.dev5.sedware.net` → the public gateway IP(s), plus SPF/DKIM/DMARC,
+  are published via Cloudflare (out of scope for this manifest).

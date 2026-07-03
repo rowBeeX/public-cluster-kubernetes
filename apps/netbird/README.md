@@ -45,5 +45,7 @@ werden — hier werden **keine** echten Secret-Werte hinterlegt:
 
 ## Zugang
 
-- Dashboard: `https://netbird.dev5.sedware.net/` (nur über VPN)
+- Dashboard: `https://netbird.dev5.sedware.net/` — öffentlich über den Envoy-Edge
+  (`public-dev`) per HTTPRoute erreichbar; abgesichert durch Authentik-OIDC-Login,
+  nicht durch eine Netzwerk-/CNP-Beschränkung
 - Management API: intern via `netbird-server.app-netbird.svc`

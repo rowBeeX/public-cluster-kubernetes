@@ -300,8 +300,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: relay
-        # No digest pinned: could not verify one offline. Pin @sha256:... to
-        # match the repo convention before merge (tag tracks the NetBird release).
+        # Tag tracks the NetBird release; digest-pinned per repo convention.
         image: docker.io/netbirdio/relay:0.72.4@sha256:69efb9388a1f2908459757e407cdd63fc33d65751fc9e3f6749bfd4d14e5e5da
         env:
         - {name: NB_LOG_LEVEL, value: info}

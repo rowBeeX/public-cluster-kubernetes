@@ -38,17 +38,14 @@ at the public edge and be proxied across. This mirrors the **Mail Edge**
 This app owns **no pods** — just the `HTTPRoute`, the Envoy Gateway `Backend`, and
 the `BackendTLSPolicy`.
 
-## Placeholders / manual steps an integrator MUST fill in
+## Integration points
 
-1. **Upstream peer FQDN** (`Backend` → `dev-manager.nb.dev5.sedware.net:443`). This
-   is the stable NetBird peer FQDN of the Local Private Edge (dev-manager); the
-   public gateway nodes reach it directly as NetBird peers. No `192.168.100.0/24`
-   LAN NetBird route, no `externalIP`, and no local `:8080` firewall opening are
-   required.
-2. **DNS.** `local-nginx` is added to `PUBLIC_EDGE_HOSTS` in
-   `cluster-testing/{public,local}-cluster/nix/config.py`, so it resolves to the
-   public edge (which then proxies to the local cluster). Run `cloudflare_dns.py`.
-
-See commit `6cf4962`, which migrated the implementation from the earlier
-selector-less Service + manual EndpointSlice model to the current Envoy Gateway
-`Backend` + `BackendTLSPolicy` re-encrypt flow.
+- **Upstream peer FQDN** (`Backend` → `dev-manager.nb.dev5.sedware.net:443`). This
+  is the stable NetBird peer FQDN of the Local Private Edge (dev-manager); the
+  public gateway nodes reach it directly as NetBird peers. No `192.168.100.0/24`
+  LAN NetBird route, no `externalIP`, and no local `:8080` firewall opening are
+  required.
+- **DNS.** `local-nginx` is in `PUBLIC_EDGE_HOSTS` in
+  `cluster-testing/{public,local}-cluster/nix/config.py`, so it resolves to the
+  public edge (which then proxies to the local cluster); published by
+  `cloudflare_dns.py`.

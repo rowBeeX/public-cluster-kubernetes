@@ -7,7 +7,7 @@ OIDC-Provider für alle öffentlichen Cluster-Dienste.
 | Ressource | Beschreibung |
 |-----------|-------------|
 | PostgreSQL StatefulSet | Dedizierte Datenbank (local-path PVC) |
-| Valkey Deployment | Redis-kompatibler Cache (kein nodeSelector — Achtung bei Node-Ausfall) |
+| Valkey Deployment | Redis-kompatibler Cache (nodeSelector `public.sedware.net/control-plane=true`) |
 | Authentik Server (2 Replicas) | HTTP-Server, OIDC-Endpunkte, Admin-UI |
 | Authentik Worker (1 Replica) | Hintergrund-Tasks (E-Mail, Events) |
 | authentik-media PVC | Medien-Speicher (public-shared-bulk, ReadWriteMany) |
@@ -20,5 +20,7 @@ Kommen aus SOPS via `public-cluster-nix/secrets/dev/public-cluster-host-1.yaml`:
 
 ## Zugang
 
-- Admin-UI: `https://authentik.dev5.sedware.net/if/admin/` (nur über NetBird)
+- Admin-UI: `https://authentik.dev5.sedware.net/if/admin/` — erreichbar über den
+  öffentlichen Envoy-Edge (`public-dev`) per HTTPRoute; der Zugang wird durch
+  Authentik-Login geschützt, nicht durch eine Netzwerk-/CNP-Beschränkung
 - OIDC-Issuer: `https://authentik.dev5.sedware.net/application/o/<client>/`
