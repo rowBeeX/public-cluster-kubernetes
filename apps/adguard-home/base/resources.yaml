@@ -137,8 +137,10 @@ spec:
   # AdGuard UI (:3000) is served over the public Envoy edge but locked to the
   # NetBird overlay by a SecurityPolicy (clientCIDRs 100.64.0.0/10); it never
   # reaches the internet (§8/§10). The Envoy proxies run hostNetwork, so their
-  # traffic to this pod carries the host/remote-node identity. DNS (:53) stays a
-  # direct hostNetwork path gated by host nftables on nb-wt0 (see public-cluster-nix).
+  # traffic to this pod carries the host/remote-node identity. DNS (:53) is a
+  # direct hostNetwork path on the NetBird overlay (nb-wt0) — overlay-only, never
+  # internet; overlay reachability is governed by NetBird, not per-port nftables
+  # (see public-cluster-nix roles/public/cluster-server.nix).
   - fromEntities:
     - host
     - remote-node
