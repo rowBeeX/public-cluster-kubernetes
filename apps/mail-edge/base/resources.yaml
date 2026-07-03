@@ -53,7 +53,7 @@ spec:
     kind: ClusterIssuer
     name: letsencrypt-dev
   dnsNames:
-    - mail.dev4.sedware.net
+    - mail.dev5.sedware.net
 ---
 # Durable queue spool. A mail relay defers mail for temporarily-unreachable
 # destinations, so the Postfix queue (/var/spool/postfix) must survive pod
@@ -101,39 +101,35 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: postfix
-        # No digest pinned: could not verify one offline. Pin @sha256:... to
-        # match the repo convention before merge (tag tracks the image release).
         image: docker.io/boky/postfix:v4.4.0@sha256:f3f247fd42528b969e2603ac120d5a5b5db7dfe61f4505c49d438b9ba1822999
         env:
         # Recipient-restricted relay: senders are unrestricted (needed so the
         # public internet can submit inbound MX mail), authorization is by
         # recipient (relay_domains) and by source network (mynetworks) below.
         - {name: ALLOW_EMPTY_SENDER_DOMAINS, value: "true"}
-        - {name: POSTFIX_myhostname, value: mail.dev4.sedware.net}
+        - {name: POSTFIX_myhostname, value: mail.dev5.sedware.net}
         - {name: POSTFIX_inet_protocols, value: ipv4}
-        # This box is final destination for NO domain (dev4 is a *relay* domain,
+        # This box is final destination for NO domain (dev5 is a *relay* domain,
         # delivered onward to the Local Stalwart backend, not a local mailbox).
         - {name: POSTFIX_mydestination, value: ""}
         # --- Inbound: Internet :25 -> Mail Edge -> Local Stalwart -------------
-        # Accept inbound mail addressed to dev4.sedware.net ...
-        - {name: POSTFIX_relay_domains, value: dev4.sedware.net}
+        # Accept inbound mail addressed to dev5.sedware.net ...
+        - {name: POSTFIX_relay_domains, value: dev5.sedware.net}
         # ... and forward it to the Local Stalwart backend over NetBird via the
         # Local Private Edge (Envoy) mail-smtp listener. The [host] brackets
         # disable MX lookup (deliver straight to that address); Postfix still
         # resolves the peer FQDN to its current overlay IP at delivery time
-        # (CoreDNS forwards *.nb.dev4 to AdGuard). The stable peer FQDN — never a
+        # (CoreDNS forwards *.nb.dev5 to AdGuard). The stable peer FQDN — never a
         # raw per-generation overlay IP — is the GitOps source of truth.
-        # dev-manager.nb.dev4.sedware.net: the Local Private Edge (dev-manager)
+        # dev-manager.nb.dev5.sedware.net: the Local Private Edge (dev-manager)
         # NetBird peer; its :25 TCPRoute forwards to the Stalwart ClusterIP.
         - name: POSTFIX_transport_maps
-          value: "inline:{ dev4.sedware.net=smtp:[dev-manager.nb.dev4.sedware.net]:25 }"
+          value: "inline:{ dev5.sedware.net=smtp:[dev-manager.nb.dev5.sedware.net]:25 }"
         # --- Outbound: Local Stalwart -> Mail Edge -> Internet :25 ------------
         # ONLY the Local Stalwart peer may relay to arbitrary (internet)
         # destinations. Everything else may only reach relay_domains. This is the
         # anti-open-relay gate. Overrides boky's default private-range mynetworks.
         # Source is the Local Stalwart reaching mail-edge over the NetBird overlay.
-        # Relay (outbound to internet) permitted only from the NetBird overlay
-        # (the Local Stalwart, reaching mail-edge over NetBird). Anti-open-relay.
         - name: POSTFIX_mynetworks
           value: "100.64.0.0/10 127.0.0.0/8 [::1]/128"
         # No SASL / no public login: relaying is permit_mynetworks only.
@@ -233,10 +229,10 @@ spec:
     toPorts:
     - ports:
       - {protocol: TCP, port: '25'}
-  # Inbound forward: deliver dev4.sedware.net mail to the Local Stalwart backend
+  # Inbound forward: deliver dev5.sedware.net mail to the Local Stalwart backend
   # over NetBird on :25, via the Local Private Edge (Envoy) mail-smtp listener.
   # The Local Private Edge (dev-manager) is reached at its NetBird overlay IP,
-  # resolved at delivery time from dev-manager.nb.dev4.sedware.net. Cilium cannot
+  # resolved at delivery time from dev-manager.nb.dev5.sedware.net. Cilium cannot
   # match a per-connection resolved IP, so allow the stable NetBird overlay CIDR
   # on :25 (same range the inbound rule already trusts).
   - toCIDRSet:

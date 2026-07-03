@@ -16,35 +16,35 @@ metadata:
 # Public edge entry for the LOCAL cluster's nginx test server.
 #
 # The local cluster has no public NIC (LAN + NetBird only); the public cluster is
-# the only internet edge. `local-nginx.dev4.sedware.net` is published HERE and
+# the only internet edge. `local-nginx.dev5.sedware.net` is published HERE and
 # re-encrypted to the LOCAL Envoy edge over NetBird — the same public->local
 # pattern Mail Edge uses for SMTP, but HTTPS end-to-end:
 #
-#   Internet ─▶ public Envoy edge (TLS, *.dev4 wildcard, host local-nginx.dev4)
-#            ─▶ URLRewrite Host: local-nginx.local.dev4.sedware.net
-#            ─▶ Backend local-edge (dev-manager.nb.dev4.sedware.net:443) + origin TLS
-#            ─▶ (NetBird) local Envoy edge :443 (terminates *.local.dev4 wildcard)
-#            ─▶ local HTTPRoute host local-nginx.local.dev4 ─▶ local-nginx ClusterIP
+#   Internet ─▶ public Envoy edge (TLS, *.dev5 wildcard, host local-nginx.dev5)
+#            ─▶ URLRewrite Host: local-nginx.local.dev5.sedware.net
+#            ─▶ Backend local-edge (dev-manager.nb.dev5.sedware.net:443) + origin TLS
+#            ─▶ (NetBird) local Envoy edge :443 (terminates *.local.dev5 wildcard)
+#            ─▶ local HTTPRoute host local-nginx.local.dev5 ─▶ local-nginx ClusterIP
 #
 # No LAN IP, no Cilium LB VIP, no manual LAN EndpointSlice: the origin is the
 # stable NetBird peer FQDN, resolved to the current overlay IPv4 by CoreDNS
-# (*.nb.dev4 forward). TLS is verified end-to-end against the local wildcard cert.
+# (*.nb.dev5 forward). TLS is verified end-to-end against the local wildcard cert.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata: {name: local-nginx, namespace: app-local-nginx-proxy}
 spec:
   parentRefs:
     - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [local-nginx.dev4.sedware.net]
+  hostnames: [local-nginx.dev5.sedware.net]
   rules:
     - matches:
         - path: {type: PathPrefix, value: /}
       filters:
-        # Rewrite Host so the local edge selects its *.local.dev4 wildcard
+        # Rewrite Host so the local edge selects its *.local.dev5 wildcard
         # listener + the local-nginx HTTPRoute; also the SNI verified below.
         - type: URLRewrite
           urlRewrite:
-            hostname: local-nginx.local.dev4.sedware.net
+            hostname: local-nginx.local.dev5.sedware.net
       backendRefs:
         # Port comes from the Backend endpoint (443); no port field here.
         - {group: gateway.envoyproxy.io, kind: Backend, name: local-edge}
@@ -57,9 +57,9 @@ kind: Backend
 metadata: {name: local-edge, namespace: app-local-nginx-proxy}
 spec:
   endpoints:
-    - fqdn: {hostname: dev-manager.nb.dev4.sedware.net, port: 443}
+    - fqdn: {hostname: dev-manager.nb.dev5.sedware.net, port: 443}
 ---
-# Re-encrypt to the local edge and verify its Let's-Encrypt *.local.dev4 wildcard.
+# Re-encrypt to the local edge and verify its Let's-Encrypt *.local.dev5 wildcard.
 # hostname is both the SNI presented (selects the wildcard listener) and the name
 # checked against the cert SANs. LE production chains to ISRG Root X1 (publicly
 # trusted) → the proxy's System trust store, no CA bundle to ship.
@@ -70,5 +70,5 @@ spec:
   targetRefs:
     - {group: gateway.envoyproxy.io, kind: Backend, name: local-edge}
   validation:
-    hostname: local-nginx.local.dev4.sedware.net
+    hostname: local-nginx.local.dev5.sedware.net
     wellKnownCACertificates: System

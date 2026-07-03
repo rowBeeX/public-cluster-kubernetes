@@ -1,6 +1,6 @@
 # Apps — Public Cluster
 
-Kubernetes-Manifeste für die drei öffentlichen Cluster-Apps. Deployment erfolgt
+Kubernetes-Manifeste für die öffentlichen Cluster-Apps. Deployment erfolgt
 über ArgoCD (ApplicationSet aus `public-cluster-nix`).
 
 ## Apps
@@ -10,6 +10,10 @@ Kubernetes-Manifeste für die drei öffentlichen Cluster-Apps. Deployment erfolg
 | `authentik` | `app-authentik` | OIDC-Provider für alle Cluster-Dienste |
 | `netbird` | `app-netbird` | WireGuard-VPN-Management (Server + Dashboard) |
 | `adguard-home` | `app-adguard-home` | DNS-Resolver mit Rewrite-Regeln |
+| `mail-edge` | `app-mailedge` | Mail Edge / MX-Relay (SMTP :25) vor dem Local-Stalwart-Backend |
+| `public-nginx` | `app-public-nginx` | Öffentlicher nginx-Testserver am Envoy-Edge |
+| `local-nginx-proxy` | `app-local-nginx-proxy` | Öffentlicher Edge-Eingang, re-encrypt zum nginx des lokalen Clusters über NetBird |
+| `smoke` | `app-smoke` | Smoke-Test-App (whoami), prüft den öffentlichen Envoy-Edge end-to-end (kein Produktivdienst) |
 
 ## Konventionen
 

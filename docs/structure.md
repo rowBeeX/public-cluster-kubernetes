@@ -4,8 +4,10 @@
 apps/
   adguard-home/               DNS/UI, NetBird-internal only (no public route)
   authentik/                  public OIDC provider (Envoy Gateway)
+  local-nginx-proxy/          public edge entry for the local cluster's nginx (re-encrypt over NetBird)
   mail-edge/                  Mail Edge / MX Relay (SMTP :25, public in/out)
   netbird/                    dashboard/management/signal/relay (Envoy Gateway)
+  public-nginx/               public nginx test server (Envoy Gateway)
     argocd.yaml
     README.md
     base/

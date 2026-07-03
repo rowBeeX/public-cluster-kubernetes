@@ -1,43 +1,54 @@
 # local-nginx-proxy — public edge entry for the local cluster's nginx
 
-Publishes **https://local-nginx.dev4.sedware.net** on the public Envoy edge and
-forwards it, over NetBird, to the nginx test server that runs in the **local**
-cluster (`apps/local-nginx` in `local-cluster-kubernetes`).
+Publishes **https://local-nginx.dev5.sedware.net** on the public Envoy edge and
+re-encrypts it, over NetBird, to the **local** cluster's Envoy edge, which then
+routes to the nginx test server (`apps/local-nginx` in `local-cluster-kubernetes`).
 
 ```
-Internet ─▶ public Envoy edge (TLS, *.dev4.sedware.net wildcard)
-         ─▶ (NetBird) ─▶ local-nginx Service externalIP 192.168.100.10:8080 ─▶ nginx :8080
+Internet ─▶ public Envoy edge (TLS, *.dev5.sedware.net wildcard, host local-nginx.dev5)
+         ─▶ HTTPRoute URLRewrite Host: local-nginx.local.dev5.sedware.net
+         ─▶ Backend local-edge (fqdn dev-manager.nb.dev5.sedware.net:443) + origin TLS
+         ─▶ BackendTLSPolicy re-encrypt (verify *.local.dev5 wildcard, System trust)
+         ─▶ (NetBird) local Envoy edge :443 ─▶ local HTTPRoute ─▶ local-nginx ClusterIP
 ```
 
 ## Why this shape
 
 The local cluster has **no public NIC** — it is reachable only over LAN/NetBird,
 and the public cluster is the only internet edge. To give a *local-cluster*
-service a real internet HTTPS URL under `dev4.sedware.net`, the request must enter
+service a real internet HTTPS URL under `dev5.sedware.net`, the request must enter
 at the public edge and be proxied across. This mirrors the **Mail Edge**
-(`apps/mail-edge`) public→local pattern, but for HTTP:
+(`apps/mail-edge`) public→local pattern, but for HTTPS end-to-end:
 
-- The public `public-dev` Gateway already serves `*.dev4.sedware.net` with the
+- The public `public-dev` Gateway already serves `*.dev5.sedware.net` with the
   wildcard cert, so **no platform change is needed on the public side** — TLS
   terminates at the edge with a valid cert.
-- The route's backend is a **selector-less Service** whose endpoints are set by a
-  **manual EndpointSlice** pointing at the local cluster over NetBird. This is the
-  standard k8s-native way to aim a Gateway `HTTPRoute` at an out-of-cluster
-  address. (Alternative: Envoy Gateway's `Backend` CRD with an IP/FQDN endpoint —
-  not used here to avoid enabling that API.)
+- The `HTTPRoute` rewrites the request `Host` to
+  `local-nginx.local.dev5.sedware.net` and forwards to an Envoy Gateway `Backend`
+  CRD (`local-edge`) whose endpoint is the stable NetBird peer FQDN
+  `dev-manager.nb.dev5.sedware.net:443` — the Local Private Edge. CoreDNS resolves
+  that FQDN to the current overlay IPv4 at runtime (`*.nb.dev5` forward), so no
+  raw per-generation overlay IP, LAN IP or Cilium LB VIP is ever hard-coded.
+- A `BackendTLSPolicy` re-encrypts to the local edge and verifies its Let's
+  Encrypt `*.local.dev5.sedware.net` wildcard. The rewritten hostname is both the
+  SNI presented (selecting the wildcard listener) and the name checked against the
+  cert SANs; LE production chains to the publicly trusted ISRG Root X1, so
+  `wellKnownCACertificates: System` is enough and no CA bundle is shipped.
 
-This app owns **no pods** — just the `HTTPRoute`, the selector-less `Service`, and
-the `EndpointSlice`.
+This app owns **no pods** — just the `HTTPRoute`, the Envoy Gateway `Backend`, and
+the `BackendTLSPolicy`.
 
 ## Placeholders / manual steps an integrator MUST fill in
 
-1. **Upstream address** (`EndpointSlice` → `192.168.100.10:8080`). Must equal the
-   local-nginx `Service` externalIP + port in `local-cluster-kubernetes/apps/local-nginx`.
-2. **NetBird route.** The public gateway nodes must have a NetBird route to
-   `192.168.100.0/24` so they can reach the local externalIP (same requirement as
-   Mail Edge → Local Stalwart). Add it in the NetBird control plane.
-3. **Local firewall.** The local manager opens `:8080` on `nb-wt0`
-   (see `local-cluster-nix/roles/local/manager.nix`).
-4. **DNS.** `local-nginx` is added to `PUBLIC_EDGE_HOSTS` in
+1. **Upstream peer FQDN** (`Backend` → `dev-manager.nb.dev5.sedware.net:443`). This
+   is the stable NetBird peer FQDN of the Local Private Edge (dev-manager); the
+   public gateway nodes reach it directly as NetBird peers. No `192.168.100.0/24`
+   LAN NetBird route, no `externalIP`, and no local `:8080` firewall opening are
+   required.
+2. **DNS.** `local-nginx` is added to `PUBLIC_EDGE_HOSTS` in
    `cluster-testing/{public,local}-cluster/nix/config.py`, so it resolves to the
    public edge (which then proxies to the local cluster). Run `cloudflare_dns.py`.
+
+See commit `6cf4962`, which migrated the implementation from the earlier
+selector-less Service + manual EndpointSlice model to the current Envoy Gateway
+`Backend` + `BackendTLSPolicy` re-encrypt flow.

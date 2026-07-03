@@ -8,7 +8,13 @@ Applications currently managed here:
 
 - `authentik`: public identity provider with PostgreSQL and Valkey;
 - `netbird`: self-hosted control plane and dashboard;
-- `adguard-home`: NetBird-only DNS and administration UI.
+- `adguard-home`: NetBird-only DNS and administration UI;
+- `mail-edge`: Mail Edge / MX relay (SMTP :25) fronting the Local Stalwart backend;
+- `public-nginx`: public nginx test server on the Envoy edge;
+- `local-nginx-proxy`: public edge entry that re-encrypts to the local cluster's
+  nginx over NetBird;
+- `smoke`: stateless whoami smoke-test app that exercises the public Envoy edge
+  end-to-end (not a user-facing service).
 
 WordPress is intentionally not deployed yet. Future public applications can use
 the RWX StorageClass `public-shared-bulk`; database workloads should continue to

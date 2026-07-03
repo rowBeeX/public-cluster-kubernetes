@@ -6,6 +6,10 @@ metadata:
     argocd.argoproj.io/sync-wave: "-10"
   labels:
     app.kubernetes.io/part-of: public-cluster
+    app.kubernetes.io/managed-by: argocd
+    core.sedware.net/owner: tobias
+    core.sedware.net/purpose: application
+    core.sedware.net/environment: dev
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/enforce-version: v1.35
 ---
@@ -32,7 +36,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: whoami
-          image: docker.io/traefik/whoami:v1.10.3
+          image: docker.io/traefik/whoami:v1.10.3@sha256:43a68d10b9dfcfc3ffbfe4dd42100dc9aeaf29b3a5636c856337a5940f1b4f1c
           args: ["--port", "8080"]
           ports:
             - {name: http, containerPort: 8080}
@@ -62,7 +66,7 @@ metadata:
 spec:
   parentRefs:
     - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [smoke.dev4.sedware.net]
+  hostnames: [smoke.dev5.sedware.net]
   rules:
     - matches:
         - path: {type: PathPrefix, value: /}
