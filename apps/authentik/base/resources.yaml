@@ -181,6 +181,15 @@ spec:
           httpGet: {path: /-/health/ready/, port: http}
           initialDelaySeconds: 20
           periodSeconds: 10
+        # On a fresh database the first pod runs all migrations before serving.
+        # The startupProbe suspends the liveness probe until readiness passes, so
+        # a slow first-boot migration (minutes on constrained CPU) is not killed
+        # mid-flight and left in a lock-contention crash loop. 60×10s = up to 10min.
+        startupProbe:
+          httpGet: {path: /-/health/ready/, port: http}
+          periodSeconds: 10
+          failureThreshold: 60
+          timeoutSeconds: 5
         livenessProbe:
           exec: {command: [ak, healthcheck]}
           initialDelaySeconds: 60
