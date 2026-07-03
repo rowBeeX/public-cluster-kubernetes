@@ -26,8 +26,10 @@ Non-HTTP protocols get their own protocol-specific paths, never Envoy:
   only outbound path; a Cilium Service on `:25` with `externalIPs`. Internet ↔
   Mail Edge ↔ local Stalwart. No user-login ports are public.
 - **NetBird STUN/TURN** — UDP `3478` via an explicit Cilium Service.
-- **AdGuard** DNS/UI — **NetBird-internal only**, no public route and no public
-  DNS; it serves the NetBird DNS group.
+- **AdGuard** DNS/UI — **NetBird-internal only**: no public DNS, and the UI's
+  Envoy route is locked to the NetBird overlay (`100.64.0.0/10`) by a
+  `SecurityPolicy`, so it never faces the internet. AdGuard serves the NetBird
+  DNS group.
 
 All namespaces use CiliumNetworkPolicy with default-deny. Public web apps admit
 ingress only from the Envoy Gateway proxy pods; because those proxies run
@@ -74,5 +76,7 @@ flowchart TB
   stalwart -->|"outbound relay (NetBird, mynetworks 100.64/10)"| mailedge
   mailedge -->|SMTP :25 delivery| internet
 
-  nbpeers -->|DNS :53 / UI :3000| adguard
+  nbpeers -->|DNS :53 direct| adguard
+  nbpeers -->|UI HTTPS| envoy
+  envoy -->|"HTTPRoute + SecurityPolicy (NetBird 100.64/10 only)"| adguard
 ```
