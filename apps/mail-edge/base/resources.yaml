@@ -119,17 +119,19 @@ spec:
         - {name: POSTFIX_relay_domains, value: dev4.sedware.net}
         # ... and forward it to the Local Stalwart backend over NetBird via the
         # Local Private Edge (Envoy) mail-smtp listener. The [host] brackets
-        # disable MX lookup (deliver straight to that address).
-        # 100.83.243.245: the Local Private Edge (dev-manager) NetBird address;
-        # its :25 TCPRoute forwards to the Stalwart ClusterIP. mail-edge egresses
-        # to this NetBird IP (masqueraded by its node) — no ingress-DNAT needed.
+        # disable MX lookup (deliver straight to that address); Postfix still
+        # resolves the peer FQDN to its current overlay IP at delivery time
+        # (CoreDNS forwards *.nb.dev4 to AdGuard). The stable peer FQDN — never a
+        # raw per-generation overlay IP — is the GitOps source of truth.
+        # dev-manager.nb.dev4.sedware.net: the Local Private Edge (dev-manager)
+        # NetBird peer; its :25 TCPRoute forwards to the Stalwart ClusterIP.
         - name: POSTFIX_transport_maps
-          value: "inline:{ dev4.sedware.net=smtp:[100.83.243.245]:25 }"
+          value: "inline:{ dev4.sedware.net=smtp:[dev-manager.nb.dev4.sedware.net]:25 }"
         # --- Outbound: Local Stalwart -> Mail Edge -> Internet :25 ------------
         # ONLY the Local Stalwart peer may relay to arbitrary (internet)
         # destinations. Everything else may only reach relay_domains. This is the
         # anti-open-relay gate. Overrides boky's default private-range mynetworks.
-        # 192.168.100.64: same NetBird address as above.
+        # Source is the Local Stalwart reaching mail-edge over the NetBird overlay.
         # Relay (outbound to internet) permitted only from the NetBird overlay
         # (the Local Stalwart, reaching mail-edge over NetBird). Anti-open-relay.
         - name: POSTFIX_mynetworks
@@ -233,9 +235,12 @@ spec:
       - {protocol: TCP, port: '25'}
   # Inbound forward: deliver dev4.sedware.net mail to the Local Stalwart backend
   # over NetBird on :25, via the Local Private Edge (Envoy) mail-smtp listener.
-  # 100.83.243.245: the Local Private Edge (dev-manager) NetBird address.
+  # The Local Private Edge (dev-manager) is reached at its NetBird overlay IP,
+  # resolved at delivery time from dev-manager.nb.dev4.sedware.net. Cilium cannot
+  # match a per-connection resolved IP, so allow the stable NetBird overlay CIDR
+  # on :25 (same range the inbound rule already trusts).
   - toCIDRSet:
-    - cidr: 100.83.243.245/32
+    - cidr: 100.64.0.0/10
     toPorts:
     - ports:
       - {protocol: TCP, port: '25'}
