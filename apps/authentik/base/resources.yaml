@@ -124,7 +124,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: valkey
-        image: docker.io/valkey/valkey:8-alpine@sha256:18c7010efe0a74c334ee01bd2c5632735d2c0d9518f85b9ad3d995314c6a0b7a
+        image: docker.io/valkey/valkey:8.1-alpine@sha256:cfe71288f087704b06be45e270afa7a2abbf820093d6b11a23762081f5ff321d
         args: [valkey-server, --save, "", --appendonly, "no"]
         ports:
         - {name: valkey, containerPort: 6379}
