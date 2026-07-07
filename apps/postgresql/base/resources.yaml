@@ -124,9 +124,10 @@ spec:
           SA=$(cat /var/run/secrets/vault/token)
           TOKEN=$(curl -sf "$VAULT/v1/auth/kubernetes/login" -d "{\"jwt\":\"$SA\",\"role\":\"apps\"}" | sed 's/.*"client_token":[ ]*"\([^"]*\)".*/\1/')
           [ -n "$TOKEN" ] || { echo "vault login failed"; exit 1; }
-          # Read existing password or generate one.
-          curl -s -o /tmp/r.json -H "X-Vault-Token: $TOKEN" "$VAULT/v1/secret/data/apps/app-postgresql/role-authentik"
-          PW=$(sed -n 's/.*"password":"\([^"]*\)".*/\1/p' /tmp/r.json)
+          # Read existing password or generate one. Read into a variable (the root
+          # fs is read-only, so no temp file).
+          RESP=$(curl -s -H "X-Vault-Token: $TOKEN" "$VAULT/v1/secret/data/apps/app-postgresql/role-authentik")
+          PW=$(printf '%s' "$RESP" | sed -n 's/.*"password":"\([^"]*\)".*/\1/p')
           if [ -z "$PW" ]; then
             PW=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 40)
             curl -sf -X POST -H "X-Vault-Token: $TOKEN" -H "Content-Type: application/json" \
