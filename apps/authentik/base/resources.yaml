@@ -125,6 +125,10 @@ spec:
     metadata:
       labels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: server}
     spec:
+      # Co-located with Postgres + Valkey on the control-plane node: DB and cache
+      # are single-replica on host-1 (local-path, no failover), so pinning the
+      # server here means only ONE node's uptime matters instead of two.
+      nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: authentik
         image: ghcr.io/goauthentik/server:2026.5@sha256:28166f077dae24371c59a644e4319ea173d5290613386462e8172a963bd607fd
@@ -185,6 +189,8 @@ spec:
     metadata:
       labels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: worker}
     spec:
+      # Same node as the server + DB + cache (see server deployment above).
+      nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: authentik
         image: ghcr.io/goauthentik/server:2026.5@sha256:28166f077dae24371c59a644e4319ea173d5290613386462e8172a963bd607fd
