@@ -45,62 +45,43 @@ spec:
   resources:
     requests: {storage: 10Gi}
 ---
+# Vault self-service identity so the authentik-db VaultStaticSecret can read the
+# DB password that app-postgresql published to the shared path.
 apiVersion: v1
-kind: Service
-metadata: {name: postgresql, namespace: app-authentik}
-spec:
-  selector: {app.kubernetes.io/name: authentik-postgresql}
-  ports:
-  - {name: postgresql, port: 5432, targetPort: postgresql}
+kind: ServiceAccount
+metadata: {name: authentik-vault, namespace: app-authentik}
+automountServiceAccountToken: false
 ---
-apiVersion: apps/v1
-kind: StatefulSet
-metadata: {name: postgresql, namespace: app-authentik}
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata: {name: vault, namespace: app-authentik}
 spec:
-  serviceName: postgresql
-  replicas: 1
-  selector:
-    matchLabels: {app.kubernetes.io/name: authentik-postgresql}
-  template:
-    metadata:
-      labels: {app.kubernetes.io/name: authentik-postgresql}
-    spec:
-      nodeSelector: {public.sedware.net/control-plane: "true"}
-      securityContext: {fsGroup: 70, fsGroupChangePolicy: OnRootMismatch}
-      containers:
-      - name: postgresql
-        image: 
-          docker.io/library/postgres:17-alpine@sha256:0a8a1e76503c091f0feb387d51b10fcd746c2d61cf6cdd6e8356973a45e40a0f
-        ports:
-        - {name: postgresql, containerPort: 5432}
-        env:
-        - {name: POSTGRES_DB, value: authentik}
-        - {name: POSTGRES_USER, value: authentik}
-        - name: POSTGRES_PASSWORD
-          valueFrom: {secretKeyRef: {name: authentik-runtime, key: POSTGRES_PASSWORD}}
-        - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
-        readinessProbe:
-          exec: {command: [pg_isready, -U, authentik]}
-          initialDelaySeconds: 5
-        livenessProbe:
-          exec: {command: [pg_isready, -U, authentik]}
-          initialDelaySeconds: 30
-        resources:
-          requests: {cpu: 100m, memory: 256Mi}
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities: {drop: [ALL]}
-          runAsUser: 70
-          runAsGroup: 70
-        volumeMounts:
-        - {name: data, mountPath: /var/lib/postgresql/data}
-  volumeClaimTemplates:
-  - metadata: {name: data}
-    spec:
-      accessModes: [ReadWriteOnce]
-      storageClassName: local-path
-      resources:
-        requests: {storage: 20Gi}
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: apps
+    serviceAccount: authentik-vault
+    audiences: [vault]
+---
+# Postgres now lives in the central app-postgresql CNPG cluster (see that app).
+# authentik's DB password comes from the shared Vault path published there.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata: {name: authentik-db, namespace: app-authentik}
+spec:
+  type: kv-v2
+  mount: secret
+  path: apps/app-postgresql/shared/app-authentik/db
+  refreshAfter: 1h
+  vaultAuthRef: vault
+  destination:
+    create: true
+    name: authentik-db
+    overwrite: true
+    type: Opaque
+    transformation:
+      excludeRaw: true
+      includes: [password]
 ---
 apiVersion: v1
 kind: Service
@@ -136,7 +117,9 @@ spec:
         envFrom:
         - secretRef: {name: authentik-runtime}
         env:
-        - {name: AUTHENTIK_POSTGRESQL__HOST, value: postgresql}
+        - {name: AUTHENTIK_POSTGRESQL__HOST, value: postgres-rw.app-postgresql.svc.cluster.local}
+        - name: AUTHENTIK_POSTGRESQL__PASSWORD
+          valueFrom: {secretKeyRef: {name: authentik-db, key: password}}
         - {name: AUTHENTIK_POSTGRESQL__USER, value: authentik}
         - {name: AUTHENTIK_POSTGRESQL__NAME, value: authentik}
         - {name: AUTHENTIK_REDIS__HOST, value: valkey.app-valkey.svc.cluster.local}
@@ -198,7 +181,9 @@ spec:
         envFrom:
         - secretRef: {name: authentik-runtime}
         env:
-        - {name: AUTHENTIK_POSTGRESQL__HOST, value: postgresql}
+        - {name: AUTHENTIK_POSTGRESQL__HOST, value: postgres-rw.app-postgresql.svc.cluster.local}
+        - name: AUTHENTIK_POSTGRESQL__PASSWORD
+          valueFrom: {secretKeyRef: {name: authentik-db, key: password}}
         - {name: AUTHENTIK_POSTGRESQL__USER, value: authentik}
         - {name: AUTHENTIK_POSTGRESQL__NAME, value: authentik}
         - {name: AUTHENTIK_REDIS__HOST, value: valkey.app-valkey.svc.cluster.local}
@@ -246,8 +231,6 @@ spec:
         k8s:io.kubernetes.pod.namespace: app-authentik
     toPorts:
     - ports:
-      - port: '5432'
-        protocol: TCP
       - port: '9000'
         protocol: TCP
   egress:
@@ -266,9 +249,15 @@ spec:
         k8s:io.kubernetes.pod.namespace: app-authentik
     toPorts:
     - ports:
-      - port: '5432'
-        protocol: TCP
       - port: '9000'
+        protocol: TCP
+  # Central Postgres (CNPG) moved to its own app (app-postgresql).
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: app-postgresql
+    toPorts:
+    - ports:
+      - port: '5432'
         protocol: TCP
   # Shared cache moved to its own app (app-valkey).
   - toEndpoints:
