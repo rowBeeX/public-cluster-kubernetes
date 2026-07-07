@@ -275,5 +275,15 @@ spec:
     toPorts:
     - ports:
       - {port: '5432', protocol: TCP}
-  # kubelet health probes + CNPG operator/instance-manager traffic arrive as host.
+  # CNPG operator polls the instance-manager status (:8000) + triggers backups,
+  # and scrapes metrics (:9187). Without this it reports "Instance Status
+  # Extraction Error" and operator-driven base backups cannot run.
+  - fromEndpoints:
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: cnpg-system}
+    toPorts:
+    - ports:
+      - {port: '8000', protocol: TCP}
+      - {port: '9187', protocol: TCP}
+      - {port: '5432', protocol: TCP}
+  # kubelet health probes + intra-cluster instance-manager traffic arrive as host.
   - fromEntities: [host, remote-node, kube-apiserver]
