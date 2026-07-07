@@ -8,7 +8,7 @@ OIDC-Provider für alle öffentlichen Cluster-Dienste.
 |-----------|-------------|
 | PostgreSQL StatefulSet | Dedizierte Datenbank (local-path PVC) |
 | Valkey Deployment | Redis-kompatibler Cache (nodeSelector `public.sedware.net/control-plane=true`) |
-| Authentik Server (2 Replicas) | HTTP-Server, OIDC-Endpunkte, Admin-UI |
+| Authentik Server (1 Replica) | HTTP-Server, OIDC-Endpunkte, Admin-UI |
 | Authentik Worker (1 Replica) | Hintergrund-Tasks (E-Mail, Events) |
 | authentik-media PVC | Medien-Speicher (public-shared-bulk, ReadWriteMany) |
 
