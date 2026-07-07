@@ -1,0 +1,279 @@
+# Central CloudNativePG Postgres for the PUBLIC cluster. authentik is the first
+# database; more can follow (managed roles + databases below). Single instance on
+# the control-plane node (co-located with authentik + Valkey — one node's uptime).
+# Continuous backups go over NetBird to the LOCAL cluster's RustFS S3
+# (https://s3.local.dev5.sedware.net, bucket public-postgres-backups).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-postgresql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  labels:
+    app.kubernetes.io/part-of: public-cluster
+    app.kubernetes.io/managed-by: argocd
+    core.sedware.net/owner: tobias
+    core.sedware.net/purpose: application
+    core.sedware.net/environment: dev
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.35
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: LimitRange
+metadata: {name: defaults, namespace: app-postgresql}
+spec:
+  limits:
+  - type: Container
+    defaultRequest: {cpu: 50m, memory: 128Mi}
+---
+# Vault self-service identity (generic "apps" role) for the backup-S3 + role VSS.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgresql-vault
+  namespace: app-postgresql
+  annotations: {argocd.argoproj.io/sync-wave: "-5"}
+automountServiceAccountToken: false
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: vault
+  namespace: app-postgresql
+  annotations: {argocd.argoproj.io/sync-wave: "-4"}
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: apps
+    serviceAccount: postgresql-vault
+    audiences: [vault]
+---
+# S3 credentials for barman -> LOCAL RustFS (the RustFS root creds, placed into the
+# public Vault out-of-band because the clusters have separate Vaults). Keys match
+# the barmanObjectStore.s3Credentials references below.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: pg-backup-s3
+  namespace: app-postgresql
+  annotations: {argocd.argoproj.io/sync-wave: "-3"}
+spec:
+  type: kv-v2
+  mount: secret
+  path: apps/app-postgresql/backup-s3
+  refreshAfter: 1h
+  vaultAuthRef: vault
+  destination:
+    create: true
+    name: pg-backup-s3
+    overwrite: true
+    type: Opaque
+    transformation:
+      excludeRaw: true
+      includes: [ACCESS_KEY_ID, ACCESS_SECRET_KEY]
+---
+# Password for the managed "authentik" DB role. Seeded into Vault by the Job below
+# (generated once), synced here, and reused by authentik as its DB password.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-authentik-role
+  namespace: app-postgresql
+  labels: {app.kubernetes.io/name: postgresql, app.kubernetes.io/component: seed}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 4
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: postgresql, app.kubernetes.io/component: seed}
+    spec:
+      serviceAccountName: postgresql-vault
+      automountServiceAccountToken: false
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile: {type: RuntimeDefault}
+      volumes:
+      - name: vault-token
+        projected:
+          sources:
+          - serviceAccountToken: {audience: vault, expirationSeconds: 600, path: token}
+      containers:
+      - name: seed
+        image: docker.io/curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities: {drop: [ALL]}
+        volumeMounts:
+        - {name: vault-token, mountPath: /var/run/secrets/vault, readOnly: true}
+        command:
+        - sh
+        - -euc
+        - |
+          VAULT=http://vault.vault.svc.cluster.local:8200
+          SA=$(cat /var/run/secrets/vault/token)
+          TOKEN=$(curl -sf "$VAULT/v1/auth/kubernetes/login" -d "{\"jwt\":\"$SA\",\"role\":\"apps\"}" | sed 's/.*"client_token":[ ]*"\([^"]*\)".*/\1/')
+          [ -n "$TOKEN" ] || { echo "vault login failed"; exit 1; }
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "X-Vault-Token: $TOKEN" "$VAULT/v1/secret/data/apps/app-postgresql/role-authentik")
+          if [ "$CODE" = "200" ]; then echo "authentik role password already in Vault"; exit 0; fi
+          PW=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 40)
+          curl -sf -X POST -H "X-Vault-Token: $TOKEN" -H "Content-Type: application/json" \
+            "$VAULT/v1/secret/data/apps/app-postgresql/role-authentik" \
+            -d "{\"data\":{\"username\":\"authentik\",\"password\":\"$PW\"}}" >/dev/null
+          echo "seeded authentik role password"
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: pg-role-authentik
+  namespace: app-postgresql
+  annotations: {argocd.argoproj.io/sync-wave: "-3"}
+spec:
+  type: kv-v2
+  mount: secret
+  path: apps/app-postgresql/role-authentik
+  refreshAfter: 1h
+  vaultAuthRef: vault
+  destination:
+    create: true
+    name: pg-role-authentik
+    overwrite: true
+    type: kubernetes.io/basic-auth
+    transformation:
+      excludeRaw: true
+      includes: [username, password]
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres
+  namespace: app-postgresql
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17@sha256:916d505d999e6bb85ead15dc2b965b9f968a9eb09e6d9c2e59e50a174f785e71
+  imagePullPolicy: IfNotPresent
+  enableSuperuserAccess: false
+  enablePDB: false
+  primaryUpdateMethod: switchover
+  primaryUpdateStrategy: unsupervised
+  inheritedMetadata:
+    annotations: {descheduler.alpha.kubernetes.io/evict: "false"}
+  monitoring:
+    disableDefaultQueries: true
+  storage:
+    size: 10Gi
+    storageClass: public-primary-super-fast
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+  affinity:
+    nodeSelector: {public.sedware.net/control-plane: "true"}
+  bootstrap:
+    initdb:
+      database: authentik
+      owner: authentik
+  managed:
+    roles:
+    - name: authentik
+      ensure: present
+      login: true
+      superuser: false
+      createdb: false
+      createrole: false
+      inherit: true
+      connectionLimit: -1
+      passwordSecret: {name: pg-role-authentik}
+  # Continuous backups via barman-cloud to the LOCAL RustFS S3 over NetBird.
+  backup:
+    retentionPolicy: 14d
+    barmanObjectStore:
+      destinationPath: s3://public-postgres-backups/
+      endpointURL: https://s3.local.dev5.sedware.net
+      s3Credentials:
+        accessKeyId: {name: pg-backup-s3, key: ACCESS_KEY_ID}
+        secretAccessKey: {name: pg-backup-s3, key: ACCESS_SECRET_KEY}
+      wal: {compression: gzip}
+      data: {compression: gzip}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata: {name: postgres-daily, namespace: app-postgresql}
+spec:
+  schedule: "0 30 2 * * *"
+  backupOwnerReference: self
+  cluster: {name: postgres}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: default-deny, namespace: app-postgresql}
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-dns-egress, namespace: app-postgresql}
+spec:
+  endpointSelector: {}
+  egress:
+  - toEndpoints:
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: kube-system, k8s:k8s-app: kube-dns}
+    toPorts:
+    - ports:
+      - {port: '53', protocol: UDP}
+      - {port: '53', protocol: TCP}
+---
+# barman-cloud streams backups to the LOCAL RustFS S3 over NetBird (CGNAT
+# 100.64.0.0/10) on :443, and needs Vault for the VSS-materialised creds.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-backup-and-vault-egress, namespace: app-postgresql}
+spec:
+  endpointSelector: {}
+  egress:
+  - toCIDR: [100.64.0.0/10]
+    toPorts:
+    - ports:
+      - {port: '443', protocol: TCP}
+  - toEndpoints:
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: vault, app.kubernetes.io/name: vault}
+    toPorts:
+    - ports:
+      - {port: '8200', protocol: TCP}
+  # CNPG instance-manager reports status to the API server.
+  - toEntities: [kube-apiserver]
+    toPorts:
+    - ports:
+      - {port: '443', protocol: TCP}
+      - {port: '6443', protocol: TCP}
+---
+# authentik connects to Postgres (5432). CNPG also needs intra-namespace + kubelet
+# access; kept permissive within the namespace, plus the API server for the operator.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-postgres-clients, namespace: app-postgresql}
+spec:
+  endpointSelector:
+    matchLabels: {cnpg.io/cluster: postgres}
+  ingress:
+  - fromEndpoints:
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: app-authentik}
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: app-postgresql}
+    toPorts:
+    - ports:
+      - {port: '5432', protocol: TCP}
+  # kubelet health probes + CNPG operator/instance-manager traffic arrive as host.
+  - fromEntities: [host, remote-node, kube-apiserver]
