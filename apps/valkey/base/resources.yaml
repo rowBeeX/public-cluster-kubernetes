@@ -1,0 +1,141 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-valkey
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  labels:
+    app.kubernetes.io/part-of: public-cluster
+    app.kubernetes.io/managed-by: argocd
+    core.sedware.net/owner: tobias
+    core.sedware.net/purpose: application
+    core.sedware.net/environment: dev
+    # Valkey is restricted-compliant (non-root uid 999, read-only root fs);
+    # enforce stays at the contract baseline, restricted is warned/audited.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: v1.35
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.35
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.35
+---
+apiVersion: v1
+kind: LimitRange
+metadata: {name: defaults, namespace: app-valkey}
+spec:
+  limits:
+  - type: Container
+    defaultRequest: {cpu: 25m, memory: 64Mi}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata: {name: quota, namespace: app-valkey}
+spec:
+  hard:
+    requests.cpu: "1"
+    requests.memory: 512Mi
+    pods: "5"
+    # Pure in-memory cache: no PersistentVolumeClaims (emptyDir only).
+    persistentvolumeclaims: "0"
+    requests.storage: "0"
+---
+apiVersion: v1
+kind: Service
+metadata: {name: valkey, namespace: app-valkey}
+spec:
+  type: ClusterIP
+  selector: {app.kubernetes.io/name: valkey}
+  ports:
+  - {name: valkey, port: 6379, targetPort: valkey}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valkey
+  namespace: app-valkey
+  labels:
+    app.kubernetes.io/name: valkey
+    app.kubernetes.io/part-of: public-cluster
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: valkey}
+  template:
+    metadata:
+      annotations:
+        # Shared cache — never evict (would drop every consumer's cache state).
+        descheduler.alpha.kubernetes.io/evict: "false"
+      labels:
+        app.kubernetes.io/name: valkey
+        app.kubernetes.io/part-of: public-cluster
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector: {public.sedware.net/control-plane: "true"}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+      - name: valkey
+        image: docker.io/valkey/valkey:8.1-alpine@sha256:cfe71288f087704b06be45e270afa7a2abbf820093d6b11a23762081f5ff321d
+        # In-memory only: no RDB snapshots, no AOF. protected-mode off because
+        # access is restricted by CiliumNetworkPolicy (consumer namespaces only),
+        # not a password. noeviction so keys with TTLs are never silently dropped.
+        args: [valkey-server, --save, "", --appendonly, "no", --protected-mode, "no",
+               --maxmemory, 512mb, --maxmemory-policy, noeviction]
+        ports:
+        - {name: valkey, containerPort: 6379}
+        startupProbe: {tcpSocket: {port: valkey}, periodSeconds: 3, failureThreshold: 20}
+        readinessProbe: {exec: {command: [valkey-cli, ping]}, periodSeconds: 10}
+        livenessProbe: {tcpSocket: {port: valkey}, periodSeconds: 10}
+        resources:
+          requests: {cpu: 25m, memory: 64Mi}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities: {drop: [ALL]}
+        volumeMounts:
+        - {name: data, mountPath: /data}
+      volumes:
+      # Disposable cache state; emptyDir is wiped on pod restart by design.
+      - name: data
+        emptyDir: {sizeLimit: 512Mi}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: default-deny, namespace: app-valkey}
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-dns-egress, namespace: app-valkey}
+spec:
+  endpointSelector: {}
+  egress:
+  - toEndpoints:
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: kube-system, k8s:k8s-app: kube-dns}
+    toPorts:
+    - ports:
+      - {port: '53', protocol: UDP}
+      - {port: '53', protocol: TCP}
+---
+# Consumers of the shared cache. Add a consumer's namespace here to grant it
+# access (mirrors the local cluster's app-valkey/allow-app-ingress).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-app-ingress, namespace: app-valkey}
+spec:
+  endpointSelector:
+    matchLabels: {app.kubernetes.io/name: valkey}
+  ingress:
+  - fromEndpoints:
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: app-authentik}
+    toPorts:
+    - ports:
+      - {port: '6379', protocol: TCP}
