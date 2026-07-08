@@ -7,7 +7,9 @@ apps/
   local-nginx-proxy/          public edge entry for the local cluster's nginx (re-encrypt over NetBird)
   mail-edge/                  Mail Edge / MX Relay (SMTP :25, public in/out)
   netbird/                    dashboard/management/signal/relay (Envoy Gateway)
+  postgresql/                 CNPG cluster backing Authentik
   public-nginx/               public nginx test server (Envoy Gateway)
+  valkey/                     cache/session store backing Authentik
     argocd.yaml
     README.md
     base/
