@@ -161,13 +161,26 @@ spec:
         resources:
           requests: {cpu: 100m, memory: 128Mi}
         securityContext:
-          # Postfix master must run as uid 0 (privilege-separated design); it
-          # keeps the runtime default capability set (SETUID/SETGID/CHOWN/... )
-          # which is baseline-compliant. No extra caps are ADDED, no privileged
-          # mode, no host namespaces. runAsNonRoot/restricted is not achievable
-          # for the Postfix master.
+          # Postfix master must run as uid 0 (privilege-separated design) and the
+          # boky image regenerates /etc/postfix at startup, so runAsNonRoot +
+          # readOnlyRootFilesystem are not achievable (documented in
+          # docs/exceptions.md, EXC-mailedge-baseline-psa / EXC-postfix-writable-rootfs).
+          # #11: minimize toward restricted — drop ALL, add back only the caps the
+          # root master actually uses. This removes NET_RAW, MKNOD, AUDIT_WRITE,
+          # SETFCAP, SETPCAP and FSETID from the Docker default set.
           allowPrivilegeEscalation: false
           seccompProfile: {type: RuntimeDefault}
+          capabilities:
+            drop: [ALL]
+            add:
+            - CHOWN            # own/adjust spool + queue file ownership
+            - DAC_OVERRIDE     # master (root) accesses postfix-user-owned spool
+            - FOWNER           # manage perms on spool/queue files
+            - SETGID           # drop to postfix/postdrop groups for children
+            - SETUID           # drop to postfix user for privilege-separated daemons
+            - NET_BIND_SERVICE # bind :25
+            - KILL             # master signals its child daemons
+            - SYS_CHROOT       # chrooted smtpd/cleanup daemons
         volumeMounts:
         - {name: spool, mountPath: /var/spool/postfix}
         - {name: tls, mountPath: /etc/postfix/tls, readOnly: true}
