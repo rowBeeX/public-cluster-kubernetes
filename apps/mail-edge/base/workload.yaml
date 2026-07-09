@@ -11,7 +11,7 @@ spec:
     kind: ClusterIssuer
     name: letsencrypt-dev
   dnsNames:
-    - mail.dev5.sedware.net
+    - mail.dev6.sedware.net
 ---
 # Durable queue spool. A mail relay defers mail for temporarily-unreachable
 # destinations, so the Postfix queue (/var/spool/postfix) must survive pod
@@ -65,24 +65,24 @@ spec:
         # public internet can submit inbound MX mail), authorization is by
         # recipient (relay_domains) and by source network (mynetworks) below.
         - {name: ALLOW_EMPTY_SENDER_DOMAINS, value: "true"}
-        - {name: POSTFIX_myhostname, value: mail.dev5.sedware.net}
+        - {name: POSTFIX_myhostname, value: mail.dev6.sedware.net}
         - {name: POSTFIX_inet_protocols, value: ipv4}
-        # This box is final destination for NO domain (dev5 is a *relay* domain,
+        # This box is final destination for NO domain (dev6 is a *relay* domain,
         # delivered onward to the Local Stalwart backend, not a local mailbox).
         - {name: POSTFIX_mydestination, value: ""}
         # --- Inbound: Internet :25 -> Mail Edge -> Local Stalwart -------------
-        # Accept inbound mail addressed to dev5.sedware.net ...
-        - {name: POSTFIX_relay_domains, value: dev5.sedware.net}
+        # Accept inbound mail addressed to dev6.sedware.net ...
+        - {name: POSTFIX_relay_domains, value: dev6.sedware.net}
         # ... and forward it to the Local Stalwart backend over NetBird via the
         # Local Private Edge (Envoy) mail-smtp listener. The [host] brackets
         # disable MX lookup (deliver straight to that address); Postfix still
         # resolves the peer FQDN to its current overlay IP at delivery time
-        # (CoreDNS forwards *.nb.dev5 to AdGuard). The stable peer FQDN — never a
+        # (CoreDNS forwards *.nb.dev6 to AdGuard). The stable peer FQDN — never a
         # raw per-generation overlay IP — is the GitOps source of truth.
-        # dev-manager.nb.dev5.sedware.net: the Local Private Edge (dev-manager)
+        # dev-manager.nb.dev6.sedware.net: the Local Private Edge (dev-manager)
         # NetBird peer; its :25 TCPRoute forwards to the Stalwart ClusterIP.
         - name: POSTFIX_transport_maps
-          value: "inline:{ dev5.sedware.net=smtp:[dev-manager.nb.dev5.sedware.net]:25 }"
+          value: "inline:{ dev6.sedware.net=smtp:[dev-manager.nb.dev6.sedware.net]:25 }"
         # --- Outbound relay trust (anti-open-relay gate) --------------------
         # mynetworks is the source-network boundary for relaying to arbitrary
         # (internet) destinations. It trusts ONLY the container's own loopback:

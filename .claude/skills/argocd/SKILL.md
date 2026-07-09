@@ -12,5 +12,6 @@ description: Add, sync and diagnose Argo CD applications in the public cluster r
 - Use the `public-apps` AppProject. Application namespaces are `app-*`.
 - Correct drift in Git. A refresh is safe; sync/prune is a write operation and
   must be followed by health, event and log checks.
-- Repository access is anonymous read-only HTTPS; no deploy key is required.
+- Repository access uses a read-only SSH deploy key (registered in
+  `public-cluster-nix` from Vault).
 - Never output Kubernetes Secret data or Argo CD credentials.

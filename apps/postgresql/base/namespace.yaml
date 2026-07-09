@@ -2,7 +2,7 @@
 # database; more can follow (managed roles + databases below). Single instance on
 # the control-plane node (co-located with authentik + Valkey — one node's uptime).
 # Continuous backups go over NetBird to the LOCAL cluster's RustFS S3
-# (https://s3.local.dev5.sedware.net, bucket public-postgres-backups).
+# (https://s3.local.dev6.sedware.net, bucket public-postgres-backups).
 apiVersion: v1
 kind: Namespace
 metadata:

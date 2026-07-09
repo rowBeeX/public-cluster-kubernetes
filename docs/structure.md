@@ -13,7 +13,9 @@ apps/
     argocd.yaml
     README.md
     base/
-      resources.yaml          workloads, Services, routes and Cilium policies
+      namespace.yaml          Namespace, LimitRange, ResourceQuota
+      workload.yaml           workloads, Services, PVCs, Certificates, Vault* …
+      networkpolicy.yaml      CiliumNetworkPolicies (default-deny + allow)
     overlays/dev/
       kustomization.yaml      active Dev substitutions
 docs/

@@ -1,5 +1,5 @@
 # Public internet-facing test server. Serves a static page
-# at https://public-nginx.dev5.sedware.net over the public Envoy edge, proving an
+# at https://public-nginx.dev6.sedware.net over the public Envoy edge, proving an
 # ordinary web app reaches the internet end-to-end (IPv4+IPv6, TLS, routing).
 # nginx-unprivileged listens on 8080 as a non-root user so the namespace can
 # enforce the restricted Pod-Security profile.
@@ -13,7 +13,7 @@ data:
     <h1>public-nginx</h1>
     <p>Test server running in the <strong>public</strong> cluster,
     served directly by the public Envoy edge.</p>
-    <p>public-nginx.dev5.sedware.net</p>
+    <p>public-nginx.dev6.sedware.net</p>
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -67,7 +67,7 @@ metadata: {name: public-nginx, namespace: app-public-nginx}
 spec:
   parentRefs:
     - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [public-nginx.dev5.sedware.net]
+  hostnames: [public-nginx.dev6.sedware.net]
   rules:
     - matches:
         - path: {type: PathPrefix, value: /}

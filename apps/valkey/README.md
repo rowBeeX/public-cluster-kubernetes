@@ -16,7 +16,7 @@ cluster's [`app-valkey`](../../../local-cluster-kubernetes/apps/valkey/).
 ## Consumers
 
 Grant a namespace access by adding it to `allow-app-ingress` in
-[`base/resources.yaml`](base/resources.yaml) and pointing the app at
+[`base/networkpolicy.yaml`](base/networkpolicy.yaml) and pointing the app at
 `valkey.app-valkey.svc.cluster.local`. Current consumers:
 
 - **authentik** (`app-authentik`) — `AUTHENTIK_REDIS__HOST`

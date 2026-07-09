@@ -27,8 +27,8 @@ relay whose entire configuration is env vars (the image applies each
 
 ## How the two directions are configured
 
-- **Inbound MX** — `POSTFIX_relay_domains=dev5.sedware.net` accepts mail for the
-  domain; `POSTFIX_transport_maps=inline:{ dev5.sedware.net=smtp:[<stalwart>]:25 }`
+- **Inbound MX** — `POSTFIX_relay_domains=dev6.sedware.net` accepts mail for the
+  domain; `POSTFIX_transport_maps=inline:{ dev6.sedware.net=smtp:[<stalwart>]:25 }`
   forwards it to the Local Stalwart backend (`[...]` = no MX lookup).
 - **Outbound relay** — the anti-open-relay boundary is `smtpd_relay_restrictions
   = permit_mynetworks reject_unauth_destination`: relaying to arbitrary
@@ -43,7 +43,7 @@ relay whose entire configuration is env vars (the image applies each
   `cluster-testing/.../provision_mail_relay_policy.py`); that policy becomes an
   enforcer once the NetBird least-privilege migration removes `Default All→All`.
 - **TLS** — STARTTLS on :25 using the cert-manager `Certificate` `mail-edge-tls`
-  (`mail.dev5.sedware.net`, DNS-01 via ClusterIssuer `letsencrypt-dev`). The
+  (`mail.dev6.sedware.net`, DNS-01 via ClusterIssuer `letsencrypt-dev`). The
   gateway-system wildcard secret is deliberately not reused cross-namespace.
 
 ## Exposure & security
@@ -67,13 +67,13 @@ relay whose entire configuration is env vars (the image applies each
 
 ## Integration points
 
-- **Local Stalwart backend.** `POSTFIX_transport_maps` forwards `dev5.sedware.net`
-  to `smtp:[dev-manager.nb.dev5.sedware.net]:25` — the stable NetBird peer FQDN of
+- **Local Stalwart backend.** `POSTFIX_transport_maps` forwards `dev6.sedware.net`
+  to `smtp:[dev-manager.nb.dev6.sedware.net]:25` — the stable NetBird peer FQDN of
   the Local Private Edge, resolved at delivery time. Outbound relay trust is now
   loopback-only (`POSTFIX_mynetworks`); see **Outbound relay** above.
 - **Local Stalwart → Mail Edge reachability.** For the outbound direction the Local
   cluster dials this pod over NetBird; the Local Stalwart smarthost points at this
   edge — see the Local repo `apps/stalwart/README.md`.
-- **DNS.** An MX record `dev5.sedware.net` → `mail.dev5.sedware.net` and an A/AAAA
-  record `mail.dev5.sedware.net` → the public gateway IP(s), plus SPF/DKIM/DMARC,
+- **DNS.** An MX record `dev6.sedware.net` → `mail.dev6.sedware.net` and an A/AAAA
+  record `mail.dev6.sedware.net` → the public gateway IP(s), plus SPF/DKIM/DMARC,
   are published via Cloudflare (out of scope for this manifest).
