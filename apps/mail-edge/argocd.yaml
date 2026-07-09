@@ -1,1 +1,7 @@
 sourceType: kustomize
+# mail-edge weicht bewusst von der app-<dir>-Ableitung ab: der Namespace heißt
+# app-mailedge (ohne Bindestrich) und ist so in allen Manifesten, in crowdsec.nix
+# (Log-Pfad /var/log/pods/app-mailedge_*) und in der Doku verankert. Der Override
+# richtet das ApplicationSet-Ziel darauf aus, sonst entsteht ein leerer
+# app-mail-edge-Waisen-Namespace neben den echten Ressourcen.
+namespace: app-mailedge
