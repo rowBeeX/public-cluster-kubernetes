@@ -11,6 +11,16 @@ Outbound: Local Stalwart ─▶ Mail Edge (over NetBird) :25 ─▶ Internet :25
 Direct Internet→Local-Stalwart and direct Local-Stalwart→Internet are forbidden;
 this pod is the only path in both directions.
 
+> **Status:** both mail flows are currently **not yet functional** and carry no
+> traffic. Cilium does not serve `:25` on the NetBird `wt0` interface, so the
+> Local Stalwart cannot reach this edge over the overlay; and `boky/postfix`'s
+> default `smtpd_client_restrictions=permit_mynetworks,reject` makes `mynetworks`
+> a *connect* gate, so a world MX sender is refused at connect too. Making the
+> paths live is a NetBird-routing task tracked in
+> [`docs/exceptions.md`](../../docs/exceptions.md) (`EXC-mail-relay-path`). This
+> README documents the intended design; the relay **trust** has already been
+> hardened (see below).
+
 The edge runs **Postfix** (`boky/postfix`): a fully-declarative, k8s-native SMTP
 relay whose entire configuration is env vars (the image applies each
 `POSTFIX_<param>` via `postconf`), with no data store and no accounts.
@@ -20,11 +30,18 @@ relay whose entire configuration is env vars (the image applies each
 - **Inbound MX** — `POSTFIX_relay_domains=dev5.sedware.net` accepts mail for the
   domain; `POSTFIX_transport_maps=inline:{ dev5.sedware.net=smtp:[<stalwart>]:25 }`
   forwards it to the Local Stalwart backend (`[...]` = no MX lookup).
-- **Outbound relay** — `POSTFIX_mynetworks` lists **only** the Local Stalwart
-  NetBird address (+ loopback), so only that peer may relay to arbitrary
-  (internet) destinations; everything else may reach `relay_domains` only. This
-  is the anti-open-relay boundary (`smtpd_relay_restrictions =
-  permit_mynetworks reject_unauth_destination`, no SASL).
+- **Outbound relay** — the anti-open-relay boundary is `smtpd_relay_restrictions
+  = permit_mynetworks reject_unauth_destination`: relaying to arbitrary
+  destinations requires the source to be in `POSTFIX_mynetworks`. That is now
+  **loopback-only** (`127.0.0.0/8 [::1]/128`) — **no external peer is trusted**
+  (issue #2/#3). The former value `100.64.0.0/10` trusted the *entire*
+  NetBird/CGNAT overlay (any peer), an open-relay risk. When the overlay path is
+  built (see Status above), add the relay client's exact overlay `/32` here
+  (resolved live from NetBird), never a broad range. The intended relay client's
+  identity is modelled declaratively in NetBird (groups `mail-edge` /
+  `mail-relay-client` + policy `mail-relay`, provisioned by
+  `cluster-testing/.../provision_mail_relay_policy.py`); that policy becomes an
+  enforcer once the NetBird least-privilege migration removes `Default All→All`.
 - **TLS** — STARTTLS on :25 using the cert-manager `Certificate` `mail-edge-tls`
   (`mail.dev5.sedware.net`, DNS-01 via ClusterIssuer `letsencrypt-dev`). The
   gateway-system wildcard secret is deliberately not reused cross-namespace.
@@ -52,9 +69,8 @@ relay whose entire configuration is env vars (the image applies each
 
 - **Local Stalwart backend.** `POSTFIX_transport_maps` forwards `dev5.sedware.net`
   to `smtp:[dev-manager.nb.dev5.sedware.net]:25` — the stable NetBird peer FQDN of
-  the Local Private Edge, resolved at delivery time. Outbound relay is allowed only
-  from the NetBird CGNAT range `100.64.0.0/10` (`POSTFIX_mynetworks`), so only the
-  Local Stalwart peer may relay to arbitrary destinations.
+  the Local Private Edge, resolved at delivery time. Outbound relay trust is now
+  loopback-only (`POSTFIX_mynetworks`); see **Outbound relay** above.
 - **Local Stalwart → Mail Edge reachability.** For the outbound direction the Local
   cluster dials this pod over NetBird; the Local Stalwart smarthost points at this
   edge — see the Local repo `apps/stalwart/README.md`.
