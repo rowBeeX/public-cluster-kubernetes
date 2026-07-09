@@ -7,7 +7,7 @@ metadata:
   labels:
     app.kubernetes.io/part-of: public-cluster
     app.kubernetes.io/managed-by: argocd
-    core.sedware.net/owner: tobias
+    core.sedware.net/owner: platform
     core.sedware.net/purpose: application
     core.sedware.net/environment: dev
     pod-security.kubernetes.io/enforce: baseline
