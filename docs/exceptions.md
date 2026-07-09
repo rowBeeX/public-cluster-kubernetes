@@ -40,3 +40,34 @@ Independent of the (tracked) path work, the relay **trust** is hardened now
   (`smoke_mail_relay.py`) asserts `mynetworks` is loopback-only, that
   `smtpd_relay_restrictions` ends in `reject_unauth_destination`, and that a
   non-trusted source is refused (`5xx`).
+
+### `EXC-mail-relay-path` — outbound path: proven-pattern implementation plan
+
+The **inbound** path already works (Internet → mail-edge `:25` → local Stalwart
+over NetBird). The blocker for **outbound** (local Stalwart → mail-edge → Internet)
+was that Cilium does not serve a Service on the NetBird `wt0` interface. But the
+*local* cluster edge already serves `:25` over NetBird via an Envoy Gateway TCP
+listener + TCPRoute (`local-cluster-nix .../gateway/00-local-gateway.yaml.in`,
+`mail-smtp`). The same **proven pattern** applies on the public edge, so the
+outbound path is implementable — it just changes the internet-facing mail edge and
+therefore needs a maintenance window with end-to-end verification (and ideally
+out-of-band recovery), not a blind live sync.
+
+Concrete design (additive to the working inbound path):
+
+1. **Public edge listener** — add a TCP listener (e.g. `:2525`, avoids the
+   internet `:25` externalIP) on the `public-dev` Gateway + a `TCPRoute` to the
+   `mail-edge` Postfix, mirroring the local edge's `mail-smtp` listener. Restrict
+   it to the NetBird overlay via the host firewall (`nb-wt0` only).
+2. **Postfix trust** — add the *edge forward source* `/32` (a single, fixed local
+   address — **not** a broad overlay range) to `POSTFIX_mynetworks`, so only the
+   edge path may relay. Keep `reject_unauth_destination`.
+3. **Stalwart** — set the relayhost to the public edge overlay name `:2525`.
+4. **Verify** — send a test message to an external MX and confirm delivery; the
+   `mail-relay` smoke gains a positive end-to-end assertion alongside the existing
+   negative one.
+
+Until that window, outbound relay is intentionally inactive; dev outbound-to-
+internet is low value and the security-relevant relay **trust** hardening (#2/#3)
+is already done and tested. Tied to the NetBird least-privilege migration
+(`local-cluster-nix/docs/security/accepted-risks.md` AR-06) and #24.
