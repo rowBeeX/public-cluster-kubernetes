@@ -1,0 +1,65 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: default-deny, namespace: app-authentik}
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-required-cilium-flows, namespace: app-authentik}
+spec:
+  endpointSelector: {}
+  ingress:
+  # Public HTTP edge is the Envoy Gateway. Its proxies run hostNetwork on the
+  # gateway nodes, so Cilium sees them as host / remote-node (not a
+  # reserved:ingress identity).
+  - fromEntities:
+    - host
+    - remote-node
+    toPorts:
+    - ports:
+      - port: '9000'
+        protocol: TCP
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: app-authentik
+    toPorts:
+    - ports:
+      - port: '9000'
+        protocol: TCP
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: '53'
+        protocol: UDP
+      - port: '53'
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: app-authentik
+    toPorts:
+    - ports:
+      - port: '9000'
+        protocol: TCP
+  # Central Postgres (CNPG) moved to its own app (app-postgresql).
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: app-postgresql
+    toPorts:
+    - ports:
+      - port: '5432'
+        protocol: TCP
+  # Shared cache moved to its own app (app-valkey).
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: app-valkey
+    toPorts:
+    - ports:
+      - port: '6379'
+        protocol: TCP

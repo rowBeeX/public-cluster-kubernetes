@@ -1,0 +1,72 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: default-deny, namespace: app-postgresql}
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-dns-egress, namespace: app-postgresql}
+spec:
+  endpointSelector: {}
+  egress:
+  - toEndpoints:
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: kube-system, k8s:k8s-app: kube-dns}
+    toPorts:
+    - ports:
+      - {port: '53', protocol: UDP}
+      - {port: '53', protocol: TCP}
+---
+# barman-cloud streams backups to the LOCAL RustFS S3 over NetBird (CGNAT
+# 100.64.0.0/10) on :443, and needs Vault for the VSS-materialised creds.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-backup-and-vault-egress, namespace: app-postgresql}
+spec:
+  endpointSelector: {}
+  egress:
+  - toCIDR: [100.64.0.0/10]
+    toPorts:
+    - ports:
+      - {port: '443', protocol: TCP}
+  - toEndpoints:
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: vault, app.kubernetes.io/name: vault}
+    toPorts:
+    - ports:
+      - {port: '8200', protocol: TCP}
+  # CNPG instance-manager reports status to the API server.
+  - toEntities: [kube-apiserver]
+    toPorts:
+    - ports:
+      - {port: '443', protocol: TCP}
+      - {port: '6443', protocol: TCP}
+---
+# authentik connects to Postgres (5432). CNPG also needs intra-namespace + kubelet
+# access; kept permissive within the namespace, plus the API server for the operator.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-postgres-clients, namespace: app-postgresql}
+spec:
+  endpointSelector:
+    matchLabels: {cnpg.io/cluster: postgres}
+  ingress:
+  - fromEndpoints:
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: app-authentik}
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: app-postgresql}
+    toPorts:
+    - ports:
+      - {port: '5432', protocol: TCP}
+  # CNPG operator polls the instance-manager status (:8000) + triggers backups,
+  # and scrapes metrics (:9187). Without this it reports "Instance Status
+  # Extraction Error" and operator-driven base backups cannot run.
+  - fromEndpoints:
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: cnpg-system}
+    toPorts:
+    - ports:
+      - {port: '8000', protocol: TCP}
+      - {port: '9187', protocol: TCP}
+      - {port: '5432', protocol: TCP}
+  # kubelet health probes + intra-cluster instance-manager traffic arrive as host.
+  - fromEntities: [host, remote-node, kube-apiserver]

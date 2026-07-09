@@ -1,0 +1,21 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: default-deny, namespace: app-public-nginx}
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-edge-ingress, namespace: app-public-nginx}
+spec:
+  endpointSelector: {}
+  # Ingress only from the Envoy Gateway proxies (hostNetwork → host/remote-node).
+  ingress:
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - {port: '8080', protocol: TCP}

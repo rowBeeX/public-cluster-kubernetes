@@ -1,42 +1,4 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: app-adguard-home
-  annotations:
-    argocd.argoproj.io/sync-wave: "-10"
-  labels:
-    app.kubernetes.io/part-of: public-cluster
-    app.kubernetes.io/managed-by: argocd
-    core.sedware.net/owner: platform
-    core.sedware.net/purpose: application
-    core.sedware.net/environment: dev
-    pod-security.kubernetes.io/enforce: privileged
-    pod-security.kubernetes.io/enforce-version: v1.35
-    pod-security.kubernetes.io/audit: baseline
-    pod-security.kubernetes.io/audit-version: v1.35
-    pod-security.kubernetes.io/warn: baseline
-    pod-security.kubernetes.io/warn-version: v1.35
----
-apiVersion: v1
-kind: LimitRange
-metadata: {name: defaults, namespace: app-adguard-home}
-spec:
-  limits:
-  - type: Container
-    defaultRequest: {cpu: 25m, memory: 64Mi}
----
-apiVersion: v1
-kind: ResourceQuota
-metadata: {name: quota, namespace: app-adguard-home}
-spec:
-  hard:
-    requests.cpu: "500m"
-    requests.memory: 512Mi
-    requests.storage: 10Gi
-    persistentvolumeclaims: "2"
-    pods: "4"
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata: {name: adguard-data, namespace: app-adguard-home}
 spec:
@@ -119,45 +81,6 @@ spec:
   selector: {app.kubernetes.io/name: adguard-home}
   ports:
   - {name: http, port: 3000, targetPort: http}
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata: {name: default-deny, namespace: app-adguard-home}
-spec:
-  endpointSelector: {}
-  ingress: []
-  egress: []
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata: {name: allow-required-cilium-flows, namespace: app-adguard-home}
-spec:
-  endpointSelector: {}
-  ingress:
-  # AdGuard UI (:3000) is served over the public Envoy edge but locked to the
-  # NetBird overlay by a SecurityPolicy (clientCIDRs 100.64.0.0/10); it never
-  # reaches the internet (§8/§10). The Envoy proxies run hostNetwork, so their
-  # traffic to this pod carries the host/remote-node identity. DNS (:53) is a
-  # direct hostNetwork path on the NetBird overlay (nb-wt0) — overlay-only, never
-  # internet; overlay reachability is governed by NetBird, not per-port nftables
-  # (see public-cluster-nix roles/public/cluster-server.nix).
-  - fromEntities:
-    - host
-    - remote-node
-    toPorts:
-    - ports:
-      - port: '3000'
-        protocol: TCP
-  egress:
-  - toCIDRSet:
-    - cidr: 9.9.9.9/32
-    - cidr: 149.112.112.112/32
-    toPorts:
-    - ports:
-      - port: '53'
-        protocol: UDP
-      - port: '53'
-        protocol: TCP
 ---
 # AdGuard UI over the public Envoy edge with the wildcard TLS cert. Reachability
 # is locked to the NetBird overlay by the SecurityPolicy below (§8/§10): the

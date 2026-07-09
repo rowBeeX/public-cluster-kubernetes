@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-valkey
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  labels:
+    app.kubernetes.io/part-of: public-cluster
+    app.kubernetes.io/managed-by: argocd
+    core.sedware.net/owner: platform
+    core.sedware.net/purpose: application
+    core.sedware.net/environment: dev
+    # Valkey is restricted-compliant (non-root uid 999, read-only root fs,
+    # drop ALL, seccomp RuntimeDefault) → enforce restricted, no PSA exception (#11).
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.35
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.35
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.35
+---
+apiVersion: v1
+kind: LimitRange
+metadata: {name: defaults, namespace: app-valkey}
+spec:
+  limits:
+  - type: Container
+    defaultRequest: {cpu: 25m, memory: 64Mi}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata: {name: quota, namespace: app-valkey}
+spec:
+  hard:
+    requests.cpu: "1"
+    requests.memory: 512Mi
+    pods: "5"
+    # Pure in-memory cache: no PersistentVolumeClaims (emptyDir only).
+    persistentvolumeclaims: "0"
+    requests.storage: "0"

@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-mailedge
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  labels:
+    app.kubernetes.io/part-of: public-cluster
+    app.kubernetes.io/managed-by: argocd
+    core.sedware.net/owner: platform
+    core.sedware.net/purpose: application
+    core.sedware.net/environment: dev
+    # Baseline enforce / restricted audit+warn (same posture as app-netbird).
+    # Postfix's master process requires uid 0 to manage its privilege-separated
+    # children and spool ownership, so restricted is not achievable; baseline is
+    # the enforced level.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: v1.35
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.35
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.35
+---
+apiVersion: v1
+kind: LimitRange
+metadata: {name: defaults, namespace: app-mailedge}
+spec:
+  limits:
+  - type: Container
+    defaultRequest: {cpu: 50m, memory: 128Mi}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata: {name: quota, namespace: app-mailedge}
+spec:
+  hard:
+    requests.cpu: "1"
+    requests.memory: 1Gi
+    requests.storage: 5Gi
+    persistentvolumeclaims: "1"
+    pods: "4"

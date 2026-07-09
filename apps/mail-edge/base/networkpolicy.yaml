@@ -1,0 +1,73 @@
+# Default-deny: nothing in this namespace talks to anything unless explicitly
+# allowed by the policies below.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: default-deny, namespace: app-mailedge}
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+# DNS is required so Postfix can resolve MX/A records for outbound delivery.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-dns-egress, namespace: app-mailedge}
+spec:
+  endpointSelector: {}
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - {protocol: UDP, port: '53'}
+      - {protocol: TCP, port: '53'}
+      rules:
+        dns:
+        - matchPattern: '*'
+---
+# The mail flows for the Postfix edge pod. NO public login ports (no
+# IMAP/JMAP/ManageSieve/Submission) are ever opened.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-mail-flows, namespace: app-mailedge}
+spec:
+  endpointSelector:
+    matchLabels: {app.kubernetes.io/name: mail-edge}
+  ingress:
+  # Inbound MX: the public internet may deliver mail on :25.
+  - fromEntities: [world]
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '25'}
+  # Outbound relay ingress: the Local Stalwart NetBird peer would submit
+  # outbound mail on the same :25 listener. NOTE: Cilium classifies NetBird
+  # peers as `world`, so at L3 this rule is a subset of the world rule above
+  # and cannot distinguish peers; the actual relay boundary is enforced by
+  # Postfix `mynetworks` (currently loopback-only — no external relay client
+  # is trusted until the overlay path is built, see the mynetworks note above).
+  # Scoped to the NetBird account pool (100.82.0.0/16) rather than the whole
+  # CGNAT /10 to document the expected source.
+  - fromCIDRSet:
+    - cidr: 100.82.0.0/16
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '25'}
+  egress:
+  # Outbound delivery to the internet (MX hosts) on :25.
+  - toEntities: [world]
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '25'}
+  # Inbound forward: deliver dev5.sedware.net mail to the Local Stalwart backend
+  # over NetBird on :25, via the Local Private Edge (Envoy) mail-smtp listener.
+  # The Local Private Edge (dev-manager) is reached at its NetBird overlay IP,
+  # resolved at delivery time from dev-manager.nb.dev5.sedware.net. Cilium cannot
+  # match a per-connection resolved IP, so allow the stable NetBird overlay CIDR
+  # on :25 (same range the inbound rule already trusts).
+  - toCIDRSet:
+    - cidr: 100.64.0.0/10
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '25'}

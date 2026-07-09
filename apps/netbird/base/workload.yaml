@@ -1,42 +1,4 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: app-netbird
-  annotations:
-    argocd.argoproj.io/sync-wave: "-10"
-  labels:
-    app.kubernetes.io/part-of: public-cluster
-    app.kubernetes.io/managed-by: argocd
-    core.sedware.net/owner: platform
-    core.sedware.net/purpose: application
-    core.sedware.net/environment: dev
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/enforce-version: v1.35
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/audit-version: v1.35
-    pod-security.kubernetes.io/warn: restricted
-    pod-security.kubernetes.io/warn-version: v1.35
----
-apiVersion: v1
-kind: LimitRange
-metadata: {name: defaults, namespace: app-netbird}
-spec:
-  limits:
-  - type: Container
-    defaultRequest: {cpu: 50m, memory: 128Mi}
----
-apiVersion: v1
-kind: ResourceQuota
-metadata: {name: quota, namespace: app-netbird}
-spec:
-  hard:
-    requests.cpu: "1"
-    requests.memory: 2Gi
-    requests.storage: 20Gi
-    persistentvolumeclaims: "2"
-    pods: "8"
----
-apiVersion: v1
 kind: Service
 metadata: {name: netbird-server, namespace: app-netbird}
 spec:
@@ -177,66 +139,6 @@ spec:
       - name: nginx-run
         emptyDir: {sizeLimit: 16Mi}
 ---
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata: {name: default-deny, namespace: app-netbird}
-spec:
-  endpointSelector: {}
-  ingress: []
-  egress: []
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata: {name: allow-required-cilium-flows, namespace: app-netbird}
-spec:
-  endpointSelector: {}
-  ingress:
-  # Dashboard / Management API / Signal gRPC arrive via the Envoy Gateway, whose
-  # hostNetwork proxies present as host / remote-node (was reserved:ingress).
-  - fromEntities:
-    - host
-    - remote-node
-    toPorts:
-    - ports:
-      - port: '80'
-        protocol: TCP
-  # STUN stays a protocol-specific edge path straight from the internet (§9).
-  - fromEntities:
-    - world
-    toPorts:
-    - ports:
-      - port: '3478'
-        protocol: UDP
-  - fromEndpoints:
-    - matchLabels:
-        k8s:io.kubernetes.pod.namespace: app-netbird
-    toPorts:
-    - ports:
-      - port: '80'
-        protocol: TCP
-      - port: '9090'
-        protocol: TCP
-  egress:
-  - toEndpoints:
-    - matchLabels:
-        k8s:io.kubernetes.pod.namespace: kube-system
-        k8s:k8s-app: kube-dns
-    toPorts:
-    - ports:
-      - port: '53'
-        protocol: UDP
-      - port: '53'
-        protocol: TCP
-  # netbird-server validates the Authentik OIDC issuer through the second
-  # host-network Gateway node selected by split-horizon DNS.
-  - toEntities:
-    - host
-    - remote-node
-    toPorts:
-    - ports:
-      - port: '443'
-        protocol: TCP
----
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata: {name: netbird-dashboard, namespace: app-netbird}
@@ -350,26 +252,6 @@ spec:
     - path: {type: PathPrefix, value: /}
     backendRefs:
     - {name: netbird-relay, port: 80}
----
-# Edge ingress for the relay. Envoy proxies run hostNetwork, so Cilium sees the
-# terminated edge traffic as reserved:host / reserved:remote-node (same pattern
-# as allow-required-cilium-flows). default-deny + the namespace-wide egress DNS
-# rule in allow-required-cilium-flows already cover this pod; this policy only
-# opens the relay's WebSocket port to the Gateway nodes.
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata: {name: allow-relay-edge-ingress, namespace: app-netbird}
-spec:
-  endpointSelector:
-    matchLabels: {app.kubernetes.io/name: netbird-relay}
-  ingress:
-  - fromEntities:
-    - host
-    - remote-node
-    toPorts:
-    - ports:
-      - port: '33080'
-        protocol: TCP
 ---
 # Envoy Gateway v1.8 (gateway.envoyproxy.io/v1alpha1). Reproduces the old Cilium
 # edge setting proxy-stream-idle-timeout-seconds=86400: Envoy's per-stream idle
