@@ -1,19 +1,16 @@
 # Public Dev application architecture
 
-The public cluster is the Internet edge. **Envoy Gateway** (standalone,
-`gateway.envoyproxy.io` v1.8.2) is the public HTTP/HTTPS/gRPC/WebSocket edge: a
-`hostNetwork` DaemonSet on both public nodes with `ipFamily: DualStack`, binding
-`:80`/`:443` for IPv4 **and** IPv6, terminating the Dev wildcard certificate from
-cert-manager and forwarding accepted HTTPRoutes/GRPCRoutes to IPv4 ClusterIP
-services. No HAProxy, Traefik, HTTP NodePort, Kubernetes Ingress or host proxy
-is in this path.
+> **Canonical platform/edge architecture:** the k3s control plane, Cilium
+> datapath, the standalone Envoy Gateway edge (hostNetwork DaemonSet, DualStack
+> `:80`/`:443`, TLS termination, IPv6 handling) and the firewall/CrowdSec model
+> are described **once** in
+> [`public-cluster-nix/docs/architecture.md`](https://github.com/rowBeeX/public-cluster-nix/blob/main/docs/architecture.md).
+> This file only covers the **application** layer that lives in this repo — which
+> apps sit behind that edge and how they are routed (#36).
 
-The control plane is intentionally not highly available:
-`public-cluster-host-1` is the k3s server and `public-cluster-host-2` is an
-agent. Both are Envoy Gateway and workload nodes. Cilium provides CNI, kube-proxy
-replacement, service load balancing (`externalIPs` announcement) and
-CiliumNetworkPolicy; Envoy Gateway is the L7 edge. The Cilium datapath is
-IPv4-only; only the Envoy edge accepts external IPv6.
+The public cluster is the Internet edge. This repo owns the workloads on top of
+the platform: the HTTP apps routed by Envoy Gateway, the non-HTTP protocol paths,
+and the per-namespace CiliumNetworkPolicies.
 
 Public HTTP/gRPC/WebSocket services on Envoy Gateway: Authentik (public OIDC
 provider), the NetBird dashboard, management API, signal gRPC and relay WebSocket
@@ -22,22 +19,21 @@ endpoints, and a stateless `public-nginx` test app that proves the edge
 
 Non-HTTP protocols get their own protocol-specific paths, never Envoy:
 
-- **Mail Edge / MX Relay** (`mail-edge`) — the only public SMTP entry and the
-  only outbound path; a Cilium Service on `:25` with `externalIPs`. Internet ↔
-  Mail Edge ↔ local Stalwart. No user-login ports are public.
+- **Mail Edge / MX Relay** (`mail-edge`) — the public SMTP entry; a Cilium
+  Service on `:25` with `externalIPs`. Internet → Mail Edge → local Stalwart for
+  inbound. The **outbound** smarthost path (Stalwart → Mail Edge → internet) is
+  **not yet functional** and `mynetworks` is loopback-only — see
+  [`docs/exceptions.md`](exceptions.md) (`EXC-mail-relay-path`). No user-login
+  ports are public.
 - **NetBird STUN/TURN** — UDP `3478` via an explicit Cilium Service.
 - **AdGuard** DNS/UI — **NetBird-internal only**: no public DNS, and the UI's
-  Envoy route is locked to the NetBird overlay (`100.64.0.0/10`) by a
-  `SecurityPolicy`, so it never faces the internet. AdGuard serves the NetBird
-  DNS group.
+  Envoy route is locked to the NetBird overlay by a `SecurityPolicy`, so it never
+  faces the internet. AdGuard serves the NetBird DNS group.
 
 All namespaces use CiliumNetworkPolicy with default-deny. Public web apps admit
 ingress only from the Envoy Gateway proxy pods; because those proxies run
 `hostNetwork` on the dedicated gateway nodes, Cilium identifies them as
-`host`/`remote-node`, so app policies allow `fromEntities: [host, remote-node]`
-(replacing the former Cilium reserved `ingress` identity). CrowdSec agents send
-decisions to the central local LAPI over NetBird; the node nftables firewall
-bouncer is the edge block.
+`host`/`remote-node`, so app policies allow `fromEntities: [host, remote-node]`.
 
 Only Dev domains are active. Production hostnames are not rendered or routed.
 
@@ -46,7 +42,7 @@ Only Dev domains are active. Production hostnames are not rendered or routed.
 ```mermaid
 flowchart TB
   internet["Internet clients"]
-  nbpeers["NetBird peers (100.64.0.0/10)"]
+  nbpeers["NetBird peers"]
   localedge["Local cluster Envoy edge (dev-manager over NetBird)"]
   stalwart["Local Stalwart mail"]
 
@@ -73,10 +69,9 @@ flowchart TB
   internet -->|UDP 3478 STUN| stunsvc
   internet -->|SMTP :25 MX| mailedge
   mailedge -->|"forward dev5.sedware.net (NetBird :25)"| stalwart
-  stalwart -->|"outbound relay (NetBird, mynetworks 100.64/10)"| mailedge
-  mailedge -->|SMTP :25 delivery| internet
+  mailedge -.->|"outbound relay: not yet functional (EXC-mail-relay-path)"| internet
 
   nbpeers -->|DNS :53 direct| adguard
   nbpeers -->|UI HTTPS| envoy
-  envoy -->|"HTTPRoute + SecurityPolicy (NetBird 100.64/10 only)"| adguard
+  envoy -->|"HTTPRoute + SecurityPolicy (NetBird overlay only)"| adguard
 ```
