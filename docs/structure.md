@@ -18,6 +18,8 @@ apps/
       networkpolicy.yaml      CiliumNetworkPolicies (default-deny + allow)
     overlays/dev/
       kustomization.yaml      active Dev substitutions
+    overlays/prod/
+      kustomization.yaml      Prod substitutions
 docs/
   architecture.md
   structure.md

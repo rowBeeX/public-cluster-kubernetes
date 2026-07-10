@@ -6,7 +6,9 @@ managed by the sibling `public-cluster-nix` repository.
 
 Applications currently managed here:
 
-- `authentik`: public identity provider with PostgreSQL and Valkey;
+- `authentik`: public identity provider;
+- `postgresql`: CNPG PostgreSQL cluster backing Authentik;
+- `valkey`: Redis-compatible cache/session store backing Authentik;
 - `netbird`: self-hosted control plane and dashboard;
 - `adguard-home`: NetBird-only DNS and administration UI;
 - `mail-edge`: Mail Edge / MX relay (SMTP :25) fronting the Local Stalwart backend;

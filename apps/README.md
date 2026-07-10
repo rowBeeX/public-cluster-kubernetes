@@ -19,7 +19,7 @@ Kubernetes-Manifeste für die öffentlichen Cluster-Apps. Deployment erfolgt
 ## Konventionen
 
 - Ressourcen je App aufgeteilt im `base/` (`namespace.yaml` → `workload.yaml` → `networkpolicy.yaml`), siehe [`docs/app-layout.md`](../docs/app-layout.md)
-- Overlays: `overlays/dev/` (aktive Generation), `overlays/prod/` noch nicht vorhanden
+- Overlays: `overlays/dev/` (aktive Generation) und `overlays/prod/` je App vorhanden
 - HTTP wird ausschließlich per `HTTPRoute` an das Envoy Dev-Gateway (`public-dev`
   in `gateway-system`) gebunden.
 - STUN/DNS-Sonderprotokolle bleiben explizite Cilium Services mit `externalIPs`.
