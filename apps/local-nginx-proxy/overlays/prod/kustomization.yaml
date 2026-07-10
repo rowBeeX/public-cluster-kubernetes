@@ -1,0 +1,42 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Prod overlay. Only environment-specific values live here: the namespace
+# environment label and every generation-scoped hostname with the `dev6.`
+# segment removed (public edge host, the URL-rewritten local edge host, and
+# the NetBird origin peer FQDN).
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Namespace
+      name: app-local-nginx-proxy
+    patch: |
+      - op: add
+        path: /metadata/labels/core.sedware.net~1environment
+        value: prod
+  - target:
+      kind: HTTPRoute
+      name: local-nginx
+    patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: local-nginx.sedware.net
+      - op: replace
+        path: /spec/rules/0/filters/0/urlRewrite/hostname
+        value: local-nginx.local.sedware.net
+  - target:
+      kind: Backend
+      name: local-edge
+    patch: |
+      - op: replace
+        path: /spec/endpoints/0/fqdn/hostname
+        value: dev-manager.nb.sedware.net
+  - target:
+      kind: BackendTLSPolicy
+      name: local-edge-tls
+    patch: |
+      - op: replace
+        path: /spec/validation/hostname
+        value: local-nginx.local.sedware.net

@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Prod overlay. Valkey is internal-only (no ingress) and uses the same
+# cluster-internal DNS in every environment, so the only environment-specific
+# value is the namespace label.
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Namespace
+      name: app-valkey
+    patch: |
+      - op: add
+        path: /metadata/labels/core.sedware.net~1environment
+        value: prod

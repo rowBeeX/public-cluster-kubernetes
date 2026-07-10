@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+# Replace the served static page with the prod host. A configMapGenerator
+# (behavior: replace) is used instead of a patch because kustomize patches
+# drop a block scalar's trailing newline, which would break byte parity with
+# the dev render. The file source preserves the ConfigMap value verbatim.
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: public-nginx-html
+    namespace: app-public-nginx
+    behavior: replace
+    files:
+      - index.html
+patches:
+  # Namespace environment label: dev -> prod.
+  - target:
+      kind: Namespace
+      name: app-public-nginx
+    patch: |-
+      - op: add
+        path: /metadata/labels/core.sedware.net~1environment
+        value: prod
+  # HTTPRoute hostname: dev6 host -> prod host.
+  - target:
+      group: gateway.networking.k8s.io
+      version: v1
+      kind: HTTPRoute
+      name: public-nginx
+    patch: |-
+      - op: replace
+        path: /spec/hostnames/0
+        value: public-nginx.sedware.net

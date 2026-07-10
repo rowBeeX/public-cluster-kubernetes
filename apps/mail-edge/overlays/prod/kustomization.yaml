@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Prod overlay. Only environment-specific values live here: the prod hostnames
+# drop the dev6 generation segment, and the namespace carries the prod
+# environment label.
+resources:
+  - ../../base
+
+patches:
+  # Namespace environment label: dev -> prod.
+  - target:
+      kind: Namespace
+      name: app-mailedge
+    patch: |
+      - op: add
+        path: /metadata/labels/core.sedware.net~1environment
+        value: prod
+  # SMTP edge STARTTLS certificate: prod hostname.
+  - target:
+      kind: Certificate
+      name: mail-edge-tls
+    patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: mail.sedware.net
+  # Postfix env: prod hostname, relay (relay_domains) domain and the onward
+  # transport to the Local Stalwart backend, all with the dev6 segment removed.
+  # Replaced in place by env index (see base/workload.yaml) to preserve list
+  # order; strategic-merge would reorder the env entries.
+  - target:
+      kind: Deployment
+      name: mail-edge
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: mail.sedware.net
+      - op: replace
+        path: /spec/template/spec/containers/0/env/4/value
+        value: sedware.net
+      - op: replace
+        path: /spec/template/spec/containers/0/env/5/value
+        value: "inline:{ sedware.net=smtp:[dev-manager.nb.sedware.net]:25 }"

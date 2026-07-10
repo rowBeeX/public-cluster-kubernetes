@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Prod overlay. Only environment-specific values live here: the namespace
+# label and the public HTTPRoute hostname (dev6 generation segment dropped).
+# The NetBird-only SecurityPolicy in base stays intact — the UI is still
+# reachable only from the overlay (clientCIDRs 100.64.0.0/10).
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Namespace
+      name: app-adguard-home
+    patch: |
+      - op: add
+        path: /metadata/labels/core.sedware.net~1environment
+        value: prod
+  - target:
+      kind: HTTPRoute
+      name: adguard-home
+    patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: adguard.sedware.net

@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Prod overlay. Only environment-specific values live here: the namespace
+# environment label and the public HTTPRoute hostname (dev6 generation segment
+# removed).
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Namespace
+      name: app-authentik
+    patch: |
+      - op: replace
+        path: /metadata/labels/core.sedware.net~1environment
+        value: prod
+  - target:
+      kind: HTTPRoute
+      name: authentik
+    patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: authentik.sedware.net
