@@ -12,6 +12,6 @@ patches:
       kind: Namespace
       name: app-valkey
     patch: |
-      - op: add
+      - op: replace
         path: /metadata/labels/core.sedware.net~1environment
         value: prod

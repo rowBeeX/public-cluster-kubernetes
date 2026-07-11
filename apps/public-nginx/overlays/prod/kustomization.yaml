@@ -20,7 +20,7 @@ patches:
       kind: Namespace
       name: app-public-nginx
     patch: |-
-      - op: add
+      - op: replace
         path: /metadata/labels/core.sedware.net~1environment
         value: prod
   # HTTPRoute hostname: dev6 host -> prod host.

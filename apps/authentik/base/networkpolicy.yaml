@@ -47,7 +47,7 @@ spec:
     - ports:
       - port: '9000'
         protocol: TCP
-  # Central Postgres (CNPG) moved to its own app (app-postgresql).
+  # Egress to the central Postgres (app-postgresql).
   - toEndpoints:
     - matchLabels:
         k8s:io.kubernetes.pod.namespace: app-postgresql
@@ -55,7 +55,7 @@ spec:
     - ports:
       - port: '5432'
         protocol: TCP
-  # Shared cache moved to its own app (app-valkey).
+  # Egress to the shared cache (app-valkey).
   - toEndpoints:
     - matchLabels:
         k8s:io.kubernetes.pod.namespace: app-valkey

@@ -52,7 +52,7 @@ flowchart TB
     authentik["authentik (OIDC/SSO :9000)"]
     nbdash["netbird dashboard"]
     nbmgmt["netbird mgmt API + signal gRPC + relay WSS"]
-    pubnginx["public-nginx (whoami)"]
+    pubnginx["public-nginx (static test page)"]
     lnproxy["local-nginx-proxy (HTTPRoute + Backend + BackendTLSPolicy)"]
     stunsvc["netbird-stun Service (externalIPs UDP 3478)"]
     mailedge["mail-edge Postfix (externalIPs :25 STARTTLS mail.dev6)"]

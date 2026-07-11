@@ -34,8 +34,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: netbird-server
-        image: 
-          docker.io/netbirdio/netbird-server:0.72.4@sha256:9ab98a37002517204010ee88a0c7f5e76b1fe6e2a736043db60efb7a02fbded3
+        image: docker.io/netbirdio/netbird-server:0.72.4@sha256:9ab98a37002517204010ee88a0c7f5e76b1fe6e2a736043db60efb7a02fbded3
         args: [--config, /etc/netbird/config.yaml]
         env:
         - {name: NB_DISABLE_GEOLOCATION, value: "true"}
@@ -104,8 +103,7 @@ spec:
           matchLabels: {app.kubernetes.io/name: netbird-dashboard}
       containers:
       - name: dashboard
-        image: 
-          docker.io/netbirdio/dashboard:v2.39.0@sha256:9c31fa6ea31945b05915ea989003caf07eee9afa8604c84f89abe924246fb3da
+        image: docker.io/netbirdio/dashboard:v2.39.0@sha256:9c31fa6ea31945b05915ea989003caf07eee9afa8604c84f89abe924246fb3da
         env:
         - {name: AUTH_AUDIENCE, value: netbird-dashboard}
         - {name: AUTH_CLIENT_ID, value: netbird-dashboard}

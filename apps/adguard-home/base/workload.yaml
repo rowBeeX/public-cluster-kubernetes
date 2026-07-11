@@ -25,8 +25,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       initContainers:
       - name: bootstrap-config
-        image: 
-          docker.io/rancher/mirrored-library-busybox:1.37.0@sha256:101b4afd76732482eff9b95cae5f94bcf295e521fbec4e01b69c5421f3f3f3e5
+        image: docker.io/rancher/mirrored-library-busybox:1.37.0@sha256:101b4afd76732482eff9b95cae5f94bcf295e521fbec4e01b69c5421f3f3f3e5
         command:
         - sh
         - -ec
@@ -44,8 +43,7 @@ spec:
         - {name: bootstrap, mountPath: /bootstrap, readOnly: true}
       containers:
       - name: adguard-home
-        image: 
-          docker.io/adguard/adguardhome:v0.107.77@sha256:e6f2b8bcda06064ab055b44933a4f0e983c35558b9cdb8d2e7ab1efcee36d890
+        image: docker.io/adguard/adguardhome:v0.107.77@sha256:e6f2b8bcda06064ab055b44933a4f0e983c35558b9cdb8d2e7ab1efcee36d890
         ports:
         - {name: dns-tcp, protocol: TCP, containerPort: 53}
         - {name: dns-udp, protocol: UDP, containerPort: 53}
