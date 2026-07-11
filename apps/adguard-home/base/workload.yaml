@@ -93,7 +93,7 @@ metadata: {name: adguard-home, namespace: app-adguard-home}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [adguard.dev6.sedware.net]
+  hostnames: [adguard.dev7.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}

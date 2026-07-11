@@ -11,7 +11,7 @@ description: Operate and diagnose the public k3s cluster and its Argo CD applica
   resources live.
 - Host 1 is the single control plane; Host 2 is an agent. This is deliberately
   not HA.
-- HTTP path: external Dev DNS (`*.dev6.sedware.net`) -> public Envoy Gateway
+- HTTP path: external Dev DNS (`*.dev7.sedware.net`) -> public Envoy Gateway
   (`public-dev` in namespace `gateway-system`, hostNetwork on both gateway
   nodes) -> HTTPRoute -> ClusterIP Service -> Pod. TLS is terminated at the
   Envoy Gateway with the cert-manager wildcard certificate (Cloudflare DNS-01).

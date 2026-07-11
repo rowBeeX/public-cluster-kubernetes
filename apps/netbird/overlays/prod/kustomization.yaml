@@ -30,7 +30,7 @@ patches:
                     value: https://netbird-control.sedware.net
                   - name: AUTH_AUTHORITY
                     value: https://netbird-control.sedware.net/oauth2
-  # Relay advertised public WSS endpoint (base dev6 -> prod hostname).
+  # Relay advertised public WSS endpoint (base dev7 -> prod hostname).
   # In-place replace (env index 2) to preserve base env ordering.
   - patch: |-
       - op: replace
@@ -39,7 +39,7 @@ patches:
     target:
       kind: Deployment
       name: netbird-relay
-  # Route hostnames (base dev6 -> prod).
+  # Route hostnames (base dev7 -> prod).
   - patch: |-
       apiVersion: gateway.networking.k8s.io/v1
       kind: HTTPRoute

@@ -48,14 +48,14 @@ flowchart TB
   stalwart["Local Stalwart mail"]
 
   subgraph public["Public cluster (public-cluster-host-1 server, host-2 agent)"]
-    envoy["Envoy Gateway public-dev (hostNetwork :80/:443, wildcard *.dev6 TLS)"]
+    envoy["Envoy Gateway public-dev (hostNetwork :80/:443, wildcard *.dev7 TLS)"]
     authentik["authentik (OIDC/SSO :9000)"]
     nbdash["netbird dashboard"]
     nbmgmt["netbird mgmt API + signal gRPC + relay WSS"]
     pubnginx["public-nginx (static test page)"]
     lnproxy["local-nginx-proxy (HTTPRoute + Backend + BackendTLSPolicy)"]
     stunsvc["netbird-stun Service (externalIPs UDP 3478)"]
-    mailedge["mail-edge Postfix (externalIPs :25 STARTTLS mail.dev6)"]
+    mailedge["mail-edge Postfix (externalIPs :25 STARTTLS mail.dev7)"]
     adguard["adguard-home (hostNetwork DNS :53 / UI :3000)"]
   end
 
@@ -64,12 +64,12 @@ flowchart TB
   envoy -->|HTTPRoute| nbdash
   envoy -->|HTTPRoute / GRPCRoute| nbmgmt
   envoy -->|HTTPRoute| pubnginx
-  envoy -->|"HTTPRoute URLRewrite Host local-nginx.local.dev6"| lnproxy
-  lnproxy -->|"re-encrypt, verify *.local.dev6 (NetBird)"| localedge
+  envoy -->|"HTTPRoute URLRewrite Host local-nginx.local.dev7"| lnproxy
+  lnproxy -->|"re-encrypt, verify *.local.dev7 (NetBird)"| localedge
 
   internet -->|UDP 3478 STUN| stunsvc
   internet -->|SMTP :25 MX| mailedge
-  mailedge -->|"forward dev6.sedware.net (NetBird :25)"| stalwart
+  mailedge -->|"forward dev7.sedware.net (NetBird :25)"| stalwart
   mailedge -.->|"outbound relay: not yet functional (EXC-mail-relay-path)"| internet
 
   nbpeers -->|DNS :53 direct| adguard

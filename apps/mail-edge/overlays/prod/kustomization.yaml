@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Prod overlay. Only environment-specific values live here: the prod hostnames
-# drop the dev6 generation segment, and the namespace carries the prod
+# drop the dev7 generation segment, and the namespace carries the prod
 # environment label.
 resources:
   - ../../base
@@ -25,7 +25,7 @@ patches:
         path: /spec/dnsNames/0
         value: mail.sedware.net
   # Postfix env: prod hostname, relay (relay_domains) domain and the onward
-  # transport to the Local Stalwart backend, all with the dev6 segment removed.
+  # transport to the Local Stalwart backend, all with the dev7 segment removed.
   # Replaced in place by env index (see base/workload.yaml) to preserve list
   # order; strategic-merge would reorder the env entries.
   - target:

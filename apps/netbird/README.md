@@ -9,7 +9,7 @@ WireGuard-basiertes VPN-Management für den Public-Cluster und verbundene Client
 | netbird-server StatefulSet | Management-Server (HTTP + STUN UDP 3478) |
 | netbird-dashboard Deployment | Web-UI (2 Replicas) |
 | netbird-stun Service | STUN-Dienst mit `externalIPs` auf den Cilium-Nodes |
-| netbird-relay Deployment | WebSocket-Relay (§8/§21), Port 33080, öffentlich `rels://netbird-relay.dev6.sedware.net:443` |
+| netbird-relay Deployment | WebSocket-Relay (§8/§21), Port 33080, öffentlich `rels://netbird-relay.dev7.sedware.net:443` |
 
 ## Besonderheiten
 
@@ -34,18 +34,18 @@ werden — hier werden **keine** echten Secret-Werte hinterlegt:
 
    ```json
    "Relay": {
-       "Addresses": ["rels://netbird-relay.dev6.sedware.net:443"],
+       "Addresses": ["rels://netbird-relay.dev7.sedware.net:443"],
        "CredentialsTTL": "24h",
        "Secret": "<gleicher Wert wie NB_AUTH_SECRET>"
    }
    ```
 
-3. DNS-Record `netbird-relay.dev6.sedware.net` auf die Gateway-Nodes zeigen lassen
-   (analog zu den übrigen `*.dev6.sedware.net` Hosts).
+3. DNS-Record `netbird-relay.dev7.sedware.net` auf die Gateway-Nodes zeigen lassen
+   (analog zu den übrigen `*.dev7.sedware.net` Hosts).
 
 ## Zugang
 
-- Dashboard: `https://netbird.dev6.sedware.net/` — öffentlich über den Envoy-Edge
+- Dashboard: `https://netbird.dev7.sedware.net/` — öffentlich über den Envoy-Edge
   (`public-dev`) per HTTPRoute erreichbar; abgesichert durch Authentik-OIDC-Login,
   nicht durch eine Netzwerk-/CNP-Beschränkung
 - Management API: intern via `netbird-server.app-netbird.svc`

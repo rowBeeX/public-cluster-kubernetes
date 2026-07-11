@@ -60,10 +60,10 @@ spec:
     toPorts:
     - ports:
       - {protocol: TCP, port: '25'}
-  # Inbound forward: deliver dev6.sedware.net mail to the Local Stalwart backend
+  # Inbound forward: deliver dev7.sedware.net mail to the Local Stalwart backend
   # over NetBird on :25, via the Local Private Edge (Envoy) mail-smtp listener.
   # The Local Private Edge (dev-manager) is reached at its NetBird overlay IP,
-  # resolved at delivery time from dev-manager.nb.dev6.sedware.net. Cilium cannot
+  # resolved at delivery time from dev-manager.nb.dev7.sedware.net. Cilium cannot
   # match a per-connection resolved IP, so allow the stable NetBird overlay CIDR
   # on :25 (same range the inbound rule already trusts).
   - toCIDRSet:

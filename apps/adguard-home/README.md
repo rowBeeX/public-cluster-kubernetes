@@ -11,10 +11,10 @@ DNS-Resolver mit Rewrite-Regeln für den Public-Cluster.
 
 ## Zugang
 
-- Web-UI: `https://adguard.dev6.sedware.net` über den öffentlichen Envoy-Edge
+- Web-UI: `https://adguard.dev7.sedware.net` über den öffentlichen Envoy-Edge
   (Wildcard-TLS). Erreichbarkeit ist per `SecurityPolicy` auf die NetBird-Overlay-
   CIDR `100.64.0.0/10` beschränkt — Envoy weist jeden anderen Client ab, die UI
   ist also nie aus dem Internet erreichbar. Kein öffentlicher DNS-Eintrag; NetBird-
-  Clients lösen `adguard.dev6.sedware.net` über AdGuard auf die Host-1-Overlay-IP
+  Clients lösen `adguard.dev7.sedware.net` über AdGuard auf die Host-1-Overlay-IP
   auf und treffen dort den ko-lokalen Envoy.
 - DNS: UDP/TCP 53 direkt auf Host-1 (hostNetwork), nur für NetBird-Peers und ausdrücklich erlaubte interne Quellen — kein offener öffentlicher Resolver

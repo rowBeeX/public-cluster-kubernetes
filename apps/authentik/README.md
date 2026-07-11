@@ -23,7 +23,7 @@ Das Datenbankpasswort kommt aus Vault über den `authentik-db` VaultStaticSecret
 
 ## Zugang
 
-- Admin-UI: `https://authentik.dev6.sedware.net/if/admin/` — erreichbar über den
+- Admin-UI: `https://authentik.dev7.sedware.net/if/admin/` — erreichbar über den
   öffentlichen Envoy-Edge (`public-dev`) per HTTPRoute; der Zugang wird durch
   Authentik-Login geschützt, nicht durch eine Netzwerk-/CNP-Beschränkung
-- OIDC-Issuer: `https://authentik.dev6.sedware.net/application/o/<client>/`
+- OIDC-Issuer: `https://authentik.dev7.sedware.net/application/o/<client>/`
