@@ -19,12 +19,12 @@ endpoints, and a stateless `public-nginx` test app that proves the edge
 
 Non-HTTP protocols get their own protocol-specific paths, never Envoy:
 
-- **Mail Edge / MX Relay** (`mail-edge`) — the public SMTP entry; a Cilium
-  Service on `:25` with `externalIPs`. Internet → Mail Edge → local Stalwart for
-  inbound. The **outbound** smarthost path (Stalwart → Mail Edge → internet) is
-  **not yet functional** and `mynetworks` is loopback-only — see
-  [`docs/exceptions.md`](exceptions.md) (`EXC-mail-relay-path`). No user-login
-  ports are public.
+- **Mail Edge / MX Relay** (`mail-edge`) — öffentlicher SMTP-Eingang als Cilium-
+  Service auf `:25` mit `externalIPs`. Eingehend läuft Internet → Mail Edge →
+  lokales Stalwart. Ausgehend nutzt Stalwart den NetBird-only-Envoy-Listener
+  `:2525`, dessen TCPRoute zu Mail Edge `:25` führt. Postfix vertraut nur dem
+  exakten Gateway-Node-/32; fremde Quellen können ausschließlich lokale
+  Empfänger adressieren. Es sind keine User-Login-Ports öffentlich.
 - **NetBird STUN/TURN** — UDP `3478` via an explicit Cilium Service.
 - **AdGuard** DNS/UI — **NetBird-internal only**: no public DNS, and the UI's
   Envoy route is locked to the NetBird overlay by a `SecurityPolicy`, so it never
@@ -48,14 +48,14 @@ flowchart TB
   stalwart["Local Stalwart mail"]
 
   subgraph public["Public cluster (public-cluster-host-1 server, host-2 agent)"]
-    envoy["Envoy Gateway public-dev (hostNetwork :80/:443, wildcard *.dev7 TLS)"]
+    envoy["Envoy Gateway public-dev (hostNetwork :80/:443 und NetBird-only :2525)"]
     authentik["authentik (OIDC/SSO :9000)"]
     nbdash["netbird dashboard"]
     nbmgmt["netbird mgmt API + signal gRPC + relay WSS"]
     pubnginx["public-nginx (static test page)"]
     lnproxy["local-nginx-proxy (HTTPRoute + Backend + BackendTLSPolicy)"]
     stunsvc["netbird-stun Service (externalIPs UDP 3478)"]
-    mailedge["mail-edge Postfix (externalIPs :25 STARTTLS mail.dev7)"]
+    mailedge["mail-edge Postfix (externalIPs :25 STARTTLS mail.dev8)"]
     adguard["adguard-home (hostNetwork DNS :53 / UI :3000)"]
   end
 
@@ -64,13 +64,15 @@ flowchart TB
   envoy -->|HTTPRoute| nbdash
   envoy -->|HTTPRoute / GRPCRoute| nbmgmt
   envoy -->|HTTPRoute| pubnginx
-  envoy -->|"HTTPRoute URLRewrite Host local-nginx.local.dev7"| lnproxy
-  lnproxy -->|"re-encrypt, verify *.local.dev7 (NetBird)"| localedge
+  envoy -->|"HTTPRoute URLRewrite Host local-nginx.local.dev8"| lnproxy
+  lnproxy -->|"re-encrypt, verify *.local.dev8 (NetBird)"| localedge
 
   internet -->|UDP 3478 STUN| stunsvc
   internet -->|SMTP :25 MX| mailedge
-  mailedge -->|"forward dev7.sedware.net (NetBird :25)"| stalwart
-  mailedge -.->|"outbound relay: not yet functional (EXC-mail-relay-path)"| internet
+  mailedge -->|"forward dev8.sedware.net (NetBird :25)"| stalwart
+  stalwart -->|"Smarthost über NetBird/Envoy :2525"| envoy
+  envoy -->|"TCPRoute zu Postfix :25"| mailedge
+  mailedge -->|"ausgehendes SMTP :25"| internet
 
   nbpeers -->|DNS :53 direct| adguard
   nbpeers -->|UI HTTPS| envoy

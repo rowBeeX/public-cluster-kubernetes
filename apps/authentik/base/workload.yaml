@@ -74,7 +74,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: authentik
-        image: ghcr.io/goauthentik/server:2026.5@sha256:28166f077dae24371c59a644e4319ea173d5290613386462e8172a963bd607fd
+        image: ghcr.io/goauthentik/server:2026.5.4@sha256:a8e80071e5938cca7c8d03461a56740041f274d721100974e042b6d265001f50
         args: [server]
         envFrom:
         - secretRef: {name: authentik-runtime}
@@ -138,7 +138,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: authentik
-        image: ghcr.io/goauthentik/server:2026.5@sha256:28166f077dae24371c59a644e4319ea173d5290613386462e8172a963bd607fd
+        image: ghcr.io/goauthentik/server:2026.5.4@sha256:a8e80071e5938cca7c8d03461a56740041f274d721100974e042b6d265001f50
         args: [worker]
         envFrom:
         - secretRef: {name: authentik-runtime}
@@ -170,7 +170,7 @@ metadata: {name: authentik, namespace: app-authentik}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [authentik.dev7.sedware.net]
+  hostnames: [authentik.dev8.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}

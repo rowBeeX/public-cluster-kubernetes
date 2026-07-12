@@ -1,5 +1,5 @@
 # Public internet-facing test server. Serves a static page
-# at https://public-nginx.dev7.sedware.net over the public Envoy edge, proving an
+# at https://public-nginx.dev8.sedware.net over the public Envoy edge, proving an
 # ordinary web app reaches the internet end-to-end (IPv4+IPv6, TLS, routing).
 # nginx-unprivileged listens on 8080 as a non-root user so the namespace can
 # enforce the restricted Pod-Security profile.
@@ -13,7 +13,7 @@ data:
     <h1>public-nginx</h1>
     <p>Test server running in the <strong>public</strong> cluster,
     served directly by the public Envoy edge.</p>
-    <p>public-nginx.dev7.sedware.net</p>
+    <p>public-nginx.dev8.sedware.net</p>
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -32,7 +32,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: nginx
-          image: docker.io/nginxinc/nginx-unprivileged:1.29-alpine@sha256:0c79d56aee561a1d81c63f00eee5fb5fe29279560cdc55e91425133104c7fbe6
+          image: docker.io/nginxinc/nginx-unprivileged:1.31.2-alpine@sha256:70b3a89a79c6c835c122346937816f588f3d5ba9a735538b3ddd0a4c8be05eb2
           ports:
             - {name: http, containerPort: 8080}
           securityContext:
@@ -67,7 +67,7 @@ metadata: {name: public-nginx, namespace: app-public-nginx}
 spec:
   parentRefs:
     - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [public-nginx.dev7.sedware.net]
+  hostnames: [public-nginx.dev8.sedware.net]
   rules:
     - matches:
         - path: {type: PathPrefix, value: /}

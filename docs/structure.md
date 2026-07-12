@@ -5,7 +5,7 @@ apps/
   adguard-home/               DNS/UI, NetBird-internal only (Envoy route locked to NetBird via SecurityPolicy)
   authentik/                  public OIDC provider (Envoy Gateway)
   local-nginx-proxy/          public edge entry for the local cluster's nginx (re-encrypt over NetBird)
-  mail-edge/                  Mail Edge / MX Relay (SMTP :25, public in/out)
+  mail-edge/                  Mail Edge / MX Relay (SMTP :25 inbound; outbound bewusst inaktiv)
   netbird/                    dashboard/management/signal/relay (Envoy Gateway)
   postgresql/                 CNPG cluster backing Authentik
   public-nginx/               public nginx test server (Envoy Gateway)

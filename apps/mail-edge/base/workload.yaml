@@ -1,6 +1,6 @@
-# STARTTLS / implicit-TLS certificate for the SMTP edge. DNS-01 via the shared
-# letsencrypt-dev ClusterIssuer (Cloudflare). This is a dedicated cert in this
-# namespace — the gateway-system wildcard secret is NOT reused cross-namespace.
+# STARTTLS-Zertifikat für den SMTP-Edge per DNS-01 und gemeinsamem
+# letsencrypt-dev-ClusterIssuer. Das dedizierte Namespace-Zertifikat vermeidet
+# eine clusterübergreifende Wiederverwendung des gateway-system-Wildcard-Secrets.
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata: {name: mail-edge-tls, namespace: app-mailedge}
@@ -11,11 +11,14 @@ spec:
     kind: ClusterIssuer
     name: letsencrypt-dev
   dnsNames:
-    - mail.dev7.sedware.net
+    - mail.dev8.sedware.net
+    # Stalwart verbindet sich über diesen NetBird-Peer-FQDN. Der zusätzliche SAN
+    # erlaubt eine vollständige STARTTLS-Prüfung ohne allowInvalidCerts-Ausnahme.
+    - public-cluster-host-1.nb.dev8.sedware.net
 ---
-# Durable queue spool. A mail relay defers mail for temporarily-unreachable
-# destinations, so the Postfix queue (/var/spool/postfix) must survive pod
-# restarts -> single replica + RWO PVC (a Postfix spool cannot be shared).
+# Dauerhafter Queue-Spool: Ein Mail-Relay stellt bei vorübergehend unerreichbaren
+# Zielen zurück. Die Postfix-Queue muss Pod-Restarts überstehen, daher ein
+# einzelnes Replica mit RWO-PVC; ein Postfix-Spool darf nicht geteilt werden.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata: {name: mail-edge-spool, namespace: app-mailedge}
@@ -25,11 +28,11 @@ spec:
   resources:
     requests: {storage: 2Gi}
 ---
-# Inbound SMTP edge. Same "no host proxy" L4 pattern as netbird-stun: the public
-# gateway-node IPs are set as externalIPs and Cilium announces the Service
-# directly. This is the ONLY public mail entry/exit. NOT routed via the Envoy
-# Gateway (that listener is HTTP-only).
-# On IP changes this list must be updated manually.
+# Öffentlicher SMTP-Eingang nach demselben L4-Muster ohne Host-Proxy wie
+# netbird-stun: Die Gateway-Node-IPs stehen als externalIPs am direkt von Cilium
+# bereitgestellten Service. Dies ist der einzige Internet-Mail-Ein-/Ausgang;
+# Envoy bedient separat nur den privaten Smarthost-Port :2525 über NetBird.
+# Bei IP-Änderungen muss diese Liste bewusst aktualisiert werden.
 apiVersion: v1
 kind: Service
 metadata: {name: mail-edge-smtp, namespace: app-mailedge}
@@ -46,8 +49,8 @@ metadata:
   namespace: app-mailedge
   labels: {app.kubernetes.io/name: mail-edge}
 spec:
-  # Single replica: the Postfix queue is stateful (see PVC above). Recreate to
-  # avoid two Postfix instances writing the same spool during a rollout.
+  # Ein Replica, da die Postfix-Queue zustandsbehaftet ist. Recreate verhindert,
+  # dass während eines Rollouts zwei Instanzen denselben Spool beschreiben.
   replicas: 1
   strategy: {type: Recreate}
   selector:
@@ -59,52 +62,49 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: postfix
-        image: docker.io/boky/postfix:v4.4.0@sha256:f3f247fd42528b969e2603ac120d5a5b5db7dfe61f4505c49d438b9ba1822999
+        image: docker.io/boky/postfix:v5.1.0@sha256:cd7e192900bfc49a67291a572b5f645f9e7d1b8d7f2b79b0364b4b4176964e21
         env:
-        # Recipient-restricted relay: senders are unrestricted (needed so the
-        # public internet can submit inbound MX mail), authorization is by
-        # recipient (relay_domains) and by source network (mynetworks) below.
+        # Empfängerbegrenztes Relay: Internet-MX-Absender bleiben zulässig;
+        # relay_domains und mynetworks autorisieren Empfänger beziehungsweise Quelle.
         - {name: ALLOW_EMPTY_SENDER_DOMAINS, value: "true"}
-        - {name: POSTFIX_myhostname, value: mail.dev7.sedware.net}
+        - {name: POSTFIX_myhostname, value: mail.dev8.sedware.net}
         - {name: POSTFIX_inet_protocols, value: ipv4}
-        # This box is final destination for NO domain (dev7 is a *relay* domain,
-        # delivered onward to the Local Stalwart backend, not a local mailbox).
+        # Dieser Host ist für keine Domain das Endziel. dev8 ist eine Relay-Domain,
+        # die an Stalwart weitergeleitet wird, keine lokale Mailbox-Domain.
         - {name: POSTFIX_mydestination, value: ""}
-        # --- Inbound: Internet :25 -> Mail Edge -> Local Stalwart -------------
-        # Accept inbound mail addressed to dev7.sedware.net ...
-        - {name: POSTFIX_relay_domains, value: dev7.sedware.net}
-        # ... and forward it to the Local Stalwart backend over NetBird via the
-        # Local Private Edge (Envoy) mail-smtp listener. The [host] brackets
-        # disable MX lookup (deliver straight to that address); Postfix still
-        # resolves the peer FQDN to its current overlay IP at delivery time
-        # (CoreDNS forwards *.nb.dev7 to AdGuard). The stable peer FQDN — never a
-        # raw per-generation overlay IP — is the GitOps source of truth.
-        # dev-manager.nb.dev7.sedware.net: the Local Private Edge (dev-manager)
-        # NetBird peer; its :25 TCPRoute forwards to the Stalwart ClusterIP.
+        # --- Eingehend: Internet :25 -> Mail Edge -> Local Stalwart -----------
+        # Nachrichten an dev8.sedware.net annehmen ...
+        - {name: POSTFIX_relay_domains, value: dev8.sedware.net}
+        # ... und über den mail-smtp-Listener des Local Private Edge an Stalwart
+        # weiterleiten. Eckige Klammern deaktivieren die MX-Auflösung; Postfix
+        # löst den stabilen Peer-FQDN bei jeder Zustellung zur aktuellen Overlay-
+        # IP auf. Dieser FQDN statt einer rohen Overlay-IP ist die GitOps-Quelle.
+        # Der :25-TCPRoute am Dev-Manager führt zum Stalwart-ClusterIP.
         - name: POSTFIX_transport_maps
-          value: "inline:{ dev7.sedware.net=smtp:[dev-manager.nb.dev7.sedware.net]:25 }"
-        # --- Outbound relay trust (anti-open-relay gate) --------------------
-        # mynetworks is the source-network boundary for relaying to arbitrary
-        # (internet) destinations. It trusts ONLY the container's own loopback:
-        # NO external peer is granted relay. The former value "100.64.0.0/10"
-        # trusted the entire NetBird/CGNAT overlay (any peer) — an open-relay
-        # risk (issue #2/#3), now removed.
+          value: "inline:{ dev8.sedware.net=smtp:[dev-manager.nb.dev8.sedware.net]:25 }"
+        # --- Ausgehender Relay-Trust (Anti-Open-Relay-Gate) ------------------
+        # mynetworks begrenzt Quellen, die an beliebige Internet-Ziele relayen
+        # dürfen. Das frühere 100.64.0.0/10 hätte jedem NetBird-/CGNAT-Peer
+        # vertraut und damit ein Open-Relay-Risiko erzeugt (#2/#3).
         #
-        # The outbound smarthost path (Local Stalwart -> Mail Edge -> internet)
-        # is NOT yet functional: Cilium does not serve :25 on the NetBird wt0
-        # interface, so Stalwart cannot reach mail-edge over the overlay. See
-        # docs/exceptions.md (EXC-mail-relay-path, tracked under the NetBird
-        # routing work). When that path is built, add the relay client's exact
-        # overlay /32 here (resolved live from NetBird), never a broad range.
+        # Der Smarthost-Pfad endet am hostNetwork-Envoy auf Public Host 1. Postfix
+        # vertraut deshalb zusätzlich ausschließlich dessen exakter Dev-LAN-/32;
+        # die Prod-Overlay ersetzt diesen Wert mit der dortigen Node-Adresse.
+        # NetBird-Policy und interfacegebundene Firewall begrenzen bereits den
+        # Zugang zu Envoy :2525 auf den Stalwart-Peer.
         - name: POSTFIX_mynetworks
-          value: "127.0.0.0/8 [::1]/128"
-        # No SASL / no public login: relaying is permit_mynetworks only.
+          value: "127.0.0.0/8 [::1]/128 192.168.101.10/32"
+        # Internet-MX-Sender müssen eine SMTP-Session beginnen dürfen. Die
+        # Empfänger-/Relay-Autorisierung erfolgt darunter separat und verweigert
+        # externe Ziele weiterhin für alle nicht vertrauenswürdigen Quellen.
+        - {name: POSTFIX_smtpd_client_restrictions, value: "permit"}
+        # Kein SASL und kein öffentlicher Login: Relay nur per permit_mynetworks.
         - {name: POSTFIX_smtpd_relay_restrictions, value: "permit_mynetworks reject_unauth_destination"}
-        # STARTTLS on :25 (opportunistic) using the cert-manager certificate.
+        # Opportunistisches STARTTLS auf :25 mit dem cert-manager-Zertifikat.
         - {name: POSTFIX_smtpd_tls_security_level, value: may}
         - {name: POSTFIX_smtpd_tls_cert_file, value: /etc/postfix/tls/tls.crt}
         - {name: POSTFIX_smtpd_tls_key_file, value: /etc/postfix/tls/tls.key}
-        # Opportunistic TLS for outbound delivery to remote MX hosts.
+        # Opportunistisches TLS bei ausgehender Zustellung zu externen MX-Hosts.
         - {name: POSTFIX_smtp_tls_security_level, value: may}
         ports:
         - {name: smtp, containerPort: 25, protocol: TCP}
@@ -119,26 +119,24 @@ spec:
         resources:
           requests: {cpu: 100m, memory: 128Mi}
         securityContext:
-          # Postfix master must run as uid 0 (privilege-separated design) and the
-          # boky image regenerates /etc/postfix at startup, so runAsNonRoot +
-          # readOnlyRootFilesystem are not achievable (documented in
-          # docs/exceptions.md, EXC-mailedge-baseline-psa / EXC-postfix-writable-rootfs).
-          # #11: minimize toward restricted — drop ALL, add back only the caps the
-          # root master actually uses. This removes NET_RAW, MKNOD, AUDIT_WRITE,
-          # SETFCAP, SETPCAP and FSETID from the Docker default set.
+          # Der privilege-separierte Postfix-Master benötigt UID 0; außerdem
+          # erzeugt das boky-Image /etc/postfix beim Start neu. runAsNonRoot und
+          # readOnlyRootFilesystem sind daher nicht erreichbar (siehe Exceptions).
+          # #11: Alle Capabilities entfernen und nur tatsächlich benötigte wieder
+          # ergänzen; NET_RAW, MKNOD, AUDIT_WRITE, SETFCAP, SETPCAP und FSETID entfallen.
           allowPrivilegeEscalation: false
           seccompProfile: {type: RuntimeDefault}
           capabilities:
             drop: [ALL]
             add:
-            - CHOWN            # own/adjust spool + queue file ownership
-            - DAC_OVERRIDE     # master (root) accesses postfix-user-owned spool
-            - FOWNER           # manage perms on spool/queue files
-            - SETGID           # drop to postfix/postdrop groups for children
-            - SETUID           # drop to postfix user for privilege-separated daemons
-            - NET_BIND_SERVICE # bind :25
-            - KILL             # master signals its child daemons
-            - SYS_CHROOT       # chrooted smtpd/cleanup daemons
+            - CHOWN            # Eigentümer von Spool-/Queue-Dateien anpassen
+            - DAC_OVERRIDE     # Root-Master greift auf Postfix-Spool zu
+            - FOWNER           # Berechtigungen von Spool-/Queue-Dateien verwalten
+            - SETGID           # Child-Prozesse auf postfix/postdrop-Gruppen absenken
+            - SETUID           # Privilege-separierte Daemons auf postfix-User absenken
+            - NET_BIND_SERVICE # Port :25 binden
+            - KILL             # Child-Daemons signalisieren
+            - SYS_CHROOT       # smtpd-/cleanup-Daemons in chroot ausführen
         volumeMounts:
         - {name: spool, mountPath: /var/spool/postfix}
         - {name: tls, mountPath: /etc/postfix/tls, readOnly: true}

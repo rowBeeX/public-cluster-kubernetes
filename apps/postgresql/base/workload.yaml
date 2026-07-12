@@ -78,7 +78,7 @@ spec:
           - serviceAccountToken: {audience: vault, expirationSeconds: 600, path: token}
       containers:
       - name: seed
-        image: docker.io/curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69
+        image: docker.io/curlimages/curl:8.20.0@sha256:b3f1fb2a51d923260350d21b8654bbc607164a987e2f7c84a0ac199a67df812a
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
@@ -145,7 +145,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "0"
 spec:
   instances: 1
-  imageName: ghcr.io/cloudnative-pg/postgresql:17@sha256:916d505d999e6bb85ead15dc2b965b9f968a9eb09e6d9c2e59e50a174f785e71
+  imageName: ghcr.io/cloudnative-pg/postgresql:18@sha256:f2e3b7c03ed2dd8c4413fd01fe05021a19a234a8acedbe75541a3d931cabaaa0
   imagePullPolicy: IfNotPresent
   enableSuperuserAccess: false
   enablePDB: false
@@ -182,7 +182,7 @@ spec:
     retentionPolicy: 14d
     barmanObjectStore:
       destinationPath: s3://public-postgres-backups/
-      endpointURL: https://s3.local.dev7.sedware.net
+      endpointURL: https://s3.local.dev8.sedware.net
       s3Credentials:
         accessKeyId: {name: pg-backup-s3, key: ACCESS_KEY_ID}
         secretAccessKey: {name: pg-backup-s3, key: ACCESS_SECRET_KEY}

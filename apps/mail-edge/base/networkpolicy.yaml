@@ -1,5 +1,4 @@
-# Default-deny: nothing in this namespace talks to anything unless explicitly
-# allowed by the policies below.
+# Default-Deny: Kommunikation ist nur über die folgenden Policies erlaubt.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata: {name: default-deny, namespace: app-mailedge}
@@ -8,7 +7,7 @@ spec:
   ingress: []
   egress: []
 ---
-# DNS is required so Postfix can resolve MX/A records for outbound delivery.
+# DNS wird für die MX-/A-Auflösung bei ausgehender Zustellung benötigt.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata: {name: allow-dns-egress, namespace: app-mailedge}
@@ -27,8 +26,8 @@ spec:
         dns:
         - matchPattern: '*'
 ---
-# The mail flows for the Postfix edge pod. NO public login ports (no
-# IMAP/JMAP/ManageSieve/Submission) are ever opened.
+# Mail-Flows des Postfix-Edge-Pods. Öffentliche Login-Ports wie IMAP, JMAP,
+# ManageSieve oder Submission werden niemals geöffnet.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata: {name: allow-mail-flows, namespace: app-mailedge}
@@ -36,36 +35,28 @@ spec:
   endpointSelector:
     matchLabels: {app.kubernetes.io/name: mail-edge}
   ingress:
-  # Inbound MX: the public internet may deliver mail on :25.
+  # Der private :2525-Listener läuft als hostNetwork-Envoy. Am Backend erscheint
+  # deshalb die Host-/Remote-Node-Identity; Postfix begrenzt den Relay-Trust
+  # zusätzlich auf die exakte LAN-/32 des vorgesehenen Gateway-Nodes.
+  - fromEntities: [host, remote-node]
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '25'}
+  # Eingehendes MX: Das öffentliche Internet darf auf :25 zustellen.
   - fromEntities: [world]
     toPorts:
     - ports:
       - {protocol: TCP, port: '25'}
-  # Outbound relay ingress: the Local Stalwart NetBird peer would submit
-  # outbound mail on the same :25 listener. NOTE: Cilium classifies NetBird
-  # peers as `world`, so at L3 this rule is a subset of the world rule above
-  # and cannot distinguish peers; the actual relay boundary is enforced by
-  # Postfix `mynetworks` (currently loopback-only — no external relay client
-  # is trusted until the overlay path is built, see the mynetworks note above).
-  # Scoped to the NetBird account pool (100.82.0.0/16) rather than the whole
-  # CGNAT /10 to document the expected source.
-  - fromCIDRSet:
-    - cidr: 100.82.0.0/16
-    toPorts:
-    - ports:
-      - {protocol: TCP, port: '25'}
   egress:
-  # Outbound delivery to the internet (MX hosts) on :25.
+  # Ausgehende Zustellung an Internet-MX-Hosts auf :25.
   - toEntities: [world]
     toPorts:
     - ports:
       - {protocol: TCP, port: '25'}
-  # Inbound forward: deliver dev7.sedware.net mail to the Local Stalwart backend
-  # over NetBird on :25, via the Local Private Edge (Envoy) mail-smtp listener.
-  # The Local Private Edge (dev-manager) is reached at its NetBird overlay IP,
-  # resolved at delivery time from dev-manager.nb.dev7.sedware.net. Cilium cannot
-  # match a per-connection resolved IP, so allow the stable NetBird overlay CIDR
-  # on :25 (same range the inbound rule already trusts).
+  # Eingehende Nachrichten für dev8.sedware.net über den mail-smtp-Listener des
+  # Local Private Edge an Stalwart weiterleiten. Der Peer-FQDN des Dev-Managers
+  # wird bei der Zustellung zur aktuellen Overlay-IP aufgelöst. Da Cilium keine
+  # pro Verbindung aufgelöste IP abgleichen kann, bleibt das Ziel-CIDR stabil.
   - toCIDRSet:
     - cidr: 100.64.0.0/10
     toPorts:

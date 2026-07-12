@@ -34,7 +34,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: netbird-server
-        image: docker.io/netbirdio/netbird-server:0.72.4@sha256:9ab98a37002517204010ee88a0c7f5e76b1fe6e2a736043db60efb7a02fbded3
+        image: docker.io/netbirdio/netbird-server:0.74.4@sha256:9ad46a0de960323c397ed80723773541e184eaa2048d09be0ac4fc3c6c19b8ae
         args: [--config, /etc/netbird/config.yaml]
         env:
         - {name: NB_DISABLE_GEOLOCATION, value: "true"}
@@ -103,7 +103,7 @@ spec:
           matchLabels: {app.kubernetes.io/name: netbird-dashboard}
       containers:
       - name: dashboard
-        image: docker.io/netbirdio/dashboard:v2.39.0@sha256:9c31fa6ea31945b05915ea989003caf07eee9afa8604c84f89abe924246fb3da
+        image: docker.io/netbirdio/dashboard:v2.90.3@sha256:6e23d46c8b512880dd86f178b40baf9043976a478736f2196d89b238105eb1cc
         env:
         - {name: AUTH_AUDIENCE, value: netbird-dashboard}
         - {name: AUTH_CLIENT_ID, value: netbird-dashboard}
@@ -143,7 +143,7 @@ metadata: {name: netbird-dashboard, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird.dev7.sedware.net]
+  hostnames: [netbird.dev8.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
@@ -156,7 +156,7 @@ metadata: {name: netbird-control-http, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev7.sedware.net]
+  hostnames: [netbird-control.dev8.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
@@ -169,7 +169,7 @@ metadata: {name: netbird-control-grpc, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev7.sedware.net]
+  hostnames: [netbird-control.dev8.sedware.net]
   rules:
   - backendRefs:
     - {name: netbird-server, port: 80}
@@ -200,15 +200,15 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: relay
-        # Tag tracks the NetBird release; digest-pinned per repo convention.
-        image: docker.io/netbirdio/relay:0.72.4@sha256:69efb9388a1f2908459757e407cdd63fc33d65751fc9e3f6749bfd4d14e5e5da
+        # Der Tag folgt dem NetBird-Release; der Digest fixiert das Image unveränderlich.
+        image: docker.io/netbirdio/relay:0.74.4@sha256:81de66b33a66298af410d761d11c5503afdb54cf57a370b49c3d17ed5a56cbfd
         env:
         - {name: NB_LOG_LEVEL, value: info}
         # Unprivileged listen port keeps the container Restricted-PSS compliant.
         - {name: NB_LISTEN_ADDRESS, value: ":33080"}
         # Public WSS endpoint advertised to peers by the management server.
         # Scheme rels:// = WebSocket-over-TLS (TLS terminated at the Gateway).
-        - {name: NB_EXPOSED_ADDRESS, value: "rels://netbird-relay.dev7.sedware.net:443"}
+        - {name: NB_EXPOSED_ADDRESS, value: "rels://netbird-relay.dev8.sedware.net:443"}
         # Shared HMAC secret with the management server. Provided out-of-band via
         # the same SOPS/public-cluster-nix mechanism as the netbird-config Secret;
         # its value MUST equal management config Relay.Secret (see README).
@@ -242,7 +242,7 @@ metadata: {name: netbird-relay, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-relay.dev7.sedware.net]
+  hostnames: [netbird-relay.dev8.sedware.net]
   # WebSocket upgrades are enabled by default on Envoy Gateway HTTP routes,
   # so no extra BackendTrafficPolicy protocol-upgrade config is required here.
   rules:

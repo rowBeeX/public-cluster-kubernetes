@@ -1,18 +1,18 @@
 # public-nginx — public internet-facing test server
 
-A minimal static nginx served at **https://public-nginx.dev7.sedware.net** over
+A minimal static nginx served at **https://public-nginx.dev8.sedware.net** over
 the public Envoy edge. It is the single public-edge test app and exists to
 demonstrate an ordinary web app reaching the internet end-to-end from the public
 cluster.
 
 ```
-Internet ─▶ public Envoy edge (TLS, *.dev7.sedware.net wildcard cert) ─▶ public-nginx :8080
+Internet ─▶ public Envoy edge (TLS, *.dev8.sedware.net wildcard cert) ─▶ public-nginx :8080
 ```
 
 ## Why it "just works"
 
 The public `public-dev` Gateway already has an `https` listener for
-`*.dev7.sedware.net` with the `public-dev-wildcard-tls` LE certificate, and the
+`*.dev8.sedware.net` with the `public-dev-wildcard-tls` LE certificate, and the
 public edge binds the real `:80`/`:443` dual-stack. So no platform change is
 needed — only this app plus a DNS record.
 
@@ -32,4 +32,4 @@ needed — only this app plus a DNS record.
 publishes A/AAAA round-robin to both public hosts. Run `cloudflare_dns.py` +
 `cloudflare_dns_verify.py` to apply.
 
-The nginx image is digest-pinned (`nginx-unprivileged:1.29-alpine@sha256:0c79d56…`).
+The nginx image is digest-pinned (`nginx-unprivileged:1.31.2-alpine`).

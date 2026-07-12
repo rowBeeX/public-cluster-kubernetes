@@ -1,0 +1,19 @@
+# Privater Smarthost-Pfad: Stalwart erreicht den Public Edge über NetBird auf
+# :2525. Envoy leitet den unveränderten SMTP-Stream an Postfix :25 weiter.
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TCPRoute
+metadata:
+  name: mail-edge-relay
+  namespace: app-mailedge
+spec:
+  parentRefs:
+    - name: public-dev
+      namespace: gateway-system
+      sectionName: mail-relay
+  rules:
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: mail-edge-smtp
+          port: 25
+          weight: 1

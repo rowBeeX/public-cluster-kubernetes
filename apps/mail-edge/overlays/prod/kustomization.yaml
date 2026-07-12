@@ -1,14 +1,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Prod overlay. Only environment-specific values live here: the prod hostnames
-# drop the dev7 generation segment, and the namespace carries the prod
-# environment label.
+# Prod-Overlay: Nur umgebungsspezifische Werte stehen hier. Prod-Hostnames
+# enthalten kein dev8-Segment; der Namespace trägt das Prod-Environment-Label.
 resources:
   - ../../base
 
 patches:
-  # Namespace environment label: dev -> prod.
+  # Namespace-Environment-Label von Dev auf Prod umstellen.
   - target:
       kind: Namespace
       name: app-mailedge
@@ -16,7 +15,7 @@ patches:
       - op: replace
         path: /metadata/labels/core.sedware.net~1environment
         value: prod
-  # SMTP edge STARTTLS certificate: prod hostname.
+  # STARTTLS-Zertifikat des SMTP-Edge auf Prod-Hostnames umstellen.
   - target:
       kind: Certificate
       name: mail-edge-tls
@@ -24,10 +23,12 @@ patches:
       - op: replace
         path: /spec/dnsNames/0
         value: mail.sedware.net
-  # Postfix env: prod hostname, relay (relay_domains) domain and the onward
-  # transport to the Local Stalwart backend, all with the dev7 segment removed.
-  # Replaced in place by env index (see base/workload.yaml) to preserve list
-  # order; strategic-merge would reorder the env entries.
+      - op: replace
+        path: /spec/dnsNames/1
+        value: public-cluster-host-1.nb.sedware.net
+  # Postfix-Env: Prod-Hostname, Relay-Domain und Weitertransport zu Stalwart ohne
+  # dev8-Segment. Per Env-Index ersetzen, um die Listenreihenfolge zu bewahren;
+  # Strategic-Merge würde die Einträge umsortieren.
   - target:
       kind: Deployment
       name: mail-edge
@@ -41,3 +42,6 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/env/5/value
         value: "inline:{ sedware.net=smtp:[dev-manager.nb.sedware.net]:25 }"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/6/value
+        value: "127.0.0.0/8 [::1]/128 203.0.113.10/32"
