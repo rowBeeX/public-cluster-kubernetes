@@ -80,13 +80,11 @@ spec:
   ports:
   - {name: http, port: 3000, targetPort: http}
 ---
-# AdGuard UI over the public Envoy edge with the wildcard TLS cert. Reachability
-# is locked to the NetBird overlay by the SecurityPolicy below (§8/§10): the
-# gateway serves the wildcard host, but Envoy denies any client outside
-# 100.64.0.0/10, so the UI never reaches the internet. adguard.<domain> has no
-# public Cloudflare record (see cluster-testing PUBLIC_EDGE_HOSTS) — NetBird
-# clients resolve it via AdGuard to the host-1 overlay IP and hit the co-located
-# Envoy there.
+# Die AdGuard-UI verwendet am Public Envoy Edge das Wildcard-TLS-Zertifikat.
+# Die folgende SecurityPolicy begrenzt sie auf das NetBird-Overlay
+# 100.64.0.0/10. adguard.<domain> besitzt keinen öffentlichen Cloudflare-Record;
+# NetBird-Clients lösen den Namen über AdGuard auf die Overlay-IP von Host 1 auf
+# und erreichen dort den gemeinsam platzierten Envoy.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata: {name: adguard-home, namespace: app-adguard-home}

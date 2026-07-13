@@ -1,9 +1,9 @@
-# Public edge entry for the LOCAL cluster's nginx test server.
+# Public-Edge-Eintrag für den nginx-Testserver des lokalen Clusters.
 #
-# The local cluster has no public NIC (LAN + NetBird only); the public cluster is
-# the only internet edge. `local-nginx.dev8.sedware.net` is published HERE and
-# re-encrypted to the LOCAL Envoy edge over NetBird — the same public->local
-# pattern Mail Edge uses for SMTP, but HTTPS end-to-end:
+# Der lokale Cluster besitzt keine öffentliche NIC; der Public-Cluster ist der
+# einzige Internet-Edge. `local-nginx.dev8.sedware.net` wird hier veröffentlicht
+# und über NetBird zum lokalen Envoy Edge re-encrypted. Das entspricht dem
+# Public-zu-Local-Muster des Mail Edge, hier jedoch mit Ende-zu-Ende-HTTPS:
 #
 #   Internet ─▶ public Envoy edge (TLS, *.dev8 wildcard, host local-nginx.dev8)
 #            ─▶ URLRewrite Host: local-nginx.local.dev8.sedware.net
@@ -11,9 +11,9 @@
 #            ─▶ (NetBird) local Envoy edge :443 (terminates *.local.dev8 wildcard)
 #            ─▶ local HTTPRoute host local-nginx.local.dev8 ─▶ local-nginx ClusterIP
 #
-# No LAN IP, no Cilium LB VIP, no manual LAN EndpointSlice: the origin is the
-# stable NetBird peer FQDN, resolved to the current overlay IPv4 by CoreDNS
-# (*.nb.dev8 forward). TLS is verified end-to-end against the local wildcard cert.
+# Weder LAN-IP, Cilium-LB-VIP noch manuelle EndpointSlice werden benötigt. Der
+# stabile NetBird-Peer-FQDN wird durch CoreDNS auf die aktuelle Overlay-IPv4
+# aufgelöst; TLS wird Ende-zu-Ende gegen das lokale Wildcard-Zertifikat geprüft.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata: {name: local-nginx, namespace: app-local-nginx-proxy}
@@ -25,18 +25,18 @@ spec:
     - matches:
         - path: {type: PathPrefix, value: /}
       filters:
-        # Rewrite Host so the local edge selects its *.local.dev8 wildcard
-        # listener + the local-nginx HTTPRoute; also the SNI verified below.
+        # Der umgeschriebene Host wählt am lokalen Edge den Wildcard-Listener und
+        # die local-nginx-HTTPRoute; derselbe Name dient unten als SNI.
         - type: URLRewrite
           urlRewrite:
             hostname: local-nginx.local.dev8.sedware.net
       backendRefs:
-        # Port comes from the Backend endpoint (443); no port field here.
+        # Port 443 kommt vom Backend-Endpunkt; hier steht deshalb kein Portfeld.
         - {group: gateway.envoyproxy.io, kind: Backend, name: local-edge}
 ---
-# Origin: the LOCAL Private Edge (dev-manager), reached over NetBird by its stable
-# peer FQDN. CoreDNS resolves it to the current overlay IPv4 at runtime — never a
-# raw per-generation overlay IP, LAN IP, or Cilium LB VIP.
+# Origin ist der Local Private Edge auf dev-manager, erreichbar über dessen
+# stabilen NetBird-Peer-FQDN. CoreDNS löst ihn zur Laufzeit auf die aktuelle
+# Overlay-IPv4 auf, nie auf eine hartkodierte Overlay-, LAN- oder LB-VIP.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: Backend
 metadata: {name: local-edge, namespace: app-local-nginx-proxy}
@@ -44,10 +44,10 @@ spec:
   endpoints:
     - fqdn: {hostname: dev-manager.nb.dev8.sedware.net, port: 443}
 ---
-# Re-encrypt to the local edge and verify its Let's-Encrypt *.local.dev8 wildcard.
-# hostname is both the SNI presented (selects the wildcard listener) and the name
-# checked against the cert SANs. LE production chains to ISRG Root X1 (publicly
-# trusted) → the proxy's System trust store, no CA bundle to ship.
+# Re-encryption zum lokalen Edge mit Prüfung des Let's-Encrypt-Wildcards.
+# hostname ist sowohl das präsentierte SNI als auch der gegen die SANs geprüfte
+# Name. Die öffentliche Chain bis ISRG Root X1 liegt im System-Truststore; ein
+# eigenes CA-Bundle ist nicht erforderlich.
 apiVersion: gateway.networking.k8s.io/v1alpha3
 kind: BackendTLSPolicy
 metadata: {name: local-edge-tls, namespace: app-local-nginx-proxy}

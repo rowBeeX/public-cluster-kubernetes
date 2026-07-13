@@ -12,13 +12,11 @@ metadata: {name: allow-required-cilium-flows, namespace: app-adguard-home}
 spec:
   endpointSelector: {}
   ingress:
-  # AdGuard UI (:3000) is served over the public Envoy edge but locked to the
-  # NetBird overlay by a SecurityPolicy (clientCIDRs 100.64.0.0/10); it never
-  # reaches the internet (§8/§10). The Envoy proxies run hostNetwork, so their
-  # traffic to this pod carries the host/remote-node identity. DNS (:53) is a
-  # direct hostNetwork path on the NetBird overlay (nb-wt0) — overlay-only, never
-  # internet; overlay reachability is governed by NetBird, not per-port nftables
-  # (see public-cluster-nix roles/public/cluster-server.nix).
+  # Die AdGuard-UI auf :3000 liegt am Public Envoy Edge, wird aber durch eine
+  # SecurityPolicy auf das NetBird-Overlay 100.64.0.0/10 begrenzt. Envoys
+  # hostNetwork-Proxies tragen gegenüber dem Pod die Identität host/remote-node.
+  # DNS auf :53 läuft direkt per hostNetwork über nb-wt0 und ist nie öffentlich;
+  # die Erreichbarkeit regelt NetBird statt einer nftables-Portfreigabe.
   - fromEntities:
     - host
     - remote-node

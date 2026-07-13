@@ -1,8 +1,7 @@
-# Central CloudNativePG Postgres for the PUBLIC cluster. authentik is the first
-# database; more can follow (managed roles + databases below). Single instance on
-# the control-plane node (co-located with authentik + Valkey — one node's uptime).
-# Continuous backups go over NetBird to the LOCAL cluster's RustFS S3
-# (https://s3.local.dev8.sedware.net, bucket public-postgres-backups).
+# Zentrales CloudNativePG-PostgreSQL des Public-Clusters. Authentik ist die erste
+# Datenbank; weitere verwaltete Rollen und Datenbanken können folgen. Die einzelne
+# Instanz läuft zusammen mit Authentik und Valkey auf dem Control-Plane-Node.
+# Fortlaufende Backups gehen über NetBird zum lokalen RustFS-S3.
 apiVersion: v1
 kind: Namespace
 metadata:

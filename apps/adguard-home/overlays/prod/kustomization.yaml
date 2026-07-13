@@ -1,10 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Prod overlay. Only environment-specific values live here: the namespace
-# label and the public HTTPRoute hostname (dev8 generation segment dropped).
-# The NetBird-only SecurityPolicy in base stays intact — the UI is still
-# reachable only from the overlay (clientCIDRs 100.64.0.0/10).
+# Prod-Overlay. Es enthält nur Namespace-Label und öffentlichen HTTPRoute-
+# Hostnamen ohne Dev-Generationssegment. Die NetBird-only-SecurityPolicy der
+# Basis bleibt bestehen; die UI ist nur aus 100.64.0.0/10 erreichbar.
 resources:
   - ../../base
 

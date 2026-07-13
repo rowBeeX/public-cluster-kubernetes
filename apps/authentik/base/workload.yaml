@@ -7,8 +7,8 @@ spec:
   resources:
     requests: {storage: 10Gi}
 ---
-# Vault self-service identity so the authentik-db VaultStaticSecret can read the
-# DB password that app-postgresql published to the shared path.
+# Vault-Self-Service-Identität, über die authentik-db das von app-postgresql am
+# gemeinsamen Pfad veröffentlichte Datenbankpasswort lesen darf.
 apiVersion: v1
 kind: ServiceAccount
 metadata: {name: authentik-vault, namespace: app-authentik}
@@ -25,8 +25,8 @@ spec:
     serviceAccount: authentik-vault
     audiences: [vault]
 ---
-# Postgres now lives in the central app-postgresql CNPG cluster (see that app).
-# authentik's DB password comes from the shared Vault path published there.
+# PostgreSQL läuft im zentralen CNPG-Cluster app-postgresql. Authentik erhält
+# sein Datenbankpasswort aus dem dort veröffentlichten gemeinsamen Vault-Pfad.
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata: {name: authentik-db, namespace: app-authentik}
@@ -57,10 +57,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata: {name: authentik-server, namespace: app-authentik}
 spec:
-  # Single replica: the backing Postgres + Valkey are single-replica on host-1
-  # (local-path storage, no failover), so extra server replicas cannot make the
-  # stack survive a node loss — they'd only add a false sense of HA. A rollout
-  # briefly interrupts SSO, which is acceptable for this dev cluster.
+  # PostgreSQL und Valkey laufen als einzelne Replik auf Host 1 mit Local-Path-
+  # Storage ohne Failover. Weitere Server-Repliken würden einen Node-Ausfall
+  # daher nicht überstehen und nur falsche HA suggerieren. Ein Rollout
+  # unterbricht SSO im Dev-Cluster kurzzeitig.
   replicas: 1
   selector:
     matchLabels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: server}
@@ -68,9 +68,9 @@ spec:
     metadata:
       labels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: server}
     spec:
-      # Co-located with Postgres + Valkey on the control-plane node: DB and cache
-      # are single-replica on host-1 (local-path, no failover), so pinning the
-      # server here means only ONE node's uptime matters instead of two.
+      # Gemeinsam mit PostgreSQL und Valkey auf dem Control-Plane-Node platziert.
+      # Da Datenbank und Cache ohne Failover auf Host 1 laufen, hängt die
+      # Verfügbarkeit dadurch nicht zusätzlich von Host 2 ab.
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: authentik
@@ -92,10 +92,10 @@ spec:
           httpGet: {path: /-/health/ready/, port: http}
           initialDelaySeconds: 20
           periodSeconds: 10
-        # On a fresh database the first pod runs all migrations before serving.
-        # The startupProbe suspends the liveness probe until readiness passes, so
-        # a slow first-boot migration (minutes on constrained CPU) is not killed
-        # mid-flight and left in a lock-contention crash loop. 60×10s = up to 10min.
+        # Bei einer frischen Datenbank führt der erste Pod vor dem Start alle
+        # Migrationen aus. Die startupProbe hält die livenessProbe zurück, damit
+        # eine langsame First-Boot-Migration nicht unterbrochen wird. 60×10s
+        # erlauben höchstens zehn Minuten.
         startupProbe:
           httpGet: {path: /-/health/ready/, port: http}
           periodSeconds: 10
@@ -105,8 +105,8 @@ spec:
           exec: {command: [ak, healthcheck]}
           initialDelaySeconds: 60
           periodSeconds: 30
-          # `ak healthcheck` forks a Python process; the default 1s timeout always
-          # expires under load and SIGTERMs the server into a crash loop.
+          # `ak healthcheck` startet einen Python-Prozess; das Standard-Timeout
+          # von einer Sekunde läuft unter Last ab und löst sonst einen Crashloop aus.
           timeoutSeconds: 10
           failureThreshold: 5
         resources:
@@ -134,7 +134,7 @@ spec:
     metadata:
       labels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: worker}
     spec:
-      # Same node as the server + DB + cache (see server deployment above).
+      # Derselbe Node wie Server, Datenbank und Cache, siehe Deployment oben.
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: authentik

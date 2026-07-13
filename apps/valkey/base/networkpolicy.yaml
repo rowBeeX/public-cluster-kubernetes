@@ -19,8 +19,8 @@ spec:
       - {port: '53', protocol: UDP}
       - {port: '53', protocol: TCP}
 ---
-# Consumers of the shared cache. Add a consumer's namespace here to grant it
-# access (mirrors the local cluster's app-valkey/allow-app-ingress).
+# Consumer des gemeinsamen Caches. Nur hier explizit aufgeführte Namespaces
+# erhalten Zugriff, analog zu app-valkey/allow-app-ingress im lokalen Cluster.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata: {name: allow-app-ingress, namespace: app-valkey}

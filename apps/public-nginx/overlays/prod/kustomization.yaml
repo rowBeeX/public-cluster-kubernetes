@@ -2,10 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
-# Replace the served static page with the prod host. A configMapGenerator
-# (behavior: replace) is used instead of a patch because kustomize patches
-# drop a block scalar's trailing newline, which would break byte parity with
-# the dev render. The file source preserves the ConfigMap value verbatim.
+# Die ausgelieferte statische Seite wird auf den Prod-Host umgestellt. Ein
+# configMapGenerator mit `behavior: replace` bewahrt auch den abschließenden
+# Zeilenumbruch und damit die Byte-Parität zum Dev-Render.
 generatorOptions:
   disableNameSuffixHash: true
 configMapGenerator:

@@ -10,8 +10,8 @@ metadata:
     core.sedware.net/owner: platform
     core.sedware.net/purpose: application
     core.sedware.net/environment: dev
-    # Valkey is restricted-compliant (non-root uid 999, read-only root fs,
-    # drop ALL, seccomp RuntimeDefault) → enforce restricted, no PSA exception (#11).
+    # Valkey erfüllt Restricted PSS mit non-root UID 999, read-only-Root-FS,
+    # drop ALL und seccomp RuntimeDefault; keine PSA-Ausnahme erforderlich.
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/enforce-version: v1.35
     pod-security.kubernetes.io/audit: restricted
@@ -35,6 +35,6 @@ spec:
     requests.cpu: "1"
     requests.memory: 512Mi
     pods: "5"
-    # Pure in-memory cache: no PersistentVolumeClaims (emptyDir only).
+    # Reiner In-Memory-Cache ohne PVC; ausschließlich emptyDir.
     persistentvolumeclaims: "0"
     requests.storage: "0"

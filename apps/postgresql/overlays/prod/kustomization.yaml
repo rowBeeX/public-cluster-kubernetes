@@ -1,10 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Prod overlay. The base bakes in the dev8 values (namespace environment label
-# and the barman backup endpoint), so the only environment-specific work here is
-# flipping those to prod: the environment label and the LOCAL RustFS S3 host
-# (s3.local.dev8.sedware.net -> s3.local.sedware.net).
+# Prod-Overlay. Die Basis enthält Dev-Werte für Namespace-Label und
+# Barman-Backup-Endpunkt. Hier werden nur das Label und der lokale RustFS-S3-Host
+# auf Production umgestellt.
 resources:
   - ../../base
 

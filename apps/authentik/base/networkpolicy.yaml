@@ -12,9 +12,8 @@ metadata: {name: allow-required-cilium-flows, namespace: app-authentik}
 spec:
   endpointSelector: {}
   ingress:
-  # Public HTTP edge is the Envoy Gateway. Its proxies run hostNetwork on the
-  # gateway nodes, so Cilium sees them as host / remote-node (not a
-  # reserved:ingress identity).
+  # Das Envoy Gateway ist der Public HTTP Edge. Seine hostNetwork-Proxies auf den
+  # Gateway-Nodes erscheinen Cilium als host/remote-node statt reserved:ingress.
   - fromEntities:
     - host
     - remote-node
@@ -47,7 +46,7 @@ spec:
     - ports:
       - port: '9000'
         protocol: TCP
-  # Egress to the central Postgres (app-postgresql).
+  # Egress zum zentralen PostgreSQL in app-postgresql.
   - toEndpoints:
     - matchLabels:
         k8s:io.kubernetes.pod.namespace: app-postgresql
@@ -55,7 +54,7 @@ spec:
     - ports:
       - port: '5432'
         protocol: TCP
-  # Egress to the shared cache (app-valkey).
+  # Egress zum gemeinsamen Cache in app-valkey.
   - toEndpoints:
     - matchLabels:
         k8s:io.kubernetes.pod.namespace: app-valkey

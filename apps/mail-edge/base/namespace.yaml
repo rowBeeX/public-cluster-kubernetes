@@ -10,10 +10,9 @@ metadata:
     core.sedware.net/owner: platform
     core.sedware.net/purpose: application
     core.sedware.net/environment: dev
-    # Baseline enforce / restricted audit+warn (same posture as app-netbird).
-    # Postfix's master process requires uid 0 to manage its privilege-separated
-    # children and spool ownership, so restricted is not achievable; baseline is
-    # the enforced level.
+    # Baseline-Enforce und Restricted-Audit/-Warn wie bei app-netbird. Der
+    # Postfix-Master benötigt UID 0 für privilege-separated Child-Prozesse und
+    # Spool-Ownership; Restricted PSS ist deshalb nicht erreichbar.
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/enforce-version: v1.35
     pod-security.kubernetes.io/audit: restricted

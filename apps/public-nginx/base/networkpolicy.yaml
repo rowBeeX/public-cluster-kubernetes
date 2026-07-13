@@ -11,7 +11,7 @@ kind: CiliumNetworkPolicy
 metadata: {name: allow-edge-ingress, namespace: app-public-nginx}
 spec:
   endpointSelector: {}
-  # Ingress only from the Envoy Gateway proxies (hostNetwork → host/remote-node).
+  # Ingress ausschließlich von den hostNetwork-Proxies des Envoy Gateways.
   ingress:
     - fromEntities:
         - host

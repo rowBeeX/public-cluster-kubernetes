@@ -19,8 +19,8 @@ spec:
       - {port: '53', protocol: UDP}
       - {port: '53', protocol: TCP}
 ---
-# barman-cloud streams backups to the LOCAL RustFS S3 over NetBird (CGNAT
-# 100.64.0.0/10) on :443, and needs Vault for the VSS-materialised creds.
+# barman-cloud streamt Backups über NetBird-CGNAT 100.64.0.0/10 auf :443 zum
+# lokalen RustFS-S3 und benötigt Vault für die durch VSS materialisierten Keys.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata: {name: allow-backup-and-vault-egress, namespace: app-postgresql}
@@ -36,15 +36,15 @@ spec:
     toPorts:
     - ports:
       - {port: '8200', protocol: TCP}
-  # CNPG instance-manager reports status to the API server.
+  # Der CNPG-Instance-Manager meldet seinen Status an den API-Server.
   - toEntities: [kube-apiserver]
     toPorts:
     - ports:
       - {port: '443', protocol: TCP}
       - {port: '6443', protocol: TCP}
 ---
-# authentik connects to Postgres (5432). CNPG also needs intra-namespace + kubelet
-# access; kept permissive within the namespace, plus the API server for the operator.
+# Authentik verbindet sich auf :5432. CNPG benötigt zusätzlich Intra-Namespace-,
+# Kubelet- und API-Server-Zugriff für den Operator.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata: {name: allow-postgres-clients, namespace: app-postgresql}
@@ -58,9 +58,9 @@ spec:
     toPorts:
     - ports:
       - {port: '5432', protocol: TCP}
-  # CNPG operator polls the instance-manager status (:8000) + triggers backups,
-  # and scrapes metrics (:9187). Without this it reports "Instance Status
-  # Extraction Error" and operator-driven base backups cannot run.
+  # Der CNPG-Operator liest den Instance-Manager-Status auf :8000, startet
+  # Backups und scrapt Metriken auf :9187. Ohne diese Freigabe schlagen Status
+  # und operatorgesteuerte Base-Backups fehl.
   - fromEndpoints:
     - matchLabels: {k8s:io.kubernetes.pod.namespace: cnpg-system}
     toPorts:
@@ -68,5 +68,5 @@ spec:
       - {port: '8000', protocol: TCP}
       - {port: '9187', protocol: TCP}
       - {port: '5432', protocol: TCP}
-  # kubelet health probes + intra-cluster instance-manager traffic arrive as host.
+  # Kubelet-Probes und interner Instance-Manager-Traffic kommen als host an.
   - fromEntities: [host, remote-node, kube-apiserver]

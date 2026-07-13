@@ -1,10 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Prod overlay. Only environment-specific values live here: the namespace
-# environment label and every generation-scoped hostname with the `dev8.`
-# segment removed (public edge host, the URL-rewritten local edge host, and
-# the NetBird origin peer FQDN).
+# Prod-Overlay. Es enthält ausschließlich das Namespace-Umgebungslabel und die
+# Hostnamen ohne das generationsgebundene Segment `dev8.`: Public Edge,
+# umgeschriebener Local Edge und NetBird-Origin-Peer-FQDN.
 resources:
   - ../../base
 

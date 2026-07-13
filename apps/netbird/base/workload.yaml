@@ -120,8 +120,8 @@ spec:
           requests: {cpu: 25m, memory: 64Mi}
         securityContext:
           allowPrivilegeEscalation: false
-            # nginx needs CHOWN/SETUID/SETGID to drop privileges from root;
-            # DAC_OVERRIDE for log file access.
+            # nginx benötigt CHOWN/SETUID/SETGID zum Privilege-Drop von root und
+            # DAC_OVERRIDE für den Logdateizugriff.
           capabilities:
             drop: [ALL]
             add: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID, DAC_OVERRIDE]
@@ -174,10 +174,10 @@ spec:
   - backendRefs:
     - {name: netbird-server, port: 80}
 ---
-# NetBird Relay (§8/§21): WebSocket relay for peers that cannot NAT-traverse.
-# TLS is terminated at the Envoy Gateway (https listener, 443); the relay itself
-# speaks plain HTTP/1.1 + WebSocket on a high, unprivileged port (33080), so the
-# client-facing endpoint uses the rels:// (WSS) scheme via the public hostname.
+# NetBird Relay: WebSocket-Relay für Peers ohne erfolgreiche NAT-Traversierung.
+# TLS endet am HTTPS-Listener des Envoy Gateways auf :443. Der Relay selbst nutzt
+# HTTP/1.1 und WebSocket auf dem unprivilegierten Port 33080; der Client-Endpunkt
+# verwendet deshalb `rels://` (WSS) über den öffentlichen Hostnamen.
 apiVersion: v1
 kind: Service
 metadata: {name: netbird-relay, namespace: app-netbird}
@@ -204,14 +204,14 @@ spec:
         image: docker.io/netbirdio/relay:0.74.4@sha256:81de66b33a66298af410d761d11c5503afdb54cf57a370b49c3d17ed5a56cbfd
         env:
         - {name: NB_LOG_LEVEL, value: info}
-        # Unprivileged listen port keeps the container Restricted-PSS compliant.
+        # Der unprivilegierte Listener-Port erfüllt das Restricted-PSS-Profil.
         - {name: NB_LISTEN_ADDRESS, value: ":33080"}
-        # Public WSS endpoint advertised to peers by the management server.
-        # Scheme rels:// = WebSocket-over-TLS (TLS terminated at the Gateway).
+        # Öffentlicher WSS-Endpunkt, den der Management-Server an Peers meldet.
+        # `rels://` bedeutet WebSocket-over-TLS; TLS endet am Gateway.
         - {name: NB_EXPOSED_ADDRESS, value: "rels://netbird-relay.dev8.sedware.net:443"}
-        # Shared HMAC secret with the management server. Provided out-of-band via
-        # the same SOPS/public-cluster-nix mechanism as the netbird-config Secret;
-        # its value MUST equal management config Relay.Secret (see README).
+        # Gemeinsames HMAC-Secret mit dem Management-Server. Es kommt wie das
+        # netbird-config-Secret über SOPS/public-cluster-nix und muss exakt
+        # Relay.Secret in der Management-Konfiguration entsprechen.
         - name: NB_AUTH_SECRET
           valueFrom:
             secretKeyRef: {name: netbird-relay-auth, key: NB_AUTH_SECRET}
@@ -243,20 +243,18 @@ spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
   hostnames: [netbird-relay.dev8.sedware.net]
-  # WebSocket upgrades are enabled by default on Envoy Gateway HTTP routes,
-  # so no extra BackendTrafficPolicy protocol-upgrade config is required here.
+  # WebSocket-Upgrades sind bei Envoy-Gateway-HTTPRoutes standardmäßig aktiv;
+  # eine zusätzliche Protocol-Upgrade-Konfiguration ist nicht erforderlich.
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
     backendRefs:
     - {name: netbird-relay, port: 80}
 ---
-# Envoy Gateway v1.8 (gateway.envoyproxy.io/v1alpha1). Reproduces the old Cilium
-# edge setting proxy-stream-idle-timeout-seconds=86400: Envoy's per-stream idle
-# timeout defaults to 5 minutes and silently kills NetBird's long-lived signal
-# gRPC and relay WebSocket streams. BackendTrafficPolicy attaches to routes in
-# this namespace (policy attachment is same-namespace only), so it is owned by
-# this app rather than the gateway-system Gateway.
+# Envoy Gateway v1.8 mit gateway.envoyproxy.io/v1alpha1. Das standardmäßige
+# Per-Stream-Idle-Timeout von fünf Minuten würde NetBirds langlebige Signal-gRPC-
+# und Relay-WebSocket-Streams trennen. Die BackendTrafficPolicy muss im selben
+# Namespace wie die Routen liegen und gehört daher dieser App statt dem Gateway.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: BackendTrafficPolicy
 metadata: {name: netbird-longlived-streams, namespace: app-netbird}
@@ -266,9 +264,9 @@ spec:
   - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: netbird-relay}
   timeout:
     http:
-      # was Cilium proxy-stream-idle-timeout-seconds=86400 (default 5m).
+      # Entspricht der früheren Cilium-Einstellung von 86400 Sekunden.
       streamIdleTimeout: 24h
-      # keep the upstream HTTP connection warm across quiet periods (default 1h).
+      # Hält die Upstream-HTTP-Verbindung auch in ruhigen Phasen offen.
       connectionIdleTimeout: 24h
-      # never force-close a healthy long-lived stream (0s = unlimited).
+      # Ein gesunder langlebiger Stream wird nicht zwangsweise beendet.
       maxStreamDuration: 0s

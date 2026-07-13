@@ -1,8 +1,7 @@
-# Public internet-facing test server. Serves a static page
-# at https://public-nginx.dev8.sedware.net over the public Envoy edge, proving an
-# ordinary web app reaches the internet end-to-end (IPv4+IPv6, TLS, routing).
-# nginx-unprivileged listens on 8080 as a non-root user so the namespace can
-# enforce the restricted Pod-Security profile.
+# Öffentlicher Testserver hinter dem Public Envoy Edge. Die statische Seite unter
+# https://public-nginx.dev8.sedware.net belegt IPv4, IPv6, TLS und Routing.
+# nginx-unprivileged lauscht ohne root-Rechte auf 8080, sodass der Namespace das
+# Restricted-Pod-Security-Profil erzwingen kann.
 apiVersion: v1
 kind: ConfigMap
 metadata: {name: public-nginx-html, namespace: app-public-nginx}

@@ -1,4 +1,4 @@
-# Vault self-service identity (generic "apps" role) for the backup-S3 + role VSS.
+# Vault-Self-Service-Identität mit generischer `apps`-Rolle für Backup-S3 und VSS.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -45,8 +45,8 @@ spec:
       excludeRaw: true
       includes: [ACCESS_KEY_ID, ACCESS_SECRET_KEY]
 ---
-# Password for the managed "authentik" DB role. Seeded into Vault by the Job below
-# (generated once), synced here, and reused by authentik as its DB password.
+# Passwort der verwalteten Datenbankrolle `authentik`. Der folgende Job erzeugt
+# es einmalig in Vault; VSS synchronisiert es hier für Authentik.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -94,8 +94,8 @@ spec:
           SA=$(cat /var/run/secrets/vault/token)
           TOKEN=$(curl -sf "$VAULT/v1/auth/kubernetes/login" -d "{\"jwt\":\"$SA\",\"role\":\"apps\"}" | sed 's/.*"client_token":[ ]*"\([^"]*\)".*/\1/')
           [ -n "$TOKEN" ] || { echo "vault login failed"; exit 1; }
-          # Read existing password or generate one. Read into a variable (the root
-          # fs is read-only, so no temp file).
+          # Vorhandenes Passwort lesen oder einmalig erzeugen. Der Wert bleibt in
+          # einer Variable, weil das Root-FS read-only ist.
           RESP=$(curl -s -H "X-Vault-Token: $TOKEN" "$VAULT/v1/secret/data/apps/app-postgresql/role-authentik")
           PW=$(printf '%s' "$RESP" | sed -n 's/.*"password":"\([^"]*\)".*/\1/p')
           if [ -z "$PW" ]; then
@@ -107,8 +107,8 @@ spec:
           else
             echo "authentik role password already in Vault"
           fi
-          # Publish to the cross-namespace shared path so app-authentik can read it
-          # (the apps role grants read on secret/apps/+/shared/app-authentik/*).
+          # Am gemeinsamen Cross-Namespace-Pfad veröffentlichen, den die
+          # apps-Rolle für app-authentik read-only freigibt.
           curl -sf -X POST -H "X-Vault-Token: $TOKEN" -H "Content-Type: application/json" \
             "$VAULT/v1/secret/data/apps/app-postgresql/shared/app-authentik/db" \
             -d "{\"data\":{\"username\":\"authentik\",\"password\":\"$PW\"}}" >/dev/null

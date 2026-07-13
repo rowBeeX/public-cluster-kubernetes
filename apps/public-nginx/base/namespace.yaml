@@ -33,6 +33,6 @@ spec:
     requests.cpu: "500m"
     requests.memory: 256Mi
     pods: "4"
-    # Stateless static server: no PersistentVolumeClaims (emptyDir only).
+    # Stateless Static-Server ohne PVC; ausschließlich emptyDir.
     persistentvolumeclaims: "0"
     requests.storage: "0"
