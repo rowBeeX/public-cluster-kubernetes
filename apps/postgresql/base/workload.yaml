@@ -197,6 +197,7 @@ spec:
   # Kontinuierliche WAL-Archivierung und Base-Backups über CNPG-I.
   plugins:
   - name: barman-cloud.cloudnative-pg.io
+    enabled: true
     isWALArchiver: true
     parameters: {barmanObjectName: postgres-backup}
 ---
