@@ -21,9 +21,9 @@ spec:
     serviceAccount: postgresql-vault
     audiences: [vault]
 ---
-# S3 credentials for barman -> LOCAL RustFS (the RustFS root creds, placed into the
-# public Vault out-of-band because the clusters have separate Vaults). Keys match
-# the barmanObjectStore.s3Credentials references below.
+# S3-Zugangsdaten fuer Barman Cloud -> lokales RustFS. Wegen der getrennten
+# Vault-Instanzen werden sie kontrolliert in den Public-Vault uebertragen; die
+# Keys entsprechen den Referenzen im ObjectStore unten.
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
@@ -135,6 +135,23 @@ spec:
       excludeRaw: true
       includes: [username, password]
 ---
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata: {name: postgres-backup, namespace: app-postgresql}
+spec:
+  retentionPolicy: 14d
+  configuration:
+    destinationPath: s3://public-postgres-backups/
+    endpointURL: https://s3.local.dev8.sedware.net
+    s3Credentials:
+      accessKeyId: {name: pg-backup-s3, key: ACCESS_KEY_ID}
+      secretAccessKey: {name: pg-backup-s3, key: ACCESS_SECRET_KEY}
+    wal: {compression: gzip}
+    data: {compression: gzip}
+  instanceSidecarConfiguration:
+    resources:
+      requests: {cpu: 20m, memory: 64Mi}
+---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -177,17 +194,11 @@ spec:
       inherit: true
       connectionLimit: -1
       passwordSecret: {name: pg-role-authentik}
-  # Continuous backups via barman-cloud to the LOCAL RustFS S3 over NetBird.
-  backup:
-    retentionPolicy: 14d
-    barmanObjectStore:
-      destinationPath: s3://public-postgres-backups/
-      endpointURL: https://s3.local.dev8.sedware.net
-      s3Credentials:
-        accessKeyId: {name: pg-backup-s3, key: ACCESS_KEY_ID}
-        secretAccessKey: {name: pg-backup-s3, key: ACCESS_SECRET_KEY}
-      wal: {compression: gzip}
-      data: {compression: gzip}
+  # Kontinuierliche WAL-Archivierung und Base-Backups über CNPG-I.
+  plugins:
+  - name: barman-cloud.cloudnative-pg.io
+    isWALArchiver: true
+    parameters: {barmanObjectName: postgres-backup}
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
@@ -195,4 +206,6 @@ metadata: {name: postgres-daily, namespace: app-postgresql}
 spec:
   schedule: "0 30 2 * * *"
   backupOwnerReference: self
+  method: plugin
+  pluginConfiguration: {name: barman-cloud.cloudnative-pg.io}
   cluster: {name: postgres}

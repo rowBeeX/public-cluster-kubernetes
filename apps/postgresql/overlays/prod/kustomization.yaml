@@ -17,9 +17,9 @@ patches:
         path: /metadata/labels/core.sedware.net~1environment
         value: prod
   - target:
-      kind: Cluster
-      name: postgres
+      kind: ObjectStore
+      name: postgres-backup
     patch: |
       - op: replace
-        path: /spec/backup/barmanObjectStore/endpointURL
+        path: /spec/configuration/endpointURL
         value: https://s3.local.sedware.net
