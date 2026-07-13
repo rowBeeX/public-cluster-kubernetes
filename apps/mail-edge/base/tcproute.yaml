@@ -7,7 +7,9 @@ metadata:
   namespace: app-mailedge
 spec:
   parentRefs:
-    - name: public-dev
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: public-dev
       namespace: gateway-system
       sectionName: mail-relay
   rules:
