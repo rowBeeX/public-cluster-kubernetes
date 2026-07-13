@@ -28,7 +28,9 @@ relay whose entire configuration is env vars (the image applies each
 - **Outbound relay** — the anti-open-relay boundary is `smtpd_relay_restrictions
   = permit_mynetworks reject_unauth_destination`: relaying to arbitrary
   destinations requires the source to be in `POSTFIX_mynetworks`. That is now
-  auf Loopback und die exakte LAN-/32 von Public Host 1 begrenzt. Der frühere
+  auf Loopback und das einzelne Server-Node-PodCIDR `10.42.0.0/24` begrenzt.
+  Cilium lässt am Backend nur die Host-/Remote-Node-Identity zu; Host 2 liegt
+  getrennt in `10.42.1.0/24`. Der frühere
   Wert `100.64.0.0/10` hätte das gesamte NetBird-/CGNAT-Overlay vertraut und ein
   Open-Relay-Risiko erzeugt. Die vorgesehene Relay-Client-Identität ist
   identity is modelled declaratively in NetBird (groups `mail-edge` /
@@ -63,7 +65,7 @@ relay whose entire configuration is env vars (the image applies each
 - **Local Stalwart backend.** `POSTFIX_transport_maps` forwards `dev8.sedware.net`
   to `smtp:[dev-manager.nb.dev8.sedware.net]:25` — the stable NetBird peer FQDN of
   the Local Private Edge, resolved at delivery time. Outbound relay trust is now
-  auf Loopback und die Public-Host-1-/32 begrenzt (`POSTFIX_mynetworks`); siehe
+  auf Loopback und das Public-Host-1-PodCIDR begrenzt (`POSTFIX_mynetworks`); siehe
   **Outbound relay** oben.
 - **Local Stalwart → Mail Edge reachability.** Stalwart verbindet sich mit
   `public-cluster-host-1.nb.<domain>:2525`. Der Listener ist nur auf `nb-wt0`

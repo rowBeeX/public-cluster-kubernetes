@@ -42,6 +42,3 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/env/5/value
         value: "inline:{ sedware.net=smtp:[dev-manager.nb.sedware.net]:25 }"
-      - op: replace
-        path: /spec/template/spec/containers/0/env/6/value
-        value: "127.0.0.0/8 [::1]/128 203.0.113.10/32"

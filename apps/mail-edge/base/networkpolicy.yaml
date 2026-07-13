@@ -37,7 +37,7 @@ spec:
   ingress:
   # Der private :2525-Listener läuft als hostNetwork-Envoy. Am Backend erscheint
   # deshalb die Host-/Remote-Node-Identity; Postfix begrenzt den Relay-Trust
-  # zusätzlich auf die exakte LAN-/32 des vorgesehenen Gateway-Nodes.
+  # zusätzlich auf das einzelne PodCIDR des vorgesehenen Gateway-Nodes.
   - fromEntities: [host, remote-node]
     toPorts:
     - ports:

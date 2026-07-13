@@ -23,7 +23,8 @@ Non-HTTP protocols get their own protocol-specific paths, never Envoy:
   Service auf `:25` mit `externalIPs`. Eingehend läuft Internet → Mail Edge →
   lokales Stalwart. Ausgehend nutzt Stalwart den NetBird-only-Envoy-Listener
   `:2525`, dessen TCPRoute zu Mail Edge `:25` führt. Postfix vertraut nur dem
-  exakten Gateway-Node-/32; fremde Quellen können ausschließlich lokale
+  einzelnen PodCIDR von Gateway-Node 1; Cilium lässt dafür ausschließlich die
+  Host-/Remote-Node-Identity durch. Fremde Quellen können ausschließlich lokale
   Empfänger adressieren. Es sind keine User-Login-Ports öffentlich.
 - **NetBird STUN/TURN** — UDP `3478` via an explicit Cilium Service.
 - **AdGuard** DNS/UI — **NetBird-internal only**: no public DNS, and the UI's

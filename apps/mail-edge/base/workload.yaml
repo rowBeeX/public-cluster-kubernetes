@@ -87,13 +87,15 @@ spec:
         # dürfen. Das frühere 100.64.0.0/10 hätte jedem NetBird-/CGNAT-Peer
         # vertraut und damit ein Open-Relay-Risiko erzeugt (#2/#3).
         #
-        # Der Smarthost-Pfad endet am hostNetwork-Envoy auf Public Host 1. Postfix
-        # vertraut deshalb zusätzlich ausschließlich dessen exakter Dev-LAN-/32;
-        # die Prod-Overlay ersetzt diesen Wert mit der dortigen Node-Adresse.
-        # NetBird-Policy und interfacegebundene Firewall begrenzen bereits den
-        # Zugang zu Envoy :2525 auf den Stalwart-Peer.
+        # Der Smarthost-Pfad endet am hostNetwork-Envoy auf Public Host 1. Beim
+        # Zugriff auf den ClusterIP wird dessen Quelle auf die CiliumInternalIP
+        # aus dem stabilen Server-Node-PodCIDR 10.42.0.0/24 umgesetzt. Nur dieses
+        # /24 wird vertraut; Host 2 nutzt 10.42.1.0/24. Die CiliumNetworkPolicy
+        # erlaubt am Backend zusätzlich ausschließlich host/remote-node sowie
+        # den öffentlichen MX-Pfad. NetBird-Policy und Interface-Firewall
+        # begrenzen den Zugang zu Envoy :2525 auf den Stalwart-Peer.
         - name: POSTFIX_mynetworks
-          value: "127.0.0.0/8 [::1]/128 192.168.101.10/32"
+          value: "127.0.0.0/8 [::1]/128 10.42.0.0/24"
         # Internet-MX-Sender müssen eine SMTP-Session beginnen dürfen. Die
         # Empfänger-/Relay-Autorisierung erfolgt darunter separat und verweigert
         # externe Ziele weiterhin für alle nicht vertrauenswürdigen Quellen.
