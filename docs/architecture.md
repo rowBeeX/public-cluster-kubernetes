@@ -56,7 +56,7 @@ flowchart TB
     pubnginx["public-nginx (static test page)"]
     lnproxy["local-nginx-proxy (HTTPRoute + Backend + BackendTLSPolicy)"]
     stunsvc["netbird-stun Service (externalIPs UDP 3478)"]
-    mailedge["mail-edge Postfix (externalIPs :25 STARTTLS mail.dev8)"]
+    mailedge["mail-edge Postfix (externalIPs :25 STARTTLS mail.dev9)"]
     adguard["adguard-home (hostNetwork DNS :53 / UI :3000)"]
   end
 
@@ -65,12 +65,12 @@ flowchart TB
   envoy -->|HTTPRoute| nbdash
   envoy -->|HTTPRoute / GRPCRoute| nbmgmt
   envoy -->|HTTPRoute| pubnginx
-  envoy -->|"HTTPRoute URLRewrite Host local-nginx.local.dev8"| lnproxy
-  lnproxy -->|"re-encrypt, verify *.local.dev8 (NetBird)"| localedge
+  envoy -->|"HTTPRoute URLRewrite Host local-nginx.local.dev9"| lnproxy
+  lnproxy -->|"re-encrypt, verify *.local.dev9 (NetBird)"| localedge
 
   internet -->|UDP 3478 STUN| stunsvc
   internet -->|SMTP :25 MX| mailedge
-  mailedge -->|"forward dev8.sedware.net (NetBird :25)"| stalwart
+  mailedge -->|"forward dev9.sedware.net (NetBird :25)"| stalwart
   stalwart -->|"Smarthost über NetBird/Envoy :2525"| envoy
   envoy -->|"TCPRoute zu Postfix :25"| mailedge
   mailedge -->|"ausgehendes SMTP :25"| internet

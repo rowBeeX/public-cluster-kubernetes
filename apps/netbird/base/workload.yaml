@@ -143,7 +143,7 @@ metadata: {name: netbird-dashboard, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird.dev8.sedware.net]
+  hostnames: [netbird.dev9.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
@@ -156,7 +156,7 @@ metadata: {name: netbird-control-http, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev8.sedware.net]
+  hostnames: [netbird-control.dev9.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
@@ -169,7 +169,7 @@ metadata: {name: netbird-control-grpc, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev8.sedware.net]
+  hostnames: [netbird-control.dev9.sedware.net]
   rules:
   - backendRefs:
     - {name: netbird-server, port: 80}
@@ -208,7 +208,7 @@ spec:
         - {name: NB_LISTEN_ADDRESS, value: ":33080"}
         # Öffentlicher WSS-Endpunkt, den der Management-Server an Peers meldet.
         # `rels://` bedeutet WebSocket-over-TLS; TLS endet am Gateway.
-        - {name: NB_EXPOSED_ADDRESS, value: "rels://netbird-relay.dev8.sedware.net:443"}
+        - {name: NB_EXPOSED_ADDRESS, value: "rels://netbird-relay.dev9.sedware.net:443"}
         # Gemeinsames HMAC-Secret mit dem Management-Server. Es kommt wie das
         # netbird-config-Secret über SOPS/public-cluster-nix und muss exakt
         # Relay.Secret in der Management-Konfiguration entsprechen.
@@ -242,7 +242,7 @@ metadata: {name: netbird-relay, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-relay.dev8.sedware.net]
+  hostnames: [netbird-relay.dev9.sedware.net]
   # WebSocket-Upgrades sind bei Envoy-Gateway-HTTPRoutes standardmäßig aktiv;
   # eine zusätzliche Protocol-Upgrade-Konfiguration ist nicht erforderlich.
   rules:

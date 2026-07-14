@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Prod-Overlay. Es enthält ausschließlich das Namespace-Umgebungslabel und die
-# Hostnamen ohne das generationsgebundene Segment `dev8.`: Public Edge,
+# Hostnamen ohne das generationsgebundene Segment `dev9.`: Public Edge,
 # umgeschriebener Local Edge und NetBird-Origin-Peer-FQDN.
 resources:
   - ../../base
