@@ -32,8 +32,8 @@ relay whose entire configuration is env vars (the image applies each
   Cilium lässt am Backend nur die Host-/Remote-Node-Identity zu; Host 2 liegt
   getrennt in `10.42.1.0/24`. Der frühere
   Wert `100.64.0.0/10` hätte das gesamte NetBird-/CGNAT-Overlay vertraut und ein
-  Open-Relay-Risiko erzeugt. Die vorgesehene Relay-Client-Identität ist
-  identity is modelled declaratively in NetBird (groups `mail-edge` /
+  Open-Relay-Risiko erzeugt. The intended relay-client identity is modelled
+  declaratively in NetBird (groups `mail-edge` /
   `mail-relay-client` + policy `mail-relay`, provisioned by
   `cluster-testing/.../provision_mail_relay_policy.py`); that policy becomes an
   enforcer once the NetBird least-privilege migration removes `Default All→All`.

@@ -27,18 +27,24 @@ patches:
         path: /spec/dnsNames/1
         value: public-cluster-host-1.nb.sedware.net
   # Postfix-Env: Prod-Hostname, Relay-Domain und Weitertransport zu Stalwart ohne
-  # dev8-Segment. Per Env-Index ersetzen, um die Listenreihenfolge zu bewahren;
-  # Strategic-Merge würde die Einträge umsortieren.
-  - target:
+  # dev8-Segment. Strategic-Merge über den Env-Namen (Merge-Key `name`): jeder
+  # Eintrag wird an Ort und Stelle aktualisiert, die Base-Reihenfolge bleibt
+  # unberührt — auch wenn in der Base später Env-Variablen ergänzt werden.
+  - patch: |
+      apiVersion: apps/v1
       kind: Deployment
-      name: mail-edge
-    patch: |
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/value
-        value: mail.sedware.net
-      - op: replace
-        path: /spec/template/spec/containers/0/env/4/value
-        value: sedware.net
-      - op: replace
-        path: /spec/template/spec/containers/0/env/5/value
-        value: "inline:{ sedware.net=smtp:[dev-manager.nb.sedware.net]:25 }"
+      metadata:
+        name: mail-edge
+        namespace: app-mailedge
+      spec:
+        template:
+          spec:
+            containers:
+              - name: postfix
+                env:
+                  - name: POSTFIX_myhostname
+                    value: mail.sedware.net
+                  - name: POSTFIX_relay_domains
+                    value: sedware.net
+                  - name: POSTFIX_transport_maps
+                    value: "inline:{ sedware.net=smtp:[beelink-server.nb.sedware.net]:25 }"

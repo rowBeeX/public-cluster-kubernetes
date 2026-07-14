@@ -3,7 +3,7 @@
 Central, reviewable list of deliberate deviations from the hardened default
 (baseline PSS, least-privilege, restricted trust, GitOps-declarative). Every
 exception has an ID, an owner (team/role, not a person), a reason, the residual
-risk, and a review date. Code that relies on an exception references its ID.
+risk, and a review date.
 
 > This file is scoped to `public-cluster-kubernetes`. A repo-spanning
 > consolidation is tracked under issue #35.
