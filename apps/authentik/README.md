@@ -13,6 +13,13 @@ OIDC-Provider für alle öffentlichen Cluster-Dienste, fest auf Version
 | Authentik Worker (1 Replica) | Hintergrund-Tasks (E-Mail, Events) |
 | authentik-media PVC | Medien-Speicher (public-shared-bulk, ReadWriteMany) |
 
+Der Cluster ist absichtlich vom Internet abgeschottet. Update-Prüfung,
+Start-Analyse und Fehlerberichte sind deshalb auf Server und Worker
+deaktiviert. Da ausschließlich OIDC-Provider verwendet werden, sind auch der
+eingebettete Proxy-Outpost und die Kubernetes-Discovery abgeschaltet. So
+entstehen in der Admin-Übersicht keine dauerhaften Internet- oder
+Kubernetes-API-Retries.
+
 ## Secrets
 
 Kommen aus SOPS via `public-cluster-nix/secrets/dev/public-cluster-host-1.yaml`:
