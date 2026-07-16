@@ -212,9 +212,13 @@ metadata: {name: netbird-longlived-streams, namespace: app-netbird}
 spec:
   targetRefs:
   - {group: gateway.networking.k8s.io, kind: GRPCRoute, name: netbird-control-grpc}
+  - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: netbird-control-http}
   - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: netbird-control-relay}
   timeout:
     http:
+      # Envoy Gateway setzt ohne explizite Vorgabe 15 Sekunden. Das trennt
+      # NetBirds server-streaming Sync-RPC trotz laufender Antworten regelmäßig.
+      requestTimeout: 0s
       # Entspricht der früheren Cilium-Einstellung von 86400 Sekunden.
       streamIdleTimeout: 24h
       # Hält die Upstream-HTTP-Verbindung auch in ruhigen Phasen offen.
