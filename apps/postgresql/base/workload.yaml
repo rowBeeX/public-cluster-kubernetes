@@ -90,7 +90,7 @@ spec:
         - sh
         - -euc
         - |
-          VAULT=http://vault.vault.svc.cluster.local:8200
+          VAULT=https://vault.public.internal.sedware.net:8200
           SA=$(cat /var/run/secrets/vault/token)
           TOKEN=$(curl -sf "$VAULT/v1/auth/kubernetes/login" -d "{\"jwt\":\"$SA\",\"role\":\"apps\"}" | sed 's/.*"client_token":[ ]*"\([^"]*\)".*/\1/')
           [ -n "$TOKEN" ] || { echo "vault login failed"; exit 1; }
