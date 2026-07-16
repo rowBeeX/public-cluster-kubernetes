@@ -30,23 +30,6 @@ patches:
                     value: https://netbird-control.sedware.net
                   - name: AUTH_AUTHORITY
                     value: https://netbird-control.sedware.net/oauth2
-  # Relay advertised public WSS endpoint (base dev9 -> prod hostname).
-  # Strategic-Merge über den Env-Namen (Merge-Key `name`): NB_EXPOSED_ADDRESS wird
-  # an Ort und Stelle aktualisiert, unabhängig von der Reihenfolge der Base-Liste.
-  - patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: netbird-relay
-        namespace: app-netbird
-      spec:
-        template:
-          spec:
-            containers:
-              - name: relay
-                env:
-                  - name: NB_EXPOSED_ADDRESS
-                    value: rels://netbird-relay.sedware.net:443
   # Route hostnames (base dev9 -> prod).
   - patch: |-
       apiVersion: gateway.networking.k8s.io/v1
@@ -76,7 +59,7 @@ patches:
       apiVersion: gateway.networking.k8s.io/v1
       kind: HTTPRoute
       metadata:
-        name: netbird-relay
+        name: netbird-control-relay
         namespace: app-netbird
       spec:
-        hostnames: [netbird-relay.sedware.net]
+        hostnames: [netbird-control.sedware.net]

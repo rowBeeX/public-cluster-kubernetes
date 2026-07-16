@@ -6,10 +6,9 @@ WireGuard-basiertes VPN-Management für den Public-Cluster und verbundene Client
 
 | Ressource | Beschreibung |
 |-----------|-------------|
-| netbird-server StatefulSet | Management-Server (HTTP + STUN UDP 3478) |
+| netbird-server StatefulSet | Combined-Server: Management, Signal, **eingebetteter Relay** und STUN (UDP 3478) |
 | netbird-dashboard Deployment | Web-UI (2 Replicas) |
 | netbird-stun Service | STUN-Dienst mit `externalIPs` auf den Cilium-Nodes |
-| netbird-relay Deployment | WebSocket-Relay (§8/§21), Port 33080, öffentlich `rels://netbird-relay.dev9.sedware.net:443` |
 
 ## Besonderheiten
 
@@ -21,27 +20,28 @@ WireGuard-basiertes VPN-Management für den Public-Cluster und verbundene Client
   `BackendTrafficPolicy` `netbird-longlived-streams` (`streamIdleTimeout: 24h`)
   offengehalten — ersetzt das alte Cilium-Setting `proxy-stream-idle-timeout-seconds=86400`
 
-## Relay: manueller Secret-/Config-Schritt (nicht automatisierbar)
+## Relay (im Combined-Server eingebettet)
 
-Das Relay teilt sich ein HMAC-Secret mit dem Management-Server. Beides muss
-out-of-band (SOPS via `public-cluster-nix`, wie `netbird-config`) bereitgestellt
-werden — hier werden **keine** echten Secret-Werte hinterlegt:
+Der `netbird-server` (`netbirdio/netbird-server`) enthält Relay und STUN bereits
+eingebettet und kündigt den Relay unter seiner `exposedAddress` als
+`rels://netbird-control.<domain>:443` an — ein separates Relay-Deployment, ein
+eigener DNS-Record oder ein HMAC-Secret (`netbird-relay-auth`) ist **nicht** nötig.
 
-1. Secret `netbird-relay-auth` (Namespace `app-netbird`) mit Key `NB_AUTH_SECRET`
-   anlegen (starker Zufallswert). Wird vom Relay-Deployment via `secretKeyRef` gelesen.
-2. In der Management-Config (`netbird-config` → `config.yaml`) den `Relay`-Block
-   ergänzen — Wert von `Secret` **identisch** zu `NB_AUTH_SECRET` oben:
+Der Relay-WebSocket läuft im Server auf Container-Port 80, demselben Port wie der
+gRPC-Pfad (Management/Signal). Am Envoy-Gateway spricht dieser Port für gRPC `h2c`;
+das WebSocket-Upgrade des Relays braucht aber HTTP/1.1. Andernfalls beantwortet
+Envoy das Upgrade mit `502` und der Peer meldet „relay client not connected".
+Deshalb:
 
-   ```json
-   "Relay": {
-       "Addresses": ["rels://netbird-relay.dev9.sedware.net:443"],
-       "CredentialsTTL": "24h",
-       "Secret": "<gleicher Wert wie NB_AUTH_SECRET>"
-   }
-   ```
+- Der Service `netbird-server` hat einen zweiten Port `relay-ws` (8080 →
+  Container-Port 80) **ohne** `appProtocol`, sodass Envoy dorthin HTTP/1.1 spricht.
+- Die HTTPRoute `netbird-control-relay` leitet den spezifischeren Pfad `/relay`
+  (Vorrang vor der `/`-Route) auf `netbird-server:8080`.
 
-3. DNS-Record `netbird-relay.dev9.sedware.net` auf die Gateway-Nodes zeigen lassen
-   (analog zu den übrigen `*.dev9.sedware.net` Hosts).
+> Hinweis: Ein `server.relays`-Block in der Management-Config würde den
+> eingebetteten Relay **und** STUN abschalten (netbird #5351). Da STUN hier im
+> Server verbleibt, wird der eingebettete Relay genutzt — kein `relays`-Block in
+> `config.yaml`, kein externes Relay-Deployment.
 
 ## Zugang
 
