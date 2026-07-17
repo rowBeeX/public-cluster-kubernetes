@@ -99,6 +99,9 @@ spec:
           httpGet: {path: /-/health/ready/, port: http}
           initialDelaySeconds: 20
           periodSeconds: 10
+          # Liveness/Startup sind bereits getunt; nur Readiness stand auf dem
+          # 1s-Default und lief unter Last ab (context deadline exceeded).
+          timeoutSeconds: 5
         # Bei einer frischen Datenbank führt der erste Pod vor dem Start alle
         # Migrationen aus. Die startupProbe hält die livenessProbe zurück, damit
         # eine langsame First-Boot-Migration nicht unterbrochen wird. 60×10s

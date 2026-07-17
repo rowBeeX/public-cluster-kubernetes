@@ -4,8 +4,13 @@ kind: CiliumNetworkPolicy
 metadata: {name: default-deny, namespace: app-mailedge}
 spec:
   endpointSelector: {}
-  ingress: []
-  egress: []
+  # Leere ingress:[]/egress:[]-Arrays verwirft Cilium (Valid=False = No-op). Die
+  # gueltige Default-Deny-Form selektiert eine leere Endpoint-Menge, wodurch der
+  # Endpoint in beide Richtungen in Default-Deny faellt (wie im lokalen Cluster).
+  ingress:
+    - fromEndpoints: []
+  egress:
+    - toEndpoints: []
 ---
 # DNS wird für die MX-/A-Auflösung bei ausgehender Zustellung benötigt.
 apiVersion: cilium.io/v2

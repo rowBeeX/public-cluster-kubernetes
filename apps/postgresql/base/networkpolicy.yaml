@@ -3,8 +3,13 @@ kind: CiliumNetworkPolicy
 metadata: {name: default-deny, namespace: app-postgresql}
 spec:
   endpointSelector: {}
-  ingress: []
-  egress: []
+  # Leere ingress:[]/egress:[]-Arrays verwirft Cilium (Valid=False = No-op). Die
+  # gueltige Default-Deny-Form selektiert eine leere Endpoint-Menge, wodurch der
+  # Endpoint in beide Richtungen in Default-Deny faellt (wie im lokalen Cluster).
+  ingress:
+    - fromEndpoints: []
+  egress:
+    - toEndpoints: []
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
