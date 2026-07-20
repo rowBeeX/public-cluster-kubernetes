@@ -19,8 +19,8 @@ endpoints, and a stateless `public-nginx` test app that proves the edge
 
 Non-HTTP protocols get their own protocol-specific paths, never Envoy:
 
-- **Mail Edge / MX Relay** (`mail-edge`) — öffentlicher SMTP-Eingang als Cilium-
-  Service auf `:25` mit `externalIPs`. Eingehend läuft Internet → Mail Edge →
+- **Mail Edge / MX Relay** (`mail-edge`) — öffentlicher SMTP-Eingang als Cilium
+  Node IPAM Service auf `:25`. Eingehend läuft Internet → Mail Edge →
   lokales Stalwart. Ausgehend nutzt Stalwart den NetBird-only-Envoy-Listener
   `:2525`, dessen TCPRoute zu Mail Edge `:25` führt. Postfix vertraut nur dem
   einzelnen PodCIDR von Gateway-Node 1; Cilium lässt dafür ausschließlich die
@@ -55,8 +55,8 @@ flowchart TB
     nbmgmt["netbird mgmt API + signal gRPC + relay WSS"]
     pubnginx["public-nginx (static test page)"]
     lnproxy["local-nginx-proxy (HTTPRoute + Backend + BackendTLSPolicy)"]
-    stunsvc["netbird-stun Service (externalIPs UDP 3478)"]
-    mailedge["mail-edge Postfix (externalIPs :25 STARTTLS mail.dev10)"]
+    stunsvc["netbird-stun Node IPAM Service (UDP 3478)"]
+    mailedge["mail-edge Node IPAM Service (:25 STARTTLS mail.dev10)"]
     adguard["adguard-home (hostNetwork DNS :53 / UI :3000)"]
   end
 

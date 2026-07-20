@@ -31,7 +31,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: nginx
-          image: docker.io/nginxinc/nginx-unprivileged:1.31.2-alpine@sha256:70b3a89a79c6c835c122346937816f588f3d5ba9a735538b3ddd0a4c8be05eb2
+          image: docker.io/nginxinc/nginx-unprivileged:1.31.3-alpine@sha256:d6f1661ed92150155c134d6171c02212fa0092f451ce04f7a98a5fbc94ebeb2b
           ports:
             - {name: http, containerPort: 8080}
           securityContext:

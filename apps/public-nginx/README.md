@@ -32,4 +32,4 @@ needed — only this app plus a DNS record.
 publishes A/AAAA round-robin to both public hosts. Run `cloudflare_dns.py` +
 `cloudflare_dns_verify.py` to apply.
 
-The nginx image is digest-pinned (`nginx-unprivileged:1.31.2-alpine`).
+The nginx image is digest-pinned (`nginx-unprivileged:1.31.3-alpine`).
