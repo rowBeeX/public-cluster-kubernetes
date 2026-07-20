@@ -1,7 +1,7 @@
 # Authentik
 
 OIDC-Provider für alle öffentlichen Cluster-Dienste, fest auf Version
-`2026.5.4` gepinnt.
+`2026.5.5` gepinnt.
 
 ## Komponenten
 

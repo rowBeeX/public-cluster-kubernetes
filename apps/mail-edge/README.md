@@ -43,10 +43,11 @@ relay whose entire configuration is env vars (the image applies each
 
 ## Exposure & security
 
-- Inbound Service `mail-edge-smtp` uses `externalIPs: [192.168.101.10,
-  192.168.101.11]` (the netbird-stun "no host proxy" pattern), Cilium-announced.
-  Not via the Envoy Gateway (which is HTTP-only). On node-IP changes, update the
-  Service and the firewall rule in `public-cluster-nix`.
+- Inbound Service `mail-edge-smtp` uses Cilium Node IPAM on all nodes labelled
+  `gateway.sedware.net/enabled=true`. It uses neither deprecated
+  `externalIPs` nor LoadBalancer NodePorts and is not routed through Envoy.
+- The host firewall permits TCP 25 on the gateway nodes. Node-address changes
+  require no application-manifest update.
 - Host firewall: TCP 25 is opened on the gateway nodes' LAN/WAN interface in
   `public-cluster-nix` (`roles/public/cluster-server.nix` + `cluster-agent.nix`),
   mirroring the UDP 3478 STUN rule.

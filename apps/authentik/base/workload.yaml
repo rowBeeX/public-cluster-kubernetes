@@ -74,7 +74,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: authentik
-        image: ghcr.io/goauthentik/server:2026.5.4@sha256:a8e80071e5938cca7c8d03461a56740041f274d721100974e042b6d265001f50
+        image: ghcr.io/goauthentik/server:2026.5.5@sha256:50a833c48a714709f15d4f8846ec6b81a41d0d6a6bd2975087dfed3000d0d72e
         args: [server]
         envFrom:
         - secretRef: {name: authentik-runtime}
@@ -85,6 +85,7 @@ spec:
         - {name: AUTHENTIK_POSTGRESQL__USER, value: authentik}
         - {name: AUTHENTIK_POSTGRESQL__NAME, value: authentik}
         - {name: AUTHENTIK_REDIS__HOST, value: valkey.app-valkey.svc.cluster.local}
+        - {name: AUTHENTIK_LISTEN__HTTP, value: "0.0.0.0:9000"}
         - {name: AUTHENTIK_DISABLE_STARTUP_ANALYTICS, value: "true"}
         - {name: AUTHENTIK_DISABLE_UPDATE_CHECK, value: "true"}
         - {name: AUTHENTIK_ERROR_REPORTING__ENABLED, value: "false"}
@@ -148,7 +149,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: authentik
-        image: ghcr.io/goauthentik/server:2026.5.4@sha256:a8e80071e5938cca7c8d03461a56740041f274d721100974e042b6d265001f50
+        image: ghcr.io/goauthentik/server:2026.5.5@sha256:50a833c48a714709f15d4f8846ec6b81a41d0d6a6bd2975087dfed3000d0d72e
         args: [worker]
         envFrom:
         - secretRef: {name: authentik-runtime}
@@ -159,6 +160,7 @@ spec:
         - {name: AUTHENTIK_POSTGRESQL__USER, value: authentik}
         - {name: AUTHENTIK_POSTGRESQL__NAME, value: authentik}
         - {name: AUTHENTIK_REDIS__HOST, value: valkey.app-valkey.svc.cluster.local}
+        - {name: AUTHENTIK_LISTEN__HTTP, value: "0.0.0.0:9000"}
         - {name: AUTHENTIK_DISABLE_STARTUP_ANALYTICS, value: "true"}
         - {name: AUTHENTIK_DISABLE_UPDATE_CHECK, value: "true"}
         - {name: AUTHENTIK_ERROR_REPORTING__ENABLED, value: "false"}

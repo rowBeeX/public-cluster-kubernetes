@@ -8,12 +8,13 @@ WireGuard-basiertes VPN-Management für den Public-Cluster und verbundene Client
 |-----------|-------------|
 | netbird-server StatefulSet | Combined-Server: Management, Signal, **eingebetteter Relay** und STUN (UDP 3478) |
 | netbird-dashboard Deployment | Web-UI (2 Replicas) |
-| netbird-stun Service | STUN-Dienst mit `externalIPs` auf den Cilium-Nodes |
+| netbird-stun Service | STUN-Dienst per Cilium Node IPAM auf den Gateway-Nodes |
 
 ## Besonderheiten
 
-- `externalIPs` im netbird-stun Service sind hartkodiert auf `[192.168.101.10, 192.168.101.11]`
-  (die beiden Gateway-Nodes) — bei IP-Änderungen muss `base/workload.yaml` manuell angepasst werden
+- Cilium Node IPAM übernimmt die Adressen aller Nodes mit
+  `gateway.sedware.net/enabled=true`; Kubernetes-1.36-`externalIPs` und
+  LoadBalancer-NodePorts werden nicht verwendet
 - UDP 3478 ist für STUN aus der Cilium-Entity `world` freigegeben
 - Config kommt aus dem `netbird-config` Secret (SOPS via `public-cluster-nix`)
 - Lange Envoy-Streams (Signal-gRPC, Relay-WebSocket) werden per

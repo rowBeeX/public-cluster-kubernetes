@@ -39,7 +39,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
       - name: valkey
-        image: docker.io/valkey/valkey:9.1-alpine@sha256:a35428eba9043cc0b79dbe54100f0c92784f2de00ad09b01182bfb1c5c83d1bd
+        image: docker.io/valkey/valkey:9.1-alpine@sha256:1da6597cc08f09748b05f7a845492581c9442ea240be8e7bbfeb5f83ad1bcec8
         # Reiner In-Memory-Betrieb ohne RDB oder AOF. protected-mode ist aus, weil
         # Der Zugriff wird über CiliumNetworkPolicy auf Consumer-Namespaces
         # begrenzt, nicht per Passwort. noeviction verwirft keine TTL-Keys still.

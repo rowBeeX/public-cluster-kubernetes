@@ -22,5 +22,6 @@ Kubernetes-Manifeste für die öffentlichen Cluster-Apps. Deployment erfolgt
 - Overlays: `overlays/dev/` (aktive Generation) und `overlays/prod/` je App vorhanden
 - HTTP wird ausschließlich per `HTTPRoute` an das Envoy Dev-Gateway (`public-dev`
   in `gateway-system`) gebunden.
-- STUN/DNS-Sonderprotokolle bleiben explizite Cilium Services mit `externalIPs`.
+- SMTP und STUN nutzen explizite Cilium Node IPAM Services auf den
+  Gateway-Node-Adressen; deren LoadBalancer-NodePorts sind deaktiviert.
 - Secrets kommen ausschließlich aus SOPS (via `public-cluster-nix/secrets/`)

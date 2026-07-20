@@ -14,13 +14,17 @@ spec:
 ---
 apiVersion: v1
 kind: Service
-metadata: {name: netbird-stun, namespace: app-netbird}
+metadata:
+  name: netbird-stun
+  namespace: app-netbird
+  annotations:
+    io.cilium.nodeipam/match-node-labels: gateway.sedware.net/enabled=true
 spec:
   selector: {app.kubernetes.io/name: netbird-server}
-  # externalIPs sind die öffentlichen Gateway-Node-IPs; Cilium annonciert den
-  # UDP-Service direkt und benötigt dafür keinen Host-Proxy.
-  # Bei IP-Änderungen muss dieser Wert manuell aktualisiert werden.
-  externalIPs: [192.168.101.10, 192.168.101.11]
+  type: LoadBalancer
+  loadBalancerClass: io.cilium/node
+  allocateLoadBalancerNodePorts: false
+  externalTrafficPolicy: Cluster
   ports:
   - {name: stun, protocol: UDP, port: 3478, targetPort: stun}
 ---
@@ -39,7 +43,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: netbird-server
-        image: docker.io/netbirdio/netbird-server:0.74.4@sha256:9ad46a0de960323c397ed80723773541e184eaa2048d09be0ac4fc3c6c19b8ae
+        image: docker.io/netbirdio/netbird-server:0.74.7@sha256:ec97e2fcdf9666af849c293eeaaf0f4ff742f4f6e886d8873f129de8f4f6b7ef
         args: [--config, /etc/netbird/config.yaml]
         env:
         - {name: NB_DISABLE_GEOLOCATION, value: "true"}
@@ -108,7 +112,7 @@ spec:
           matchLabels: {app.kubernetes.io/name: netbird-dashboard}
       containers:
       - name: dashboard
-        image: docker.io/netbirdio/dashboard:v2.90.3@sha256:6e23d46c8b512880dd86f178b40baf9043976a478736f2196d89b238105eb1cc
+        image: docker.io/netbirdio/dashboard:v2.90.5@sha256:558d95770a4a8c50712a6b6efbd1280cab2090b2e7e777911ba3b018604aefce
         env:
         - {name: AUTH_AUDIENCE, value: netbird-dashboard}
         - {name: AUTH_CLIENT_ID, value: netbird-dashboard}

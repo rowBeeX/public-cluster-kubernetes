@@ -78,7 +78,7 @@ spec:
           - serviceAccountToken: {audience: vault, expirationSeconds: 600, path: token}
       containers:
       - name: seed
-        image: docker.io/curlimages/curl:8.20.0@sha256:b3f1fb2a51d923260350d21b8654bbc607164a987e2f7c84a0ac199a67df812a
+        image: docker.io/curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
@@ -162,7 +162,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "0"
 spec:
   instances: 1
-  imageName: ghcr.io/cloudnative-pg/postgresql:18@sha256:f2e3b7c03ed2dd8c4413fd01fe05021a19a234a8acedbe75541a3d931cabaaa0
+  imageName: ghcr.io/cloudnative-pg/postgresql:18@sha256:bc38076701925cfe0f5810768e32d5b6421356534d18eeef3d4a4797614afc9c
   imagePullPolicy: IfNotPresent
   enableSuperuserAccess: false
   enablePDB: false

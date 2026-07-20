@@ -48,7 +48,7 @@ spec:
 # hostname ist sowohl das präsentierte SNI als auch der gegen die SANs geprüfte
 # Name. Die öffentliche Chain bis ISRG Root X1 liegt im System-Truststore; ein
 # eigenes CA-Bundle ist nicht erforderlich.
-apiVersion: gateway.networking.k8s.io/v1alpha3
+apiVersion: gateway.networking.k8s.io/v1
 kind: BackendTLSPolicy
 metadata: {name: local-edge-tls, namespace: app-local-nginx-proxy}
 spec:

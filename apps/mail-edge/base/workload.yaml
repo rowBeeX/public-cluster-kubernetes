@@ -28,17 +28,22 @@ spec:
   resources:
     requests: {storage: 2Gi}
 ---
-# Öffentlicher SMTP-Eingang nach demselben L4-Muster ohne Host-Proxy wie
-# netbird-stun: Die Gateway-Node-IPs stehen als externalIPs am direkt von Cilium
-# bereitgestellten Service. Dies ist der einzige Internet-Mail-Ein-/Ausgang;
-# Envoy bedient separat nur den privaten Smarthost-Port :2525 über NetBird.
-# Bei IP-Änderungen muss diese Liste bewusst aktualisiert werden.
+# Öffentlicher SMTP-Eingang über Cilium Node IPAM auf den Gateway-Node-Adressen.
+# Dies ist der einzige Internet-Mail-Ein-/Ausgang; Envoy bedient separat nur den
+# privaten Smarthost-Port :2525 über NetBird.
 apiVersion: v1
 kind: Service
-metadata: {name: mail-edge-smtp, namespace: app-mailedge}
+metadata:
+  name: mail-edge-smtp
+  namespace: app-mailedge
+  annotations:
+    io.cilium.nodeipam/match-node-labels: gateway.sedware.net/enabled=true
 spec:
   selector: {app.kubernetes.io/name: mail-edge}
-  externalIPs: [192.168.101.10, 192.168.101.11]
+  type: LoadBalancer
+  loadBalancerClass: io.cilium/node
+  allocateLoadBalancerNodePorts: false
+  externalTrafficPolicy: Cluster
   ports:
   - {name: smtp, protocol: TCP, port: 25, targetPort: smtp}
 ---
