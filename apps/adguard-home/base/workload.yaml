@@ -12,7 +12,7 @@ kind: Deployment
 metadata: {name: adguard-home, namespace: app-adguard-home}
 spec:
   replicas: 1
-  strategy: {type: Recreate}
+  strategy: {type: Recreate, rollingUpdate: null}
   selector:
     matchLabels: {app.kubernetes.io/name: adguard-home}
   template:
