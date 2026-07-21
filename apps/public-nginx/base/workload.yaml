@@ -25,6 +25,7 @@ spec:
     metadata:
       labels: {app.kubernetes.io/name: public-nginx}
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 101

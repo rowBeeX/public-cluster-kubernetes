@@ -68,6 +68,7 @@ spec:
     metadata:
       labels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: server}
     spec:
+      automountServiceAccountToken: false
       # Gemeinsam mit PostgreSQL und Valkey auf dem Control-Plane-Node platziert.
       # Da Datenbank und Cache ohne Failover auf Host 1 laufen, hängt die
       # Verfügbarkeit dadurch nicht zusätzlich von Host 2 ab.
@@ -145,6 +146,7 @@ spec:
     metadata:
       labels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: worker}
     spec:
+      automountServiceAccountToken: false
       # Derselbe Node wie Server, Datenbank und Cache, siehe Deployment oben.
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:

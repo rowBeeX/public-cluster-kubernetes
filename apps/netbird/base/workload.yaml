@@ -40,6 +40,7 @@ spec:
     metadata:
       labels: {app.kubernetes.io/name: netbird-server}
     spec:
+      automountServiceAccountToken: false
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: netbird-server
@@ -104,6 +105,7 @@ spec:
     metadata:
       labels: {app.kubernetes.io/name: netbird-dashboard}
     spec:
+      automountServiceAccountToken: false
       topologySpreadConstraints:
       - maxSkew: 1
         topologyKey: kubernetes.io/hostname

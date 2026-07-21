@@ -64,6 +64,7 @@ spec:
     metadata:
       labels: {app.kubernetes.io/name: mail-edge}
     spec:
+      automountServiceAccountToken: false
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: postfix

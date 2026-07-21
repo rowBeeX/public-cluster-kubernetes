@@ -18,6 +18,7 @@ spec:
     metadata:
       labels: {app.kubernetes.io/name: adguard-home}
     spec:
+      automountServiceAccountToken: false
       hostNetwork: true
       dnsPolicy: None
       dnsConfig:
