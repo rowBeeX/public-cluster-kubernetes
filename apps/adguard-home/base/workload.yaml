@@ -12,7 +12,11 @@ kind: Deployment
 metadata: {name: adguard-home, namespace: app-adguard-home}
 spec:
   replicas: 1
-  strategy: {type: Recreate, rollingUpdate: null}
+  # hostNetwork-Port 53 ist auf dem Ziel-Node exklusiv: nie einen zweiten Pod
+  # starten, bevor der alte beendet wurde.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 0, maxUnavailable: 1}
   selector:
     matchLabels: {app.kubernetes.io/name: adguard-home}
   template:
