@@ -58,7 +58,7 @@ spec:
     toPorts:
     - ports:
       - {protocol: TCP, port: '25'}
-  # Eingehende Nachrichten für dev11.sedware.net über den mail-smtp-Listener des
+  # Eingehende Nachrichten für dev12.sedware.net über den mail-smtp-Listener des
   # Local Private Edge an Stalwart weiterleiten. Der Peer-FQDN des Dev-Managers
   # wird bei der Zustellung zur aktuellen Overlay-IP aufgelöst. Da Cilium keine
   # pro Verbindung aufgelöste IP abgleichen kann, bleibt das Ziel-CIDR stabil.

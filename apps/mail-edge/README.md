@@ -22,8 +22,8 @@ relay whose entire configuration is env vars (the image applies each
 
 ## How the two directions are configured
 
-- **Inbound MX** — `POSTFIX_relay_domains=dev11.sedware.net` accepts mail for the
-  domain; `POSTFIX_transport_maps=inline:{ dev11.sedware.net=smtp:[<stalwart>]:25 }`
+- **Inbound MX** — `POSTFIX_relay_domains=dev12.sedware.net` accepts mail for the
+  domain; `POSTFIX_transport_maps=inline:{ dev12.sedware.net=smtp:[<stalwart>]:25 }`
   forwards it to the Local Stalwart backend (`[...]` = no MX lookup).
 - **Outbound relay** — the anti-open-relay boundary is `smtpd_relay_restrictions
   = permit_mynetworks reject_unauth_destination`: relaying to arbitrary
@@ -38,7 +38,7 @@ relay whose entire configuration is env vars (the image applies each
   `cluster-testing/.../provision_mail_relay_policy.py`); that policy becomes an
   enforcer once the NetBird least-privilege migration removes `Default All→All`.
 - **TLS** — STARTTLS on :25 using the cert-manager `Certificate` `mail-edge-tls`
-  (`mail.dev11.sedware.net`, DNS-01 via ClusterIssuer `letsencrypt-dev`). The
+  (`mail.dev12.sedware.net`, DNS-01 via ClusterIssuer `letsencrypt-dev`). The
   gateway-system wildcard secret is deliberately not reused cross-namespace.
 
 ## Exposure & security
@@ -63,14 +63,14 @@ relay whose entire configuration is env vars (the image applies each
 
 ## Integration points
 
-- **Local Stalwart backend.** `POSTFIX_transport_maps` forwards `dev11.sedware.net`
-  to `smtp:[dev-manager.nb.dev11.sedware.net]:25` — the stable NetBird peer FQDN of
+- **Local Stalwart backend.** `POSTFIX_transport_maps` forwards `dev12.sedware.net`
+  to `smtp:[dev-manager.nb.dev12.sedware.net]:25` — the stable NetBird peer FQDN of
   the Local Private Edge, resolved at delivery time. Outbound relay trust is now
   auf Loopback und das Public-Host-1-PodCIDR begrenzt (`POSTFIX_mynetworks`); siehe
   **Outbound relay** oben.
 - **Local Stalwart → Mail Edge reachability.** Stalwart verbindet sich mit
   `public-cluster-host-1.nb.<domain>:2525`. Der Listener ist nur auf `nb-wt0`
   freigegeben und leitet per TCPRoute an diesen Service weiter.
-- **DNS.** An MX record `dev11.sedware.net` → `mail.dev11.sedware.net` and an A/AAAA
-  record `mail.dev11.sedware.net` → the public gateway IP(s), plus SPF/DKIM/DMARC,
+- **DNS.** An MX record `dev12.sedware.net` → `mail.dev12.sedware.net` and an A/AAAA
+  record `mail.dev12.sedware.net` → the public gateway IP(s), plus SPF/DKIM/DMARC,
   are published via Cloudflare (out of scope for this manifest).

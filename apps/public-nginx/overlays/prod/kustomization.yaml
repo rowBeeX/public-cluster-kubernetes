@@ -22,7 +22,7 @@ patches:
       - op: replace
         path: /metadata/labels/core.sedware.net~1environment
         value: prod
-  # HTTPRoute hostname: dev11 host -> prod host.
+  # HTTPRoute hostname: dev12 host -> prod host.
   - target:
       group: gateway.networking.k8s.io
       version: v1

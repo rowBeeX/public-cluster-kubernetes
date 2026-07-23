@@ -1,15 +1,15 @@
 # Public-Edge-Eintrag für den nginx-Testserver des lokalen Clusters.
 #
 # Der lokale Cluster besitzt keine öffentliche NIC; der Public-Cluster ist der
-# einzige Internet-Edge. `local-nginx.dev11.sedware.net` wird hier veröffentlicht
+# einzige Internet-Edge. `local-nginx.dev12.sedware.net` wird hier veröffentlicht
 # und über NetBird zum lokalen Envoy Edge re-encrypted. Das entspricht dem
 # Public-zu-Local-Muster des Mail Edge, hier jedoch mit Ende-zu-Ende-HTTPS:
 #
-#   Internet ─▶ public Envoy edge (TLS, *.dev11 wildcard, host local-nginx.dev11)
-#            ─▶ URLRewrite Host: local-nginx.local.dev11.sedware.net
-#            ─▶ Backend local-edge (dev-manager.nb.dev11.sedware.net:443) + origin TLS
-#            ─▶ (NetBird) local Envoy edge :443 (terminates *.local.dev11 wildcard)
-#            ─▶ local HTTPRoute host local-nginx.local.dev11 ─▶ local-nginx ClusterIP
+#   Internet ─▶ public Envoy edge (TLS, *.dev12 wildcard, host local-nginx.dev12)
+#            ─▶ URLRewrite Host: local-nginx.local.dev12.sedware.net
+#            ─▶ Backend local-edge (dev-manager.nb.dev12.sedware.net:443) + origin TLS
+#            ─▶ (NetBird) local Envoy edge :443 (terminates *.local.dev12 wildcard)
+#            ─▶ local HTTPRoute host local-nginx.local.dev12 ─▶ local-nginx ClusterIP
 #
 # Weder LAN-IP, Cilium-LB-VIP noch manuelle EndpointSlice werden benötigt. Der
 # stabile NetBird-Peer-FQDN wird durch CoreDNS auf die aktuelle Overlay-IPv4
@@ -20,7 +20,7 @@ metadata: {name: local-nginx, namespace: app-local-nginx-proxy}
 spec:
   parentRefs:
     - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [local-nginx.dev11.sedware.net]
+  hostnames: [local-nginx.dev12.sedware.net]
   rules:
     - matches:
         - path: {type: PathPrefix, value: /}
@@ -29,7 +29,7 @@ spec:
         # die local-nginx-HTTPRoute; derselbe Name dient unten als SNI.
         - type: URLRewrite
           urlRewrite:
-            hostname: local-nginx.local.dev11.sedware.net
+            hostname: local-nginx.local.dev12.sedware.net
       backendRefs:
         # Port 443 kommt vom Backend-Endpunkt; hier steht deshalb kein Portfeld.
         - {group: gateway.envoyproxy.io, kind: Backend, name: local-edge}
@@ -42,7 +42,7 @@ kind: Backend
 metadata: {name: local-edge, namespace: app-local-nginx-proxy}
 spec:
   endpoints:
-    - fqdn: {hostname: dev-manager.nb.dev11.sedware.net, port: 443}
+    - fqdn: {hostname: dev-manager.nb.dev12.sedware.net, port: 443}
 ---
 # Re-encryption zum lokalen Edge mit Prüfung des Let's-Encrypt-Wildcards.
 # hostname ist sowohl das präsentierte SNI als auch der gegen die SANs geprüfte
@@ -55,5 +55,5 @@ spec:
   targetRefs:
     - {group: gateway.envoyproxy.io, kind: Backend, name: local-edge}
   validation:
-    hostname: local-nginx.local.dev11.sedware.net
+    hostname: local-nginx.local.dev12.sedware.net
     wellKnownCACertificates: System

@@ -154,7 +154,7 @@ metadata: {name: netbird-dashboard, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird.dev11.sedware.net]
+  hostnames: [netbird.dev12.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
@@ -167,7 +167,7 @@ metadata: {name: netbird-control-http, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev11.sedware.net]
+  hostnames: [netbird-control.dev12.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
@@ -180,7 +180,7 @@ metadata: {name: netbird-control-grpc, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev11.sedware.net]
+  hostnames: [netbird-control.dev12.sedware.net]
   rules:
   - backendRefs:
     - {name: netbird-server, port: 80}
@@ -199,7 +199,7 @@ metadata: {name: netbird-control-relay, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev11.sedware.net]
+  hostnames: [netbird-control.dev12.sedware.net]
   # WebSocket-Upgrades sind bei Envoy-Gateway-HTTPRoutes standardmäßig aktiv;
   # eine zusätzliche Protocol-Upgrade-Konfiguration ist nicht erforderlich.
   rules:

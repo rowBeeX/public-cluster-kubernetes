@@ -11,10 +11,10 @@ spec:
     kind: ClusterIssuer
     name: letsencrypt-dev
   dnsNames:
-    - mail.dev11.sedware.net
+    - mail.dev12.sedware.net
     # Stalwart verbindet sich über diesen NetBird-Peer-FQDN. Der zusätzliche SAN
     # erlaubt eine vollständige STARTTLS-Prüfung ohne allowInvalidCerts-Ausnahme.
-    - public-cluster-host-1.nb.dev11.sedware.net
+    - public-cluster-host-1.nb.dev12.sedware.net
 ---
 # Dauerhafter Queue-Spool: Ein Mail-Relay stellt bei vorübergehend unerreichbaren
 # Zielen zurück. Die Postfix-Queue muss Pod-Restarts überstehen, daher ein
@@ -73,21 +73,21 @@ spec:
         # Empfängerbegrenztes Relay: Internet-MX-Absender bleiben zulässig;
         # relay_domains und mynetworks autorisieren Empfänger beziehungsweise Quelle.
         - {name: ALLOW_EMPTY_SENDER_DOMAINS, value: "true"}
-        - {name: POSTFIX_myhostname, value: mail.dev11.sedware.net}
+        - {name: POSTFIX_myhostname, value: mail.dev12.sedware.net}
         - {name: POSTFIX_inet_protocols, value: ipv4}
-        # Dieser Host ist für keine Domain das Endziel. dev11 ist eine Relay-Domain,
+        # Dieser Host ist für keine Domain das Endziel. dev12 ist eine Relay-Domain,
         # die an Stalwart weitergeleitet wird, keine lokale Mailbox-Domain.
         - {name: POSTFIX_mydestination, value: ""}
         # --- Eingehend: Internet :25 -> Mail Edge -> Local Stalwart -----------
-        # Nachrichten an dev11.sedware.net annehmen ...
-        - {name: POSTFIX_relay_domains, value: dev11.sedware.net}
+        # Nachrichten an dev12.sedware.net annehmen ...
+        - {name: POSTFIX_relay_domains, value: dev12.sedware.net}
         # ... und über den mail-smtp-Listener des Local Private Edge an Stalwart
         # weiterleiten. Eckige Klammern deaktivieren die MX-Auflösung; Postfix
         # löst den stabilen Peer-FQDN bei jeder Zustellung zur aktuellen Overlay-
         # IP auf. Dieser FQDN statt einer rohen Overlay-IP ist die GitOps-Quelle.
         # Der :25-TCPRoute am Dev-Manager führt zum Stalwart-ClusterIP.
         - name: POSTFIX_transport_maps
-          value: "inline:{ dev11.sedware.net=smtp:[dev-manager.nb.dev11.sedware.net]:25 }"
+          value: "inline:{ dev12.sedware.net=smtp:[dev-manager.nb.dev12.sedware.net]:25 }"
         # --- Ausgehender Relay-Trust (Anti-Open-Relay-Gate) ------------------
         # mynetworks begrenzt Quellen, die an beliebige Internet-Ziele relayen
         # dürfen. Das frühere 100.64.0.0/10 hätte jedem NetBird-/CGNAT-Peer

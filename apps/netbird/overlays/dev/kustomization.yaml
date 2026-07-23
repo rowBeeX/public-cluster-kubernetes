@@ -16,8 +16,8 @@ patches:
               - name: dashboard
                 env:
                   - name: NETBIRD_MGMT_API_ENDPOINT
-                    value: https://netbird-control.dev11.sedware.net
+                    value: https://netbird-control.dev12.sedware.net
                   - name: NETBIRD_MGMT_GRPC_API_ENDPOINT
-                    value: https://netbird-control.dev11.sedware.net
+                    value: https://netbird-control.dev12.sedware.net
                   - name: AUTH_AUTHORITY
-                    value: https://netbird-control.dev11.sedware.net/oauth2
+                    value: https://netbird-control.dev12.sedware.net/oauth2
