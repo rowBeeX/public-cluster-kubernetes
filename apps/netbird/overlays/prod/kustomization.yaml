@@ -30,7 +30,7 @@ patches:
                     value: https://netbird-control.sedware.net
                   - name: AUTH_AUTHORITY
                     value: https://netbird-control.sedware.net/oauth2
-  # Route hostnames (base dev10 -> prod).
+  # Route hostnames (base dev11 -> prod).
   - patch: |-
       apiVersion: gateway.networking.k8s.io/v1
       kind: HTTPRoute

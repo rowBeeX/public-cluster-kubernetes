@@ -1,5 +1,5 @@
 # Öffentlicher Testserver hinter dem Public Envoy Edge. Die statische Seite unter
-# https://public-nginx.dev10.sedware.net belegt IPv4, IPv6, TLS und Routing.
+# https://public-nginx.dev11.sedware.net belegt IPv4, IPv6, TLS und Routing.
 # nginx-unprivileged lauscht ohne root-Rechte auf 8080, sodass der Namespace das
 # Restricted-Pod-Security-Profil erzwingen kann.
 apiVersion: v1
@@ -12,7 +12,7 @@ data:
     <h1>public-nginx</h1>
     <p>Test server running in the <strong>public</strong> cluster,
     served directly by the public Envoy edge.</p>
-    <p>public-nginx.dev10.sedware.net</p>
+    <p>public-nginx.dev11.sedware.net</p>
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -67,7 +67,7 @@ metadata: {name: public-nginx, namespace: app-public-nginx}
 spec:
   parentRefs:
     - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [public-nginx.dev10.sedware.net]
+  hostnames: [public-nginx.dev11.sedware.net]
   rules:
     - matches:
         - path: {type: PathPrefix, value: /}

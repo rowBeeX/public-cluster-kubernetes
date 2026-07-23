@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Prod-Overlay: Nur umgebungsspezifische Werte stehen hier. Prod-Hostnames
-# enthalten kein dev10-Segment; der Namespace trägt das Prod-Environment-Label.
+# enthalten kein dev11-Segment; der Namespace trägt das Prod-Environment-Label.
 resources:
   - ../../base
 
@@ -27,7 +27,7 @@ patches:
         path: /spec/dnsNames/1
         value: public-cluster-host-1.nb.sedware.net
   # Postfix-Env: Prod-Hostname, Relay-Domain und Weitertransport zu Stalwart ohne
-  # dev10-Segment. Strategic-Merge über den Env-Namen (Merge-Key `name`): jeder
+  # dev11-Segment. Strategic-Merge über den Env-Namen (Merge-Key `name`): jeder
   # Eintrag wird an Ort und Stelle aktualisiert, die Base-Reihenfolge bleibt
   # unberührt — auch wenn in der Base später Env-Variablen ergänzt werden.
   - patch: |
