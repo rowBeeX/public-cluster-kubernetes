@@ -68,7 +68,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: postfix
-        image: docker.io/boky/postfix:v5.1.0@sha256:cd7e192900bfc49a67291a572b5f645f9e7d1b8d7f2b79b0364b4b4176964e21
+        image: docker.io/boky/postfix:v5.1.0-ubuntu@sha256:aa8c9f080be251f833faf7b333eb75381dc8c840d31e3b7e0c93a0a48e27608a
         env:
         # Empfängerbegrenztes Relay: Internet-MX-Absender bleiben zulässig;
         # relay_domains und mynetworks autorisieren Empfänger beziehungsweise Quelle.

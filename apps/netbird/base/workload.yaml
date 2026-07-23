@@ -44,7 +44,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: netbird-server
-        image: docker.io/netbirdio/netbird-server:0.74.7@sha256:ec97e2fcdf9666af849c293eeaaf0f4ff742f4f6e886d8873f129de8f4f6b7ef
+        image: docker.io/netbirdio/netbird-server:0.74.7@sha256:44a06a7b40121c7c091e53fdbb2f894b90ab4890b44520d511e147bf8c2cc4fa
         args: [--config, /etc/netbird/config.yaml]
         env:
         - {name: NB_DISABLE_GEOLOCATION, value: "true"}
