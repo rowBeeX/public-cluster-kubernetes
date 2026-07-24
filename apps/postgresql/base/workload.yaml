@@ -142,7 +142,7 @@ spec:
   retentionPolicy: 14d
   configuration:
     destinationPath: s3://public-postgres-backups/
-    endpointURL: https://s3.local.dev12.sedware.net
+    endpointURL: https://s3.local.dev13.sedware.net
     s3Credentials:
       accessKeyId: {name: pg-backup-s3, key: ACCESS_KEY_ID}
       secretAccessKey: {name: pg-backup-s3, key: ACCESS_SECRET_KEY}
