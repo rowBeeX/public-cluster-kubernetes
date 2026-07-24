@@ -31,7 +31,7 @@ patches:
     patch: |
       - op: replace
         path: /spec/endpoints/0/fqdn/hostname
-        value: dev-manager.nb.sedware.net
+        value: beelink-server.nb.sedware.net
   - target:
       kind: BackendTLSPolicy
       name: local-edge-tls

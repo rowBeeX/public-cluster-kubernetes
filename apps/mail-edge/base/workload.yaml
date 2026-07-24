@@ -1,5 +1,5 @@
 # STARTTLS-Zertifikat für den SMTP-Edge per DNS-01 und gemeinsamem
-# letsencrypt-dev-ClusterIssuer. Das dedizierte Namespace-Zertifikat vermeidet
+# letsencrypt-ClusterIssuer. Das dedizierte Namespace-Zertifikat vermeidet
 # eine clusterübergreifende Wiederverwendung des gateway-system-Wildcard-Secrets.
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -9,7 +9,7 @@ spec:
   issuerRef:
     group: cert-manager.io
     kind: ClusterIssuer
-    name: letsencrypt-dev
+    name: letsencrypt
   dnsNames:
     - mail.dev13.sedware.net
     # Stalwart verbindet sich über diesen NetBird-Peer-FQDN. Der zusätzliche SAN

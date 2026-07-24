@@ -16,8 +16,11 @@ description: Operate and diagnose the public k3s cluster and its Argo CD applica
   nodes) -> HTTPRoute -> ClusterIP Service -> Pod. TLS is terminated at the
   Envoy Gateway with the cert-manager wildcard certificate (Cloudflare DNS-01).
   There is no HAProxy, Traefik, NodePort or Kubernetes Ingress in this path.
-- Raw TCP/UDP special cases (e.g. NetBird STUN/TURN, AdGuard DNS) are exposed
-  through explicit Cilium Services with `externalIPs`, not through Envoy.
+- Raw TCP/UDP special cases (NetBird STUN, Mail-Edge SMTP) are exposed through
+  explicit Cilium Node-IPAM `LoadBalancer` Services (`loadBalancerClass:
+  io.cilium/node`, NodePorts disabled), not through Envoy; `spec.externalIPs` is
+  forbidden by the contract (`validate.sh` #7). AdGuard DNS :53 is hostNetwork
+  over the NetBird overlay.
 - Use `public-shared-bulk` only for shared bulk/RWX data. Keep databases on
   explicit node-local storage unless their own HA design says otherwise.
 - Never print Secret values. Inspect only names, conditions and events.

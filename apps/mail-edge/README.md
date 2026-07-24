@@ -38,7 +38,7 @@ relay whose entire configuration is env vars (the image applies each
   `cluster-testing/.../provision_mail_relay_policy.py`); that policy becomes an
   enforcer once the NetBird least-privilege migration removes `Default All→All`.
 - **TLS** — STARTTLS on :25 using the cert-manager `Certificate` `mail-edge-tls`
-  (`mail.dev13.sedware.net`, DNS-01 via ClusterIssuer `letsencrypt-dev`). The
+  (`mail.dev13.sedware.net`, DNS-01 via ClusterIssuer `letsencrypt`). The
   gateway-system wildcard secret is deliberately not reused cross-namespace.
 
 ## Exposure & security

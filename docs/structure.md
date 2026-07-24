@@ -21,7 +21,9 @@ apps/
     overlays/prod/
       kustomization.yaml      Prod substitutions
 docs/
+  app-layout.md
   architecture.md
+  exceptions.md
   structure.md
 ```
 
