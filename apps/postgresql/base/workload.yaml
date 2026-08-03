@@ -142,7 +142,7 @@ spec:
   retentionPolicy: 14d
   configuration:
     destinationPath: s3://public-postgres-backups/
-    endpointURL: https://s3.local.dev13.sedware.net
+    endpointURL: https://s3.local.dev20.sedware.net
     s3Credentials:
       accessKeyId: {name: pg-backup-s3, key: ACCESS_KEY_ID}
       secretAccessKey: {name: pg-backup-s3, key: ACCESS_SECRET_KEY}
@@ -162,7 +162,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "0"
 spec:
   instances: 1
-  imageName: ghcr.io/cloudnative-pg/postgresql:18@sha256:bc38076701925cfe0f5810768e32d5b6421356534d18eeef3d4a4797614afc9c
+  imageName: ghcr.io/cloudnative-pg/postgresql:18@sha256:cad808790906aa770e1cd27100f1165703b91d5c1fb198ef1a94d719f5ceb942
   imagePullPolicy: IfNotPresent
   enableSuperuserAccess: false
   enablePDB: false

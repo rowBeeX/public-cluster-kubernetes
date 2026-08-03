@@ -44,7 +44,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: netbird-server
-        image: docker.io/netbirdio/netbird-server:0.74.7@sha256:44a06a7b40121c7c091e53fdbb2f894b90ab4890b44520d511e147bf8c2cc4fa
+        image: docker.io/netbirdio/netbird-server:0.76.1@sha256:4a54c47a4eee6e6c90a6328fbdb40ae5ef0c169eaf0c662123f5ad76298967e8
         args: [--config, /etc/netbird/config.yaml]
         env:
         - {name: NB_DISABLE_GEOLOCATION, value: "true"}
@@ -114,7 +114,7 @@ spec:
           matchLabels: {app.kubernetes.io/name: netbird-dashboard}
       containers:
       - name: dashboard
-        image: docker.io/netbirdio/dashboard:v2.90.5@sha256:558d95770a4a8c50712a6b6efbd1280cab2090b2e7e777911ba3b018604aefce
+        image: docker.io/netbirdio/dashboard:v2.90.9@sha256:d559f76456df2f06f57108d5271059e085f6d8b510ccdce3c3eac4df15c65121
         env:
         - {name: AUTH_AUDIENCE, value: netbird-dashboard}
         - {name: AUTH_CLIENT_ID, value: netbird-dashboard}
@@ -154,7 +154,7 @@ metadata: {name: netbird-dashboard, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird.dev13.sedware.net]
+  hostnames: [netbird.dev20.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
@@ -167,7 +167,7 @@ metadata: {name: netbird-control-http, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev13.sedware.net]
+  hostnames: [netbird-control.dev20.sedware.net]
   rules:
   - matches:
     - path: {type: PathPrefix, value: /}
@@ -180,7 +180,7 @@ metadata: {name: netbird-control-grpc, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev13.sedware.net]
+  hostnames: [netbird-control.dev20.sedware.net]
   rules:
   - backendRefs:
     - {name: netbird-server, port: 80}
@@ -199,7 +199,7 @@ metadata: {name: netbird-control-relay, namespace: app-netbird}
 spec:
   parentRefs:
   - {name: public-dev, namespace: gateway-system, sectionName: https}
-  hostnames: [netbird-control.dev13.sedware.net]
+  hostnames: [netbird-control.dev20.sedware.net]
   # WebSocket-Upgrades sind bei Envoy-Gateway-HTTPRoutes standardmäßig aktiv;
   # eine zusätzliche Protocol-Upgrade-Konfiguration ist nicht erforderlich.
   rules:
