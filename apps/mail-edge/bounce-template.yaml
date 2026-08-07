@@ -1,0 +1,70 @@
+# Absender der Unzustellbarkeitsmeldungen.
+#
+# Postfix erzeugt Bounces standardmaessig mit
+# "From: Mail Delivery System <MAILER-DAEMON@$myhostname>". Der Envelope-Sender
+# bleibt davon unberuehrt und MUSS leer bleiben (<>, RFC 5321) - sonst entstehen
+# Bounce-Schleifen. Geaendert wird ausschliesslich der From-Header, damit die
+# Meldung erkennbar aus der eigenen Absenderidentitaet kommt.
+#
+# noreply@ ist das real existierende Konto in Stalwart; eine erfundene Adresse
+# im From waere fuer Empfaenger, die auf eine Bounce antworten, eine Sackgasse.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mail-edge-bounce-template
+  namespace: app-mailedge
+data:
+  bounce.cf: |
+    failure_template = <<EOF
+    Charset: us-ascii
+    From: Sedware Mail <noreply@sedware.net>
+    Subject: Nachricht konnte nicht zugestellt werden
+    Postmaster-Subject: Postmaster-Kopie: unzustellbare Nachricht
+
+    Dies ist das Mailsystem von $myhostname.
+
+    Ihre Nachricht konnte einem oder mehreren Empfaengern nicht zugestellt
+    werden. Die urspruengliche Nachricht ist unten angehaengt.
+
+    Diese Adresse nimmt keine Antworten entgegen. Bei Rueckfragen wenden Sie
+    sich bitte an postmaster@sedware.net.
+
+                       Das Mailsystem
+    EOF
+
+    delay_template = <<EOF
+    Charset: us-ascii
+    From: Sedware Mail <noreply@sedware.net>
+    Subject: Zustellung verzoegert
+    Postmaster-Subject: Postmaster-Kopie: verzoegerte Zustellung
+
+    Dies ist das Mailsystem von $myhostname.
+
+    Ihre Nachricht konnte bisher nicht zugestellt werden. Die Zustellung wird
+    weiter versucht. Sie muessen nichts unternehmen.
+
+                       Das Mailsystem
+    EOF
+
+    success_template = <<EOF
+    Charset: us-ascii
+    From: Sedware Mail <noreply@sedware.net>
+    Subject: Zustellbericht
+    Postmaster-Subject: Postmaster-Kopie: Zustellbericht
+
+    Dies ist das Mailsystem von $myhostname.
+
+    Ihre Nachricht wurde zugestellt.
+
+                       Das Mailsystem
+    EOF
+
+    verify_template = <<EOF
+    Charset: us-ascii
+    From: Sedware Mail <noreply@sedware.net>
+    Subject: Ergebnis der Adresspruefung
+
+    Dies ist das Mailsystem von $myhostname.
+
+                       Das Mailsystem
+    EOF

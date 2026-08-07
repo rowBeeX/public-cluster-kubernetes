@@ -83,6 +83,11 @@ spec:
         # Öffentlicher MX-Name dieses Edge; zugleich HELO-Name und SAN des
         # STARTTLS-Zertifikats oben.
         - {name: POSTFIX_myhostname, value: mail.sedware.net}
+        # Bounce-Vorlagen: setzen nur den From-Header der Unzustellbarkeits- und
+        # Verzoegerungsmeldungen auf die eigene Absenderidentitaet statt auf
+        # MAILER-DAEMON@$myhostname. Der Envelope-Sender bleibt leer (<>), wie
+        # RFC 5321 es verlangt — sonst entstehen Bounce-Schleifen.
+        - {name: POSTFIX_bounce_template_file, value: /etc/postfix/bounce/bounce.cf}
         # Nachrichten an sedware.net annehmen ...
         - {name: POSTFIX_relay_domains, value: sedware.net}
         # ... und über den mail-smtp-Listener des Local Private Edge an Stalwart
@@ -177,9 +182,12 @@ spec:
         volumeMounts:
         - {name: spool, mountPath: /var/spool/postfix}
         - {name: tls, mountPath: /etc/postfix/tls, readOnly: true}
+        - {name: bounce-template, mountPath: /etc/postfix/bounce, readOnly: true}
       volumes:
       - name: tls
         secret: {secretName: mail-edge-tls}
+      - name: bounce-template
+        configMap: {name: mail-edge-bounce-template}
   # Dauerhafter Queue-Spool je Pod: ein Mail-Relay stellt bei vorübergehend
   # unerreichbaren Zielen zurück, die Queue muss Pod-Restarts überstehen.
   volumeClaimTemplates:
