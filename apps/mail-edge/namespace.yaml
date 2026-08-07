@@ -34,6 +34,11 @@ spec:
   hard:
     requests.cpu: "1"
     requests.memory: 1Gi
-    requests.storage: 5Gi
-    persistentvolumeclaims: "1"
+    # Je Gateway-Node ein Postfix-Spool: das StatefulSet erzeugt pro Replica eine
+    # eigene RWO-PVC (spool-mail-edge-0/-1). Bei einer Obergrenze von 1 blieb der
+    # zweite Pod ohne Claim und damit ohne Endpoint — und weil der Service auf
+    # externalTrafficPolicy: Local steht, lieferte der betroffene Node gar kein
+    # :25 mehr.
+    requests.storage: 8Gi
+    persistentvolumeclaims: "2"
     pods: "4"
