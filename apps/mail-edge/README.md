@@ -1,78 +1,86 @@
-# mail-edge — Public Mail Edge / MX Relay
+# mail-edge — Public Mail Edge / MX-Relay
 
-The mandatory public mail entry **and** exit for the self-hosted mail system.
-It carries **no user login** (no IMAP/JMAP/ManageSieve/Submission publicly).
+Der verbindliche öffentliche Mail-Ein- **und** -Ausgang für das selbst
+gehostete Mail-System. Es gibt **keinen User-Login** (kein öffentliches
+IMAP/JMAP/ManageSieve/Submission).
 
 ```
-Inbound:  Internet :25 ─▶ Mail Edge ─▶ Local Stalwart (over NetBird) :25
-Outbound: Local Stalwart ─▶ Public Envoy :2525 ─▶ Mail Edge :25 ─▶ Internet :25
+Eingehend: Internet :25 ─▶ Mail Edge ─▶ Local Stalwart (über NetBird) :25
+Ausgehend: Local Stalwart ─▶ Public Envoy :2525 ─▶ Mail Edge :25 ─▶ Internet :25
 ```
 
-Direct Internet→Local-Stalwart and direct Local-Stalwart→Internet are forbidden;
-this pod is the only path in both directions.
+Direktes Internet→Local-Stalwart und direktes Local-Stalwart→Internet sind
+verboten; dieser Pod ist in beiden Richtungen der einzige Pfad.
 
-Both directions are implemented declaratively. Internet MX senders may open the
-SMTP session but, because of `reject_unauth_destination`, can only address local
-recipients. Outbound, Stalwart reaches the private Envoy listener `:2525` over
-NetBird; its TCPRoute terminates at Postfix `:25`.
+Beide Richtungen sind deklarativ implementiert. Internet-MX-Absender dürfen
+die SMTP-Session öffnen, können aber wegen `reject_unauth_destination` nur
+lokale Empfänger adressieren. Ausgehend erreicht Stalwart den privaten
+Envoy-Listener `:2525` über NetBird; dessen TCPRoute terminiert an
+Postfix `:25`.
 
-The edge runs **Postfix** (`boky/postfix`): a fully-declarative, k8s-native SMTP
-relay whose entire configuration is env vars (the image applies each
-`POSTFIX_<param>` via `postconf`), with no data store and no accounts.
+Der Edge betreibt **Postfix** (`boky/postfix`): ein vollständig deklaratives,
+k8s-natives SMTP-Relay, dessen gesamte Konfiguration über Env-Vars läuft (das
+Image wendet jeden `POSTFIX_<param>` per `postconf` an), ohne Datenspeicher
+und ohne Accounts.
 
-## How the two directions are configured
+## Konfiguration der beiden Richtungen
 
-- **Inbound MX** — `POSTFIX_relay_domains=sedware.net` accepts mail for the
-  domain; `POSTFIX_transport_maps=inline:{ sedware.net=smtp:[<stalwart>]:25 }`
-  forwards it to the Local Stalwart backend (`[...]` = no MX lookup).
-- **Outbound relay** — the anti-open-relay boundary is `smtpd_relay_restrictions
-  = permit_mynetworks reject_unauth_destination`: relaying to arbitrary
-  destinations requires the source to be in `POSTFIX_mynetworks`. That is now
-  limited to loopback plus the single server node's Pod CIDR `10.42.0.0/24`.
-  Cilium only admits the host/remote-node identity at the backend; a second node
-  would sit separately in `10.42.1.0/24`. The former value `100.64.0.0/10` would
-  have trusted the entire NetBird/CGNAT overlay and created an open-relay risk.
-  The relay-client identity is modelled declaratively in NetBird
-  (groups `mail-edge` / `mail-relay-client` + policy `mail-relay`, provisioned by
+- **Eingehendes MX** — `POSTFIX_relay_domains=sedware.net` nimmt Mail für die
+  Domain an; `POSTFIX_transport_maps=inline:{ sedware.net=smtp:[<stalwart>]:25 }`
+  leitet sie an das Local-Stalwart-Backend weiter (`[...]` = keine MX-Auflösung).
+- **Ausgehendes Relay** — die Anti-Open-Relay-Grenze ist
+  `smtpd_relay_restrictions = permit_mynetworks reject_unauth_destination`:
+  Relaying an beliebige Ziele erfordert, dass die Quelle in
+  `POSTFIX_mynetworks` steht. Das ist jetzt auf Loopback plus das PodCIDR des
+  einzelnen Server-Nodes `10.42.0.0/24` begrenzt. Cilium lässt am Backend nur
+  die Host-/Remote-Node-Identity durch; ein zweiter Node läge separat in
+  `10.42.1.0/24`. Der frühere Wert `100.64.0.0/10` hätte dem gesamten
+  NetBird-/CGNAT-Overlay vertraut und ein Open-Relay-Risiko erzeugt. Die
+  Relay-Client-Identität ist deklarativ in NetBird modelliert (Gruppen
+  `mail-edge` / `mail-relay-client` + Policy `mail-relay`, provisioniert durch
   `cluster-testing/public-cluster/nix/cluster/provision_mail_relay_policy.py`);
-  since the NetBird least-privilege cutover removed `Default All→All`, that
-  policy is the enforcing access control for the relay path.
-- **TLS** — STARTTLS on :25 using the cert-manager `Certificate` `mail-edge-tls`
-  (SANs `mail.sedware.net` and `public-cluster-host-1.nb.sedware.net`, DNS-01 via
-  ClusterIssuer `letsencrypt`). The gateway-system wildcard secret is
-  deliberately not reused cross-namespace.
+  seit der NetBird-Least-Privilege-Umstellung `Default All→All` entfernt hat,
+  ist diese Policy die durchsetzende Zugriffskontrolle für den Relay-Pfad.
+- **TLS** — STARTTLS auf :25 mit dem cert-manager-`Certificate` `mail-edge-tls`
+  (SANs `mail.sedware.net` und `public-cluster-host-1.nb.sedware.net`, DNS-01
+  über ClusterIssuer `letsencrypt`). Das gateway-system-Wildcard-Secret wird
+  bewusst nicht namespaceübergreifend wiederverwendet.
 
-## Exposure & security
+## Exposition & Sicherheit
 
-- Inbound Service `mail-edge-smtp` uses Cilium Node IPAM on all nodes labelled
-  `gateway.sedware.net/enabled=true`. It uses neither deprecated
-  `externalIPs` nor LoadBalancer NodePorts and is not routed through Envoy.
-- Host firewall: TCP 25 is opened on the gateway nodes' internet-facing
-  interface in `public-cluster-nix` (`roles/public/gateway-node.nix`), mirroring
-  the UDP 3478 STUN rule. Node-address changes require no application-manifest
-  update.
-- CiliumNetworkPolicies: default-deny; ingress :25 from `world` (MX) and from
-  `host`/`remote-node` (the hostNetwork Envoy that carries the private :2525
-  relay path); egress DNS; egress :25 to `world` (delivery) and to the NetBird
-  overlay CIDR `100.64.0.0/10` (inbound forward to Stalwart). No login ports.
-- PSA: namespace enforces **baseline** (audit/warn restricted). Postfix's master
-  needs uid 0 (privilege-separated design) so restricted is not achievable; the
-  container drops `ALL` and re-adds only the eight capabilities Postfix needs
-  (see `docs/exceptions.md`), uses seccomp RuntimeDefault and disables privilege
-  escalation.
-- Single replica + RWO PVC `mail-edge-spool` for the queue (deferred mail must
-  survive restarts; a Postfix spool cannot be shared across replicas).
+- Der eingehende Service `mail-edge-smtp` nutzt Cilium Node IPAM auf allen
+  Nodes mit Label `gateway.sedware.net/enabled=true`. Er nutzt weder das
+  veraltete `externalIPs` noch LoadBalancer-NodePorts und läuft nicht über
+  Envoy.
+- Host-Firewall: TCP 25 wird auf dem internetseitigen Interface der
+  Gateway-Nodes in `public-cluster-nix` geöffnet (`roles/public/gateway-node.nix`),
+  analog zur UDP-3478-STUN-Regel. Node-Adressänderungen erfordern kein
+  Manifest-Update.
+- CiliumNetworkPolicies: Default-Deny; Ingress :25 von `world` (MX) und von
+  `host`/`remote-node` (der hostNetwork-Envoy, der den privaten :2525-
+  Relay-Pfad trägt); Egress DNS; Egress :25 zu `world` (Zustellung) und zum
+  NetBird-Overlay-CIDR `100.64.0.0/10` (eingehende Weiterleitung an Stalwart).
+  Keine Login-Ports.
+- PSA: Der Namespace erzwingt **baseline** (Audit/Warn restricted). Der
+  Postfix-Master benötigt UID 0 (privilege-separated Design), restricted ist
+  daher nicht erreichbar; der Container droppt `ALL` und ergänzt nur die acht
+  von Postfix benötigten Capabilities (siehe `docs/exceptions.md`), nutzt
+  seccomp RuntimeDefault und deaktiviert Privilege-Escalation.
+- Ein Replica + RWO-PVC `mail-edge-spool` für die Queue (zurückgestellte Mail
+  muss Restarts überstehen; ein Postfix-Spool kann nicht über mehrere Replicas
+  geteilt werden).
 
-## Integration points
+## Integrationspunkte
 
-- **Local Stalwart backend.** `POSTFIX_transport_maps` forwards `sedware.net`
-  to `smtp:[beelink-server.nb.sedware.net]:25` — the stable NetBird peer FQDN of
-  the Local Private Edge, resolved at delivery time. Outbound relay trust is now
-  limited to loopback and the Public Host 1 Pod CIDR (`POSTFIX_mynetworks`); see
-  **Outbound relay** above.
-- **Local Stalwart → Mail Edge reachability.** Stalwart connects to
-  `public-cluster-host-1.nb.sedware.net:2525`. The listener is opened on `nb-wt0`
-  only and forwards to this Service via TCPRoute.
-- **DNS.** An MX record `sedware.net` → `mail.sedware.net` and an A/AAAA
-  record `mail.sedware.net` → the public gateway IP(s), plus SPF/DKIM/DMARC,
-  are published via Cloudflare (out of scope for this manifest).
+- **Local-Stalwart-Backend.** `POSTFIX_transport_maps` leitet `sedware.net`
+  an `smtp:[beelink-server.nb.sedware.net]:25` weiter — der stabile
+  NetBird-Peer-FQDN des Local Private Edge, bei Zustellung aufgelöst. Das
+  ausgehende Relay-Vertrauen ist jetzt auf Loopback und das PodCIDR von Public
+  Host 1 begrenzt (`POSTFIX_mynetworks`); siehe **Ausgehendes Relay** oben.
+- **Erreichbarkeit Local Stalwart → Mail Edge.** Stalwart verbindet sich zu
+  `public-cluster-host-1.nb.sedware.net:2525`. Der Listener ist nur auf
+  `nb-wt0` geöffnet und leitet per TCPRoute an diesen Service weiter.
+- **DNS.** Ein MX-Record `sedware.net` → `mail.sedware.net` sowie ein
+  A/AAAA-Record `mail.sedware.net` → die öffentliche(n) Gateway-IP(s), dazu
+  SPF/DKIM/DMARC, werden über Cloudflare veröffentlicht (außerhalb des Scopes
+  dieses Manifests).

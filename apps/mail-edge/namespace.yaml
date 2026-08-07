@@ -9,7 +9,6 @@ metadata:
     app.kubernetes.io/managed-by: argocd
     core.sedware.net/owner: platform
     core.sedware.net/purpose: application
-    core.sedware.net/environment: prod
     # Baseline-Enforce und Restricted-Audit/-Warn wie bei app-netbird. Der
     # Postfix-Master benötigt UID 0 für privilege-separated Child-Prozesse und
     # Spool-Ownership; Restricted PSS ist deshalb nicht erreichbar.

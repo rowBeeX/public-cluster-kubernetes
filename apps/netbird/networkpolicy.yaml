@@ -4,8 +4,8 @@ metadata: {name: default-deny, namespace: app-netbird}
 spec:
   endpointSelector: {}
   # Leere ingress:[]/egress:[]-Arrays verwirft Cilium (Valid=False = No-op). Die
-  # gueltige Default-Deny-Form selektiert eine leere Endpoint-Menge, wodurch der
-  # Endpoint in beide Richtungen in Default-Deny faellt (wie im lokalen Cluster).
+  # gültige Default-Deny-Form selektiert eine leere Endpoint-Menge, wodurch der
+  # Endpoint in beide Richtungen in Default-Deny fällt (wie im lokalen Cluster).
   ingress:
     - fromEndpoints: []
   egress:

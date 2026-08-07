@@ -1,22 +1,23 @@
 # valkey
 
-Shared in-memory cache (Valkey, the OSS Redis fork) for the **public** cluster —
-a standalone app so multiple apps can use one instance, mirroring the local
-cluster's [`app-valkey`](../../../local-cluster-kubernetes/apps/valkey/).
+Gemeinsam genutzter In-Memory-Cache (Valkey, der OSS-Redis-Fork) für den
+**public** Cluster — eine eigenständige App, damit mehrere Apps eine Instanz
+nutzen können, analog zum [`app-valkey`](../../../local-cluster-kubernetes/apps/valkey/)
+des lokalen Clusters.
 
 | | |
 | --- | --- |
 | Namespace | `app-valkey` |
 | Service | `valkey.app-valkey.svc.cluster.local:6379` |
-| Image | `valkey/valkey:9.1-alpine` (non-root uid 999, read-only root fs) |
-| Persistence | none — `emptyDir`, in-memory only (`--save ""`, `--appendonly no`) |
-| Eviction | `noeviction` (never silently drop keys with TTLs) |
-| Access | no password; restricted by CiliumNetworkPolicy to consumer namespaces |
+| Image | `valkey/valkey:9.1-alpine` (non-root UID 999, read-only Root-FS) |
+| Persistenz | keine — `emptyDir`, nur In-Memory (`--save ""`, `--appendonly no`) |
+| Eviction | `noeviction` (verwirft nie still Keys mit TTLs) |
+| Zugriff | kein Passwort; per CiliumNetworkPolicy auf Consumer-Namespaces begrenzt |
 
-## Consumers
+## Consumer
 
-Grant a namespace access by adding it to `allow-app-ingress` in
-[`networkpolicy.yaml`](networkpolicy.yaml) and pointing the app at
-`valkey.app-valkey.svc.cluster.local`. Current consumers:
+Zugriff für einen Namespace wird durch Ergänzen in `allow-app-ingress` in
+[`networkpolicy.yaml`](networkpolicy.yaml) gewährt; die App zeigt dann auf
+`valkey.app-valkey.svc.cluster.local`. Aktuelle Consumer:
 
 - **authentik** (`app-authentik`) — `AUTHENTIK_REDIS__HOST`

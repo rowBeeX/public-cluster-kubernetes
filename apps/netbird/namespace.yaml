@@ -9,7 +9,6 @@ metadata:
     app.kubernetes.io/managed-by: argocd
     core.sedware.net/owner: platform
     core.sedware.net/purpose: application
-    core.sedware.net/environment: prod
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/enforce-version: v1.36
     pod-security.kubernetes.io/audit: restricted

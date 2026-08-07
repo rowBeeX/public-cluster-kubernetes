@@ -21,8 +21,8 @@ spec:
     serviceAccount: postgresql-vault
     audiences: [vault]
 ---
-# S3-Zugangsdaten fuer Barman Cloud -> lokales RustFS. Wegen der getrennten
-# Vault-Instanzen werden sie kontrolliert in den Public-Vault uebertragen; die
+# S3-Zugangsdaten für Barman Cloud -> lokales RustFS. Wegen der getrennten
+# Vault-Instanzen werden sie kontrolliert in den Public-Vault übertragen; die
 # Keys entsprechen den Referenzen im ObjectStore unten.
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret

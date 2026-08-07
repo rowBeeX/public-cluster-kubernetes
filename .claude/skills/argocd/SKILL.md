@@ -1,23 +1,26 @@
 ---
 name: argocd
-description: Add, sync and diagnose Argo CD applications in the public cluster repository.
+description: Argo-CD-Applikationen im Public-Cluster-Repository hinzufügen, synchronisieren und diagnostizieren.
 ---
 
 # Public Argo CD
 
-- Argo CD is bootstrapped by `public-cluster-nix`; this repository contains
-  only application resources below `apps/`.
-- Each `apps/<name>/argocd.yaml` is discovered by the Nix-managed `public-apps`
-  ApplicationSet, which creates an Application named after the directory
-  (`authentik`, `netbird`, …) and syncs the flat path `apps/<name>`. There are
-  no `base/` or `overlays/` directories; production is the only environment.
-- The ApplicationSet syncs from the `release` branch. `selfHeal` is on,
-  auto-prune is off, so removing a resource from Git does not delete it live.
-- Use the `public-apps` AppProject. Application namespaces are `app-*`; an app
-  may override the target namespace via `namespace:` in its `argocd.yaml`
-  (`mail-edge` uses `app-mailedge`).
-- Correct drift in Git. A refresh is safe; sync/prune is a write operation and
-  must be followed by health, event and log checks.
-- Repository access uses a read-only SSH deploy key (registered in
-  `public-cluster-nix` from Vault).
-- Never output Kubernetes Secret data or Argo CD credentials.
+- Argo CD wird von `public-cluster-nix` gebootstrapt; dieses Repository
+  enthält nur Applikationsressourcen unterhalb von `apps/`.
+- Jede `apps/<name>/argocd.yaml` wird vom Nix-verwalteten
+  `public-apps`-ApplicationSet entdeckt, das eine nach dem Verzeichnis
+  benannte Application (`authentik`, `netbird`, …) erzeugt und den flachen
+  Pfad `apps/<name>` synchronisiert. Es gibt keine `base/`- oder
+  `overlays/`-Verzeichnisse; es gibt nur eine Umgebung.
+- Das ApplicationSet synchronisiert vom `release`-Branch. `selfHeal` ist an,
+  Auto-Prune ist aus, ein aus Git entferntes Objekt wird also live nicht
+  gelöscht.
+- Das `public-apps`-AppProject verwenden. Applikations-Namespaces sind
+  `app-*`; eine App kann den Ziel-Namespace über `namespace:` in ihrer
+  `argocd.yaml` überschreiben (`mail-edge` nutzt `app-mailedge`).
+- Drift in Git korrigieren. Ein Refresh ist unbedenklich; Sync/Prune ist ein
+  Schreibvorgang und muss von Health-, Event- und Log-Prüfungen gefolgt
+  werden.
+- Der Repository-Zugriff nutzt einen read-only SSH-Deploy-Key (in
+  `public-cluster-nix` aus Vault registriert).
+- Niemals Kubernetes-Secret-Daten oder Argo-CD-Zugangsdaten ausgeben.

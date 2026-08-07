@@ -1,23 +1,24 @@
-# Public application architecture
+# Public-Applikationsarchitektur
 
-> **Canonical platform/edge architecture:** the k3s control plane, Cilium
-> datapath, the standalone Envoy Gateway edge (hostNetwork DaemonSet, DualStack
-> `:80`/`:443`, TLS termination, IPv6 handling) and the firewall/CrowdSec model
-> are described **once** in
+> **Kanonische Plattform-/Edge-Architektur:** die k3s-Control-Plane, der
+> Cilium-Datapath, der eigenständige Envoy-Gateway-Edge (hostNetwork-
+> DaemonSet, DualStack `:80`/`:443`, TLS-Terminierung, IPv6-Handling) und das
+> Firewall-/CrowdSec-Modell sind **einmalig** beschrieben in
 > [`public-cluster-nix/docs/architecture.md`](https://github.com/rowBeeX/public-cluster-nix/blob/main/docs/architecture.md).
-> This file only covers the **application** layer that lives in this repo — which
-> apps sit behind that edge and how they are routed (#36).
+> Diese Datei deckt nur die **Applikationsschicht** ab, die in diesem Repo
+> liegt — welche Apps hinter diesem Edge sitzen und wie sie geroutet werden
+> (#36).
 
-The public cluster is the Internet edge. This repo owns the workloads on top of
-the platform: the HTTP apps routed by Envoy Gateway, the non-HTTP protocol paths,
-and the per-namespace CiliumNetworkPolicies.
+Der Public-Cluster ist der Internet-Edge. Dieses Repo besitzt die Workloads
+oberhalb der Plattform: die per Envoy Gateway gerouteten HTTP-Apps, die
+Non-HTTP-Protokollpfade und die CiliumNetworkPolicies je Namespace.
 
-Public HTTP/gRPC/WebSocket services on Envoy Gateway: Authentik (public OIDC
-provider, `authentik.sedware.net`), the NetBird dashboard
-(`netbird.sedware.net`) and the NetBird management API, signal gRPC and relay
-WebSocket endpoints (`netbird-control.sedware.net`).
+Öffentliche HTTP/gRPC/WebSocket-Dienste am Envoy Gateway: Authentik
+(öffentlicher OIDC-Provider, `authentik.sedware.net`), das NetBird-Dashboard
+(`netbird.sedware.net`) sowie die NetBird-Management-API, Signal-gRPC- und
+Relay-WebSocket-Endpunkte (`netbird-control.sedware.net`).
 
-Non-HTTP protocols get their own protocol-specific paths, never Envoy:
+Non-HTTP-Protokolle bekommen eigene, protokollspezifische Pfade, nie Envoy:
 
 - **Mail Edge / MX Relay** (`mail-edge`) — öffentlicher SMTP-Eingang als Cilium
   Node IPAM Service auf `:25`. Eingehend läuft Internet → Mail Edge →
@@ -26,28 +27,30 @@ Non-HTTP protocols get their own protocol-specific paths, never Envoy:
   einzelnen PodCIDR von Gateway-Node 1; Cilium lässt dafür ausschließlich die
   Host-/Remote-Node-Identity durch. Fremde Quellen können ausschließlich lokale
   Empfänger adressieren. Es sind keine User-Login-Ports öffentlich.
-- **NetBird STUN/TURN** — UDP `3478` via an explicit Cilium Service.
-- **AdGuard** DNS/UI — **NetBird-internal only**: no public DNS, and the UI's
-  Envoy route is locked to the NetBird overlay by a `SecurityPolicy`, so it never
-  faces the internet. AdGuard serves the NetBird DNS group.
+- **NetBird STUN/TURN** — UDP `3478` über einen expliziten Cilium Service.
+- **AdGuard** DNS/UI — **ausschließlich NetBird-intern**: kein öffentliches
+  DNS, und die Envoy-Route der UI ist per `SecurityPolicy` auf das NetBird-
+  Overlay begrenzt, sodass sie nie dem Internet zugewandt ist. AdGuard bedient
+  die NetBird-DNS-Gruppe.
 
-Every app namespace uses CiliumNetworkPolicy with default-deny. Public web apps
-admit ingress only from the Envoy Gateway proxy pods; because those proxies run
-`hostNetwork` on the dedicated gateway nodes, Cilium identifies them as
-`host`/`remote-node`, so app policies allow `fromEntities: [host, remote-node]`.
+Jeder App-Namespace nutzt CiliumNetworkPolicy mit Default-Deny. Öffentliche
+Web-Apps lassen Ingress nur von den Envoy-Gateway-Proxy-Pods zu; da diese
+Proxies `hostNetwork` auf den dedizierten Gateway-Nodes fahren, identifiziert
+Cilium sie als `host`/`remote-node`, weshalb die App-Policies
+`fromEntities: [host, remote-node]` erlauben.
 
-There is exactly one environment: production. All public hostnames live under
+Es gibt genau eine Umgebung. Alle öffentlichen Hostnamen liegen unter
 `sedware.net`.
 
-## Request paths
+## Request-Pfade
 
 ```mermaid
 flowchart TB
-  internet["Internet clients"]
-  nbpeers["NetBird peers"]
+  internet["Internet-Clients"]
+  nbpeers["NetBird-Peers"]
   stalwart["Local Stalwart mail (beelink-server)"]
 
-  subgraph public["Public cluster (public-cluster-host-1 server; public-cluster-host-2 agent, not yet procured)"]
+  subgraph public["Public Cluster (public-cluster-host-1 Server; public-cluster-host-2 Agent, noch nicht beschafft)"]
     envoy["Envoy Gateway public (hostNetwork :80/:443 und NetBird-only :2525)"]
     authentik["authentik (OIDC/SSO :9000)"]
     nbdash["netbird dashboard"]
@@ -64,12 +67,12 @@ flowchart TB
 
   internet -->|UDP 3478 STUN| stunsvc
   internet -->|SMTP :25 MX| mailedge
-  mailedge -->|"forward sedware.net (beelink-server.nb.sedware.net :25)"| stalwart
+  mailedge -->|"Weiterleitung sedware.net (beelink-server.nb.sedware.net :25)"| stalwart
   stalwart -->|"Smarthost über NetBird/Envoy :2525"| envoy
   envoy -->|"TCPRoute zu Postfix :25"| mailedge
   mailedge -->|"ausgehendes SMTP :25"| internet
 
-  nbpeers -->|DNS :53 direct| adguard
+  nbpeers -->|DNS :53 direkt| adguard
   nbpeers -->|UI HTTPS| envoy
-  envoy -->|"HTTPRoute + SecurityPolicy (NetBird overlay only)"| adguard
+  envoy -->|"HTTPRoute + SecurityPolicy (nur NetBird-Overlay)"| adguard
 ```

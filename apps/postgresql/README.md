@@ -1,23 +1,24 @@
 # postgresql
 
-Central CloudNativePG (CNPG) PostgreSQL cluster for the **public** cluster,
-backing Authentik. A vanilla `cloudnative-pg/postgresql` image serving a single
-database — unlike the local cluster's multi-database
-[`app-postgresql`](../../../local-cluster-kubernetes/apps/postgresql/) (vectorchord).
+Zentraler CloudNativePG-(CNPG-)PostgreSQL-Cluster für den **public** Cluster,
+Backend für Authentik. Ein unverändertes `cloudnative-pg/postgresql`-Image,
+das eine einzelne Datenbank bedient — anders als das Multi-Datenbank-
+[`app-postgresql`](../../../local-cluster-kubernetes/apps/postgresql/)
+(vectorchord) des lokalen Clusters.
 
 | | |
 | --- | --- |
 | Namespace | `app-postgresql` |
-| CNPG Cluster | `postgres` (1 instance) |
+| CNPG-Cluster | `postgres` (1 Instanz) |
 | Service | `postgres-rw.app-postgresql.svc.cluster.local:5432` |
-| Image | `ghcr.io/cloudnative-pg/postgresql:18` (digest-pinned) |
-| Storage | `10Gi` on `public-primary-super-fast` (node-local SSD) |
-| Backup | Barman Cloud plugin → S3 `ObjectStore` `postgres-backup` |
-| Credentials | per-consumer roles via Vault self-service (`VaultStaticSecret`) |
+| Image | `ghcr.io/cloudnative-pg/postgresql:18` (digest-gepinnt) |
+| Storage | `10Gi` auf `public-primary-super-fast` (node-lokale SSD) |
+| Backup | Barman-Cloud-Plugin → S3-`ObjectStore` `postgres-backup` |
+| Zugangsdaten | Rollen je Consumer via Vault-Self-Service (`VaultStaticSecret`) |
 
-## Consumers
+## Consumer
 
-Each consumer gets its own database and role, provisioned through Vault plus a
-seed `Job` (no shared superuser). Current consumers:
+Jeder Consumer bekommt seine eigene Datenbank und Rolle, provisioniert über
+Vault plus einen Seed-`Job` (kein gemeinsamer Superuser). Aktuelle Consumer:
 
-- **authentik** (`app-authentik`) — database `authentik`
+- **authentik** (`app-authentik`) — Datenbank `authentik`

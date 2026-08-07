@@ -17,8 +17,8 @@ Kubernetes-Manifeste für die öffentlichen Cluster-Apps. Deployment erfolgt
 ## Konventionen
 
 - Ressourcen je App aufgeteilt direkt im App-Verzeichnis (`namespace.yaml` → `workload.yaml` → `networkpolicy.yaml`), siehe [`docs/app-layout.md`](../docs/app-layout.md)
-- Es gibt nur Production, deshalb keine `base/`- oder `overlays/`-Ebene: ArgoCD
-  synchronisiert `apps/<name>` direkt.
+- Es gibt nur eine Umgebung, deshalb keine `base/`- oder `overlays/`-Ebene:
+  ArgoCD synchronisiert `apps/<name>` direkt.
 - HTTP wird ausschließlich per `HTTPRoute` an das Envoy-Gateway (`public`
   in `gateway-system`) gebunden.
 - SMTP und STUN nutzen explizite Cilium Node IPAM Services auf den

@@ -2,7 +2,7 @@
 
 Einheitliches Layout für kustomize-native Apps, damit Review-Diffs klein bleiben
 und Ressourcen logisch getrennt sind. Statt eines Monolithen (`resources.yaml`
-mit Namespace, Workload, Policies …) trägt jede App im `base/`:
+mit Namespace, Workload, Policies …) trägt jedes App-Verzeichnis:
 
 | Datei | Inhalt |
 |-------|--------|
@@ -14,7 +14,7 @@ Sehr große Apps dürfen feiner splitten (z. B. eine Datei je
 `CiliumNetworkPolicy`, wie `apps/stalwart` im local-cluster). Das Minimum ist die
 Dreiteilung oben.
 
-`base/kustomization.yaml` listet die Dateien in der Reihenfolge
+`kustomization.yaml` listet die Dateien in der Reihenfolge
 `namespace.yaml → workload.yaml → networkpolicy.yaml`.
 
 ## Durchgesetzt

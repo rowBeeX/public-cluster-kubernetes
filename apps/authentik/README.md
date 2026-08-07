@@ -22,7 +22,7 @@ Kubernetes-API-Retries.
 
 ## Secrets
 
-Kommen aus SOPS via `public-cluster-nix/secrets/prod/public-cluster-host-1.yaml`:
+Kommen aus SOPS via `public-cluster-nix/secrets/public-cluster-host-1.yaml`:
 - `authentik-runtime` — Secret-Key und Bootstrap-Zugangsdaten (`akadmin`)
 - `authentik-blueprint` — Blueprint-YAML für initiale OIDC-Client-Konfiguration
 

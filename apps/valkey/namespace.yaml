@@ -9,7 +9,6 @@ metadata:
     app.kubernetes.io/managed-by: argocd
     core.sedware.net/owner: platform
     core.sedware.net/purpose: application
-    core.sedware.net/environment: prod
     # Valkey erfüllt Restricted PSS mit non-root UID 999, read-only-Root-FS,
     # drop ALL und seccomp RuntimeDefault; keine PSA-Ausnahme erforderlich.
     pod-security.kubernetes.io/enforce: restricted
