@@ -46,7 +46,7 @@ Deshalb:
 
 ## Zugang
 
-- Dashboard: `https://netbird.dev20.sedware.net/` — öffentlich über den Envoy-Edge
-  (`public-dev`) per HTTPRoute erreichbar; abgesichert durch Authentik-OIDC-Login,
+- Dashboard: `https://netbird.sedware.net/` — öffentlich über den Envoy-Edge
+  (`public`) per HTTPRoute erreichbar; abgesichert durch Authentik-OIDC-Login,
   nicht durch eine Netzwerk-/CNP-Beschränkung
 - Management API: intern via `netbird-server.app-netbird.svc`

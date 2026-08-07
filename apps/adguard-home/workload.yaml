@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: adguard-data, namespace: app-adguard-home}
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests: {storage: 5Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: adguard-home, namespace: app-adguard-home}
+spec:
+  replicas: 1
+  # hostNetwork-Port 53 ist auf dem Ziel-Node exklusiv: nie einen zweiten Pod
+  # starten, bevor der alte beendet wurde.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 0, maxUnavailable: 1}
+  selector:
+    matchLabels: {app.kubernetes.io/name: adguard-home}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: adguard-home}
+    spec:
+      automountServiceAccountToken: false
+      hostNetwork: true
+      dnsPolicy: None
+      dnsConfig:
+        nameservers: [9.9.9.9, 149.112.112.112]
+      nodeSelector: {public.sedware.net/control-plane: "true"}
+      initContainers:
+      - name: bootstrap-config
+        image: docker.io/rancher/mirrored-library-busybox:1.37.0@sha256:101b4afd76732482eff9b95cae5f94bcf295e521fbec4e01b69c5421f3f3f3e5
+        command:
+        - sh
+        - -ec
+        - |
+          mkdir -p /data/conf /data/work
+          if [ ! -s /data/conf/AdGuardHome.yaml ]; then
+            cp /bootstrap/AdGuardHome.yaml /data/conf/AdGuardHome.yaml
+            chmod 0600 /data/conf/AdGuardHome.yaml
+          fi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+        volumeMounts:
+        - {name: data, mountPath: /data}
+        - {name: bootstrap, mountPath: /bootstrap, readOnly: true}
+      containers:
+      - name: adguard-home
+        image: docker.io/adguard/adguardhome:v0.107.78@sha256:1ea34eafe5dc691007946e8eaab7bf46b0de9412f39213d8c06e48b53bf9a6c5
+        ports:
+        - {name: dns-tcp, protocol: TCP, containerPort: 53}
+        - {name: dns-udp, protocol: UDP, containerPort: 53}
+        - {name: http, protocol: TCP, containerPort: 3000}
+        readinessProbe:
+          httpGet: {path: /, port: http}
+          initialDelaySeconds: 10
+        livenessProbe:
+          httpGet: {path: /, port: http}
+          initialDelaySeconds: 30
+        resources:
+          requests: {cpu: 50m, memory: 64Mi}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL], add: [NET_BIND_SERVICE]}
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - {name: data, mountPath: /opt/adguardhome/conf, subPath: conf}
+        - {name: data, mountPath: /opt/adguardhome/work, subPath: work}
+        - {name: tmp, mountPath: /tmp}
+      volumes:
+      - name: data
+        persistentVolumeClaim: {claimName: adguard-data}
+      - name: tmp
+        emptyDir: {sizeLimit: 64Mi}
+      - name: bootstrap
+        secret: {secretName: adguard-config}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: adguard-home, namespace: app-adguard-home}
+spec:
+  selector: {app.kubernetes.io/name: adguard-home}
+  ports:
+  - {name: http, port: 3000, targetPort: http}
+---
+# Die AdGuard-UI verwendet am Public Envoy Edge das Wildcard-TLS-Zertifikat.
+# Die folgende SecurityPolicy begrenzt sie auf das NetBird-Overlay
+# 100.64.0.0/10. adguard.<domain> besitzt keinen öffentlichen Cloudflare-Record;
+# NetBird-Clients lösen den Namen über AdGuard auf die Overlay-IP von Host 1 auf
+# und erreichen dort den gemeinsam platzierten Envoy.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: adguard-home, namespace: app-adguard-home}
+spec:
+  parentRefs:
+  - {name: public, namespace: gateway-system, sectionName: https}
+  hostnames: [adguard.sedware.net]
+  rules:
+  - matches:
+    - path: {type: PathPrefix, value: /}
+    backendRefs:
+    - {name: adguard-home, port: 3000}
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata: {name: adguard-netbird-only, namespace: app-adguard-home}
+spec:
+  targetRefs:
+  - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: adguard-home}
+  authorization:
+    defaultAction: Deny
+    rules:
+    - action: Allow
+      principal:
+        clientCIDRs:
+        - 100.64.0.0/10

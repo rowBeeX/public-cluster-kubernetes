@@ -1,7 +1,7 @@
 # Authentik
 
 OIDC-Provider für alle öffentlichen Cluster-Dienste, fest auf Version
-`2026.5.5` gepinnt.
+`2026.5.6` gepinnt.
 
 ## Komponenten
 
@@ -13,17 +13,17 @@ OIDC-Provider für alle öffentlichen Cluster-Dienste, fest auf Version
 | Authentik Worker (1 Replica) | Hintergrund-Tasks (E-Mail, Events) |
 | authentik-media PVC | Medien-Speicher (public-shared-bulk, ReadWriteMany) |
 
-Der Cluster ist absichtlich vom Internet abgeschottet. Update-Prüfung,
-Start-Analyse und Fehlerberichte sind deshalb auf Server und Worker
-deaktiviert. Da ausschließlich OIDC-Provider verwendet werden, sind auch der
+Die Pods haben per CiliumNetworkPolicy keinen Internet-Egress — erlaubt sind nur
+DNS, PostgreSQL und Valkey. Update-Prüfung, Start-Analyse und Fehlerberichte sind
+deshalb auf Server und Worker deaktiviert. Da ausschließlich OIDC-Provider verwendet werden, sind auch der
 eingebettete Proxy-Outpost und die Kubernetes-Discovery abgeschaltet. So
 entstehen in der Admin-Übersicht keine dauerhaften Internet- oder
 Kubernetes-API-Retries.
 
 ## Secrets
 
-Kommen aus SOPS via `public-cluster-nix/secrets/dev/public-cluster-host-1.yaml`:
-- `authentik-runtime` — Secret-Key, SMTP-Konfiguration
+Kommen aus SOPS via `public-cluster-nix/secrets/prod/public-cluster-host-1.yaml`:
+- `authentik-runtime` — Secret-Key und Bootstrap-Zugangsdaten (`akadmin`)
 - `authentik-blueprint` — Blueprint-YAML für initiale OIDC-Client-Konfiguration
 
 Das Datenbankpasswort kommt aus Vault über den `authentik-db` VaultStaticSecret
@@ -31,7 +31,7 @@ Das Datenbankpasswort kommt aus Vault über den `authentik-db` VaultStaticSecret
 
 ## Zugang
 
-- Admin-UI: `https://authentik.dev20.sedware.net/if/admin/` — erreichbar über den
-  öffentlichen Envoy-Edge (`public-dev`) per HTTPRoute; der Zugang wird durch
+- Admin-UI: `https://authentik.sedware.net/if/admin/` — erreichbar über den
+  öffentlichen Envoy-Edge (`public`) per HTTPRoute; der Zugang wird durch
   Authentik-Login geschützt, nicht durch eine Netzwerk-/CNP-Beschränkung
-- OIDC-Issuer: `https://authentik.dev20.sedware.net/application/o/<client>/`
+- OIDC-Issuer: `https://authentik.sedware.net/application/o/<client>/`

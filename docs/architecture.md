@@ -1,4 +1,4 @@
-# Public Dev application architecture
+# Public application architecture
 
 > **Canonical platform/edge architecture:** the k3s control plane, Cilium
 > datapath, the standalone Envoy Gateway edge (hostNetwork DaemonSet, DualStack
@@ -13,9 +13,9 @@ the platform: the HTTP apps routed by Envoy Gateway, the non-HTTP protocol paths
 and the per-namespace CiliumNetworkPolicies.
 
 Public HTTP/gRPC/WebSocket services on Envoy Gateway: Authentik (public OIDC
-provider), the NetBird dashboard, management API, signal gRPC and relay WebSocket
-endpoints, and a stateless `public-nginx` test app that proves the edge
-(IPv4/IPv6, TLS, HTTP/2, routing, logs, policy).
+provider, `authentik.sedware.net`), the NetBird dashboard
+(`netbird.sedware.net`) and the NetBird management API, signal gRPC and relay
+WebSocket endpoints (`netbird-control.sedware.net`).
 
 Non-HTTP protocols get their own protocol-specific paths, never Envoy:
 
@@ -31,13 +31,13 @@ Non-HTTP protocols get their own protocol-specific paths, never Envoy:
   Envoy route is locked to the NetBird overlay by a `SecurityPolicy`, so it never
   faces the internet. AdGuard serves the NetBird DNS group.
 
-All namespaces that run pods use CiliumNetworkPolicy with default-deny (pod-less
-route-only namespaces such as `app-local-nginx-proxy` carry none). Public web apps admit
-ingress only from the Envoy Gateway proxy pods; because those proxies run
+Every app namespace uses CiliumNetworkPolicy with default-deny. Public web apps
+admit ingress only from the Envoy Gateway proxy pods; because those proxies run
 `hostNetwork` on the dedicated gateway nodes, Cilium identifies them as
 `host`/`remote-node`, so app policies allow `fromEntities: [host, remote-node]`.
 
-Only Dev domains are active. Production hostnames are not rendered or routed.
+There is exactly one environment: production. All public hostnames live under
+`sedware.net`.
 
 ## Request paths
 
@@ -45,18 +45,15 @@ Only Dev domains are active. Production hostnames are not rendered or routed.
 flowchart TB
   internet["Internet clients"]
   nbpeers["NetBird peers"]
-  localedge["Local cluster Envoy edge (dev-manager over NetBird)"]
-  stalwart["Local Stalwart mail"]
+  stalwart["Local Stalwart mail (beelink-server)"]
 
-  subgraph public["Public cluster (public-cluster-host-1 server, host-2 agent)"]
-    envoy["Envoy Gateway public-dev (hostNetwork :80/:443 und NetBird-only :2525)"]
+  subgraph public["Public cluster (public-cluster-host-1 server; public-cluster-host-2 agent, not yet procured)"]
+    envoy["Envoy Gateway public (hostNetwork :80/:443 und NetBird-only :2525)"]
     authentik["authentik (OIDC/SSO :9000)"]
     nbdash["netbird dashboard"]
     nbmgmt["netbird mgmt API + signal gRPC + relay WSS"]
-    pubnginx["public-nginx (static test page)"]
-    lnproxy["local-nginx-proxy (HTTPRoute + Backend + BackendTLSPolicy)"]
     stunsvc["netbird-stun Node IPAM Service (UDP 3478)"]
-    mailedge["mail-edge Node IPAM Service (:25 STARTTLS mail.dev20)"]
+    mailedge["mail-edge Node IPAM Service (:25 STARTTLS mail.sedware.net)"]
     adguard["adguard-home (hostNetwork DNS :53 / UI :3000)"]
   end
 
@@ -64,13 +61,10 @@ flowchart TB
   envoy -->|HTTPRoute| authentik
   envoy -->|HTTPRoute| nbdash
   envoy -->|HTTPRoute / GRPCRoute| nbmgmt
-  envoy -->|HTTPRoute| pubnginx
-  envoy -->|"HTTPRoute URLRewrite Host local-nginx.local.dev20"| lnproxy
-  lnproxy -->|"re-encrypt, verify *.local.dev20 (NetBird)"| localedge
 
   internet -->|UDP 3478 STUN| stunsvc
   internet -->|SMTP :25 MX| mailedge
-  mailedge -->|"forward dev20.sedware.net (NetBird :25)"| stalwart
+  mailedge -->|"forward sedware.net (beelink-server.nb.sedware.net :25)"| stalwart
   stalwart -->|"Smarthost über NetBird/Envoy :2525"| envoy
   envoy -->|"TCPRoute zu Postfix :25"| mailedge
   mailedge -->|"ausgehendes SMTP :25"| internet

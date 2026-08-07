@@ -1,0 +1,196 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: authentik-media, namespace: app-authentik}
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: public-shared-bulk
+  resources:
+    requests: {storage: 10Gi}
+---
+# Vault-Self-Service-Identität, über die authentik-db das von app-postgresql am
+# gemeinsamen Pfad veröffentlichte Datenbankpasswort lesen darf.
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: authentik-vault, namespace: app-authentik}
+automountServiceAccountToken: false
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata: {name: vault, namespace: app-authentik}
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: apps
+    serviceAccount: authentik-vault
+    audiences: [vault]
+---
+# PostgreSQL läuft im zentralen CNPG-Cluster app-postgresql. Authentik erhält
+# sein Datenbankpasswort aus dem dort veröffentlichten gemeinsamen Vault-Pfad.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata: {name: authentik-db, namespace: app-authentik}
+spec:
+  type: kv-v2
+  mount: secret
+  path: apps/app-postgresql/shared/app-authentik/db
+  refreshAfter: 1h
+  vaultAuthRef: vault
+  destination:
+    create: true
+    name: authentik-db
+    overwrite: true
+    type: Opaque
+    transformation:
+      excludeRaw: true
+      includes: [password]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: authentik, namespace: app-authentik}
+spec:
+  selector: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: server}
+  ports:
+  - {name: http, port: 9000, targetPort: http}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: authentik-server, namespace: app-authentik}
+spec:
+  # PostgreSQL und Valkey laufen als einzelne Replik auf Host 1 mit Local-Path-
+  # Storage ohne Failover. Weitere Server-Repliken würden einen Node-Ausfall
+  # daher nicht überstehen und nur falsche HA suggerieren. Ein Rollout
+  # unterbricht SSO im Cluster kurzzeitig.
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: server}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: server}
+    spec:
+      automountServiceAccountToken: false
+      # Gemeinsam mit PostgreSQL und Valkey auf dem Control-Plane-Node platziert.
+      # Da Datenbank und Cache ohne Failover auf Host 1 laufen, hängt die
+      # Verfügbarkeit dadurch nicht zusätzlich von Host 2 ab.
+      nodeSelector: {public.sedware.net/control-plane: "true"}
+      containers:
+      - name: authentik
+        image: ghcr.io/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868
+        args: [server]
+        envFrom:
+        - secretRef: {name: authentik-runtime}
+        env:
+        - {name: AUTHENTIK_POSTGRESQL__HOST, value: postgres-rw.app-postgresql.svc.cluster.local}
+        - name: AUTHENTIK_POSTGRESQL__PASSWORD
+          valueFrom: {secretKeyRef: {name: authentik-db, key: password}}
+        - {name: AUTHENTIK_POSTGRESQL__USER, value: authentik}
+        - {name: AUTHENTIK_POSTGRESQL__NAME, value: authentik}
+        - {name: AUTHENTIK_REDIS__HOST, value: valkey.app-valkey.svc.cluster.local}
+        - {name: AUTHENTIK_LISTEN__HTTP, value: "0.0.0.0:9000"}
+        - {name: AUTHENTIK_DISABLE_STARTUP_ANALYTICS, value: "true"}
+        - {name: AUTHENTIK_DISABLE_UPDATE_CHECK, value: "true"}
+        - {name: AUTHENTIK_ERROR_REPORTING__ENABLED, value: "false"}
+        # Es werden ausschliesslich OIDC-Provider verwendet. Ohne Proxy-Outpost
+        # sind Embedded-Outpost und Kubernetes-Discovery unnoetig und wuerden
+        # im abgeschotteten Cluster dauerhaft externe/API-Verbindungen versuchen.
+        - {name: AUTHENTIK_OUTPOSTS__DISABLE_EMBEDDED_OUTPOST, value: "true"}
+        - {name: AUTHENTIK_OUTPOSTS__DISCOVER, value: "false"}
+        ports:
+        - {name: http, containerPort: 9000}
+        readinessProbe:
+          httpGet: {path: /-/health/ready/, port: http}
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          # Liveness/Startup sind bereits getunt; nur Readiness stand auf dem
+          # 1s-Default und lief unter Last ab (context deadline exceeded).
+          timeoutSeconds: 5
+        # Bei einer frischen Datenbank führt der erste Pod vor dem Start alle
+        # Migrationen aus. Die startupProbe hält die livenessProbe zurück, damit
+        # eine langsame First-Boot-Migration nicht unterbrochen wird. 60×10s
+        # erlauben höchstens zehn Minuten.
+        startupProbe:
+          httpGet: {path: /-/health/ready/, port: http}
+          periodSeconds: 10
+          failureThreshold: 60
+          timeoutSeconds: 5
+        livenessProbe:
+          exec: {command: [ak, healthcheck]}
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          # `ak healthcheck` startet einen Python-Prozess; das Standard-Timeout
+          # von einer Sekunde läuft unter Last ab und löst sonst einen Crashloop aus.
+          timeoutSeconds: 10
+          failureThreshold: 5
+        resources:
+          requests: {cpu: 150m, memory: 384Mi}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+        volumeMounts:
+        - {name: media, mountPath: /media}
+        - {name: blueprint, mountPath: /blueprints/custom, readOnly: true}
+      volumes:
+      - name: media
+        persistentVolumeClaim: {claimName: authentik-media}
+      - name: blueprint
+        secret: {secretName: authentik-blueprint}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: authentik-worker, namespace: app-authentik}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: worker}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: worker}
+    spec:
+      automountServiceAccountToken: false
+      # Derselbe Node wie Server, Datenbank und Cache, siehe Deployment oben.
+      nodeSelector: {public.sedware.net/control-plane: "true"}
+      containers:
+      - name: authentik
+        image: ghcr.io/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868
+        args: [worker]
+        envFrom:
+        - secretRef: {name: authentik-runtime}
+        env:
+        - {name: AUTHENTIK_POSTGRESQL__HOST, value: postgres-rw.app-postgresql.svc.cluster.local}
+        - name: AUTHENTIK_POSTGRESQL__PASSWORD
+          valueFrom: {secretKeyRef: {name: authentik-db, key: password}}
+        - {name: AUTHENTIK_POSTGRESQL__USER, value: authentik}
+        - {name: AUTHENTIK_POSTGRESQL__NAME, value: authentik}
+        - {name: AUTHENTIK_REDIS__HOST, value: valkey.app-valkey.svc.cluster.local}
+        - {name: AUTHENTIK_LISTEN__HTTP, value: "0.0.0.0:9000"}
+        - {name: AUTHENTIK_DISABLE_STARTUP_ANALYTICS, value: "true"}
+        - {name: AUTHENTIK_DISABLE_UPDATE_CHECK, value: "true"}
+        - {name: AUTHENTIK_ERROR_REPORTING__ENABLED, value: "false"}
+        - {name: AUTHENTIK_OUTPOSTS__DISABLE_EMBEDDED_OUTPOST, value: "true"}
+        - {name: AUTHENTIK_OUTPOSTS__DISCOVER, value: "false"}
+        resources:
+          requests: {cpu: 100m, memory: 384Mi}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+        volumeMounts:
+        - {name: media, mountPath: /media}
+        - {name: blueprint, mountPath: /blueprints/custom, readOnly: true}
+      volumes:
+      - name: media
+        persistentVolumeClaim: {claimName: authentik-media}
+      - name: blueprint
+        secret: {secretName: authentik-blueprint}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: authentik, namespace: app-authentik}
+spec:
+  parentRefs:
+  - {name: public, namespace: gateway-system, sectionName: https}
+  hostnames: [authentik.sedware.net]
+  rules:
+  - matches:
+    - path: {type: PathPrefix, value: /}
+    backendRefs:
+    - {name: authentik, port: 9000}
