@@ -83,8 +83,9 @@ spec:
         # Der :25-TCPRoute am Local Cluster führt zum Stalwart-ClusterIP.
         - name: POSTFIX_transport_maps
           value: "inline:{ sedware.net=smtp:[beelink-server.nb.sedware.net]:25 }"
-        # Empfängerbegrenztes Relay: Internet-MX-Absender bleiben zulässig;
-        # relay_domains und mynetworks autorisieren Empfänger beziehungsweise Quelle.
+        # Empfängerbegrenztes Relay: Internet-MX-Absender bleiben zulässig
+        # (siehe smtpd_sender_restrictions weiter unten); relay_domains und
+        # mynetworks autorisieren Empfänger beziehungsweise Quelle.
         - {name: ALLOW_EMPTY_SENDER_DOMAINS, value: "true"}
         - {name: POSTFIX_inet_protocols, value: ipv4}
         # Dieser Host ist für keine Domain das Endziel. sedware.net ist eine
@@ -103,12 +104,28 @@ spec:
         # erlaubt am Backend zusätzlich ausschließlich host/remote-node sowie
         # den öffentlichen MX-Pfad. NetBird-Policy und Interface-Firewall
         # begrenzen den Zugang zu Envoy :2525 auf den Stalwart-Peer.
+        # Beide Public-Hosts sind gleichwertig und stehen im DNS-Round-Robin;
+        # der Smarthost-Pfad kann daher am Envoy jedes der beiden Nodes ankommen.
+        # k3s vergibt die Node-PodCIDRs der Reihe nach aus 10.42.0.0/16: Host 1
+        # bekommt 10.42.0.0/24, Host 2 10.42.1.0/24. Beide /24 werden vertraut,
+        # nicht das ganze /16 — sonst dürfte jeder Pod im Cluster nach außen
+        # relayen. Das frühere 100.64.0.0/10 hätte jedem NetBird-/CGNAT-Peer
+        # vertraut und damit ein Open-Relay-Risiko erzeugt (#2/#3).
         - name: POSTFIX_mynetworks
-          value: "127.0.0.0/8 [::1]/128 10.42.0.0/24"
+          value: "127.0.0.0/8 [::1]/128 10.42.0.0/24 10.42.1.0/24"
         # Internet-MX-Sender müssen eine SMTP-Session beginnen dürfen. Die
         # Empfänger-/Relay-Autorisierung erfolgt darunter separat und verweigert
         # externe Ziele weiterhin für alle nicht vertrauenswürdigen Quellen.
         - {name: POSTFIX_smtpd_client_restrictions, value: "permit"}
+        # ZWINGEND: der Image-Default ist "permit_mynetworks, reject" und weist
+        # damit JEDEN Absender ab, der nicht aus mynetworks kommt — also die
+        # gesamte eingehende Internet-Mail, obwohl der MX hierher zeigt. Der
+        # Anti-Open-Relay-Schutz hängt an smtpd_relay_restrictions
+        # (reject_unauth_destination), nicht an dieser Liste; sie darf externe
+        # Absender deshalb zulassen. reject_unknown_sender_domain hält Absender
+        # mit nicht auflösbarer Domain draußen, ohne legitime MX-Sender zu
+        # treffen.
+        - {name: POSTFIX_smtpd_sender_restrictions, value: "permit_mynetworks, reject_unknown_sender_domain"}
         # Kein SASL und kein öffentlicher Login: Relay nur per permit_mynetworks.
         - {name: POSTFIX_smtpd_relay_restrictions, value: "permit_mynetworks reject_unauth_destination"}
         # Opportunistisches STARTTLS auf :25 mit dem cert-manager-Zertifikat.
