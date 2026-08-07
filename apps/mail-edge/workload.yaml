@@ -68,7 +68,7 @@ spec:
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: postfix
-        image: docker.io/boky/postfix:v5.1.0-ubuntu@sha256:aa8c9f080be251f833faf7b333eb75381dc8c840d31e3b7e0c93a0a48e27608a
+        image: docker.io/boky/postfix:v5.1.0-ubuntu@sha256:df5e7d4508451b21f94472d3552b69a0e41ff8d295de76dd507c79b1e0f7b5ff
         env:
         # --- Eingehend: Internet :25 -> Mail Edge -> Local Stalwart -----------
         # Öffentlicher MX-Name dieses Edge; zugleich HELO-Name und SAN des
