@@ -16,18 +16,6 @@ spec:
     # erlaubt eine vollständige STARTTLS-Prüfung ohne allowInvalidCerts-Ausnahme.
     - public-cluster-host-1.nb.sedware.net
 ---
-# Dauerhafter Queue-Spool: Ein Mail-Relay stellt bei vorübergehend unerreichbaren
-# Zielen zurück. Die Postfix-Queue muss Pod-Restarts überstehen, daher ein
-# einzelnes Replica mit RWO-PVC; ein Postfix-Spool darf nicht geteilt werden.
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata: {name: mail-edge-spool, namespace: app-mailedge}
-spec:
-  accessModes: [ReadWriteOnce]
-  storageClassName: local-path
-  resources:
-    requests: {storage: 2Gi}
----
 # Öffentlicher SMTP-Eingang über Cilium Node IPAM auf den Gateway-Node-Adressen.
 # Dies ist der einzige Internet-Mail-Ein-/Ausgang; Envoy bedient separat nur den
 # privaten Smarthost-Port :2525 über NetBird.
@@ -43,21 +31,34 @@ spec:
   type: LoadBalancer
   loadBalancerClass: io.cilium/node
   allocateLoadBalancerNodePorts: false
-  externalTrafficPolicy: Cluster
+  # Local, NICHT Cluster — sicherheitskritisch. Bei Cluster wird eine Verbindung,
+  # die auf einem Node ohne lokalen Pod ankommt, quer weitergeleitet und dabei
+  # SNAT-t: Postfix sieht als Quelle dann eine Adresse aus dem Pod-CIDR jenes
+  # Nodes. Genau diese CIDRs stehen weiter unten in POSTFIX_mynetworks, damit
+  # der Smarthost-Pfad von Stalwart über Envoy relayen darf — womit jeder
+  # beliebige Internet-Absender über diesen Node als vertrauenswürdig gälte.
+  # Live nachgewiesen: RCPT an eine externe Domain wurde über host-2 mit 250
+  # angenommen, also ein offenes Relay. Local erhält die Client-IP und schließt
+  # das; Voraussetzung ist ein Pod auf JEDEM Gateway-Node (siehe StatefulSet).
+  externalTrafficPolicy: Local
   ports:
   - {name: smtp, protocol: TCP, port: 25, targetPort: smtp}
 ---
+# StatefulSet statt Deployment: ein Postfix-Spool darf nicht geteilt werden, und
+# jeder Gateway-Node braucht einen eigenen Pod, damit externalTrafficPolicy
+# Local auf beiden Adressen liefert. volumeClaimTemplates gibt jedem Pod seine
+# eigene RWO-Queue; die beiden Warteschlangen sind unabhängig, wie bei zwei
+# gleichrangigen MX üblich.
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: mail-edge
   namespace: app-mailedge
   labels: {app.kubernetes.io/name: mail-edge}
 spec:
-  # Ein Replica, da die Postfix-Queue zustandsbehaftet ist. Recreate verhindert,
-  # dass während eines Rollouts zwei Instanzen denselben Spool beschreiben.
-  replicas: 1
-  strategy: {type: Recreate}
+  replicas: 2
+  serviceName: mail-edge-smtp
+  podManagementPolicy: Parallel
   selector:
     matchLabels: {app.kubernetes.io/name: mail-edge}
   template:
@@ -65,7 +66,15 @@ spec:
       labels: {app.kubernetes.io/name: mail-edge}
     spec:
       automountServiceAccountToken: false
-      nodeSelector: {public.sedware.net/control-plane: "true"}
+      # Beide Gateway-Nodes, nicht nur die Control Plane: sonst bliebe der
+      # zweite Node ohne lokalen Endpoint und lieferte mit Local kein :25 mehr.
+      nodeSelector: {gateway.sedware.net/enabled: "true"}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels: {app.kubernetes.io/name: mail-edge}
+            topologyKey: kubernetes.io/hostname
       containers:
       - name: postfix
         image: docker.io/boky/postfix:v5.1.0-ubuntu@sha256:df5e7d4508451b21f94472d3552b69a0e41ff8d295de76dd507c79b1e0f7b5ff
@@ -169,7 +178,14 @@ spec:
         - {name: spool, mountPath: /var/spool/postfix}
         - {name: tls, mountPath: /etc/postfix/tls, readOnly: true}
       volumes:
-      - name: spool
-        persistentVolumeClaim: {claimName: mail-edge-spool}
       - name: tls
         secret: {secretName: mail-edge-tls}
+  # Dauerhafter Queue-Spool je Pod: ein Mail-Relay stellt bei vorübergehend
+  # unerreichbaren Zielen zurück, die Queue muss Pod-Restarts überstehen.
+  volumeClaimTemplates:
+  - metadata: {name: spool}
+    spec:
+      accessModes: [ReadWriteOnce]
+      storageClassName: local-path
+      resources:
+        requests: {storage: 2Gi}
