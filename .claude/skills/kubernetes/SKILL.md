@@ -10,8 +10,8 @@ description: Den Public-k3s-Cluster und seine Argo-CD-Applikationen betreiben un
 - Git ist die Source of Truth. Argo-CD-verwaltete Ressourcen nicht dauerhaft
   live patchen.
 - `public-cluster-host-1` ist die einzige Control-Plane; `public-cluster-host-2`
-  ist ein Agent und noch nicht beschafft, der Cluster läuft daher aktuell
-  allein auf Host 1. Das ist bewusst nicht HA.
+  ist ein in Betrieb befindlicher aarch64-Agent. Der Cluster hat damit zwei
+  Nodes, aber nur eine Control-Plane — das ist bewusst nicht HA.
 - HTTP-Pfad: externes DNS (explizite A/AAAA-Records je Public-Edge-Host unter
   `sedware.net`, bewusst kein öffentlicher Wildcard) -> öffentliches Envoy
   Gateway (`public` im Namespace `gateway-system`, hostNetwork auf den

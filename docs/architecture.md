@@ -22,11 +22,19 @@ Non-HTTP-Protokolle bekommen eigene, protokollspezifische Pfade, nie Envoy:
 
 - **Mail Edge / MX Relay** (`mail-edge`) — öffentlicher SMTP-Eingang als Cilium
   Node IPAM Service auf `:25`. Eingehend läuft Internet → Mail Edge →
-  lokales Stalwart. Ausgehend nutzt Stalwart den NetBird-only-Envoy-Listener
-  `:2525`, dessen TCPRoute zu Mail Edge `:25` führt. Postfix vertraut nur dem
-  einzelnen PodCIDR von Gateway-Node 1; Cilium lässt dafür ausschließlich die
-  Host-/Remote-Node-Identity durch. Fremde Quellen können ausschließlich lokale
-  Empfänger adressieren. Es sind keine User-Login-Ports öffentlich.
+  lokales Stalwart; das nehmen **beide** Gateway-Nodes an, weil die A/AAAA-
+  Records von `mail.sedware.net` im Round-Robin auf beide Public-Hosts zeigen
+  und je Node ein mail-edge-Pod läuft. Ausgehend nutzt Stalwart den
+  NetBird-only-Envoy-Listener `:2525`, dessen TCPRoute zu Mail Edge `:25` führt;
+  dieser Weg zielt auf einen **festen Einzel-Peer**
+  (`public-cluster-host-1.nb.sedware.net`) und ist damit nicht redundant — ein
+  Ausfall von Host 1 stoppt ihn, bis `MAIL_RELAY_HOST` umgestellt wird
+  (bekannter offener Punkt, siehe `apps/mail-edge/README.md`). Postfix vertraut
+  den PodCIDRs beider Gateway-Nodes (`10.42.0.0/24` und `10.42.1.0/24`); genutzt
+  wird davon derzeit nur das von Host 1, `10.42.1.0/24` steht dort vorsorglich
+  für ein Umschwenken. Cilium lässt dafür ausschließlich die Host-/Remote-Node-
+  Identity durch. Fremde Quellen können ausschließlich lokale Empfänger
+  adressieren. Es sind keine User-Login-Ports öffentlich.
 - **NetBird STUN/TURN** — UDP `3478` über einen expliziten Cilium Service.
 - **AdGuard** DNS/UI — **ausschließlich NetBird-intern**: kein öffentliches
   DNS, und die Envoy-Route der UI ist per `SecurityPolicy` auf das NetBird-
@@ -50,7 +58,7 @@ flowchart TB
   nbpeers["NetBird-Peers"]
   stalwart["Local Stalwart mail (beelink-server)"]
 
-  subgraph public["Public Cluster (public-cluster-host-1 Server; public-cluster-host-2 Agent, noch nicht beschafft)"]
+  subgraph public["Public Cluster (public-cluster-host-1 Server; public-cluster-host-2 Agent, aarch64, in Betrieb)"]
     envoy["Envoy Gateway public (hostNetwork :80/:443 und NetBird-only :2525)"]
     authentik["authentik (OIDC/SSO :9000)"]
     nbdash["netbird dashboard"]
@@ -66,9 +74,9 @@ flowchart TB
   envoy -->|HTTPRoute / GRPCRoute| nbmgmt
 
   internet -->|UDP 3478 STUN| stunsvc
-  internet -->|SMTP :25 MX| mailedge
+  internet -->|"SMTP :25 MX (Round-Robin auf beide Hosts)"| mailedge
   mailedge -->|"Weiterleitung sedware.net (beelink-server.nb.sedware.net :25)"| stalwart
-  stalwart -->|"Smarthost über NetBird/Envoy :2525"| envoy
+  stalwart -->|"Smarthost über NetBird/Envoy :2525 (fest Host 1)"| envoy
   envoy -->|"TCPRoute zu Postfix :25"| mailedge
   mailedge -->|"ausgehendes SMTP :25"| internet
 

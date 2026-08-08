@@ -14,6 +14,10 @@ spec:
     - mail.sedware.net
     # Stalwart verbindet sich über diesen NetBird-Peer-FQDN. Der zusätzliche SAN
     # erlaubt eine vollständige STARTTLS-Prüfung ohne allowInvalidCerts-Ausnahme.
+    # Der ausgehende Weg hängt damit an genau diesem einen Peer: MAIL_RELAY_HOST
+    # in local-cluster-kubernetes/apps/stalwart/seed-noreply-account-job.yaml
+    # zeigt fest hierher. Ein Umschwenken auf Host 2 erfordert deshalb zusätzlich
+    # dessen SAN, sonst schlägt die STARTTLS-Prüfung von Stalwart fehl.
     - public-cluster-host-1.nb.sedware.net
 ---
 # Öffentlicher SMTP-Eingang über Cilium Node IPAM auf den Gateway-Node-Adressen.
@@ -111,20 +115,31 @@ spec:
         # dürfen. Das frühere 100.64.0.0/10 hätte jedem NetBird-/CGNAT-Peer
         # vertraut und damit ein Open-Relay-Risiko erzeugt (#2/#3).
         #
-        # Der Smarthost-Pfad endet am hostNetwork-Envoy auf Public Host 1. Beim
-        # Zugriff auf den ClusterIP wird dessen Quelle auf die CiliumInternalIP
-        # aus dem stabilen Server-Node-PodCIDR 10.42.0.0/24 umgesetzt. Nur dieses
-        # /24 wird vertraut; Host 2 nutzt 10.42.1.0/24. Die CiliumNetworkPolicy
-        # erlaubt am Backend zusätzlich ausschließlich host/remote-node sowie
-        # den öffentlichen MX-Pfad. NetBird-Policy und Interface-Firewall
-        # begrenzen den Zugang zu Envoy :2525 auf den Stalwart-Peer.
-        # Beide Public-Hosts sind gleichwertig und stehen im DNS-Round-Robin;
-        # der Smarthost-Pfad kann daher am Envoy jedes der beiden Nodes ankommen.
-        # k3s vergibt die Node-PodCIDRs der Reihe nach aus 10.42.0.0/16: Host 1
-        # bekommt 10.42.0.0/24, Host 2 10.42.1.0/24. Beide /24 werden vertraut,
-        # nicht das ganze /16 — sonst dürfte jeder Pod im Cluster nach außen
-        # relayen. Das frühere 100.64.0.0/10 hätte jedem NetBird-/CGNAT-Peer
-        # vertraut und damit ein Open-Relay-Risiko erzeugt (#2/#3).
+        # Der Smarthost-Pfad endet am hostNetwork-Envoy des Nodes, den Stalwart
+        # adressiert. Beim Weiterreichen an dieses Backend wird die Quelle auf
+        # die CiliumInternalIP jenes Nodes umgesetzt, die aus seinem PodCIDR
+        # stammt. k3s vergibt die Node-PodCIDRs der Reihe nach aus 10.42.0.0/16:
+        # Host 1 bekommt 10.42.0.0/24, Host 2 10.42.1.0/24.
+        #
+        # Genutzt wird davon derzeit ausschließlich Host 1. Stalwart relayt
+        # gegen einen festen Einzel-Peer, MAIL_RELAY_HOST =
+        # public-cluster-host-1.nb.sedware.net:2525 in
+        # local-cluster-kubernetes/apps/stalwart/seed-noreply-account-job.yaml.
+        # Für den ausgehenden Weg gibt es kein DNS-Round-Robin; das gilt nur für
+        # den eingehenden MX, dessen A/AAAA-Records für mail.sedware.net auf
+        # beide Public-Hosts zeigen. 10.42.1.0/24 steht hier vorsorglich, damit
+        # ein Umschwenken auf Host 2 nicht zusätzlich an Postfix scheitert — die
+        # NetBird-Gruppe mail-edge enthält aus demselben Grund bereits beide
+        # Hosts. Bekannter offener Punkt: fällt Host 1 aus, steht der ausgehende
+        # Weg still, bis MAIL_RELAY_HOST und der SAN des Zertifikats oben auf
+        # Host 2 umgestellt sind.
+        #
+        # Vertraut werden nur diese beiden /24, nicht das ganze /16 — sonst
+        # dürfte jeder Pod im Cluster nach außen relayen. Die
+        # CiliumNetworkPolicy erlaubt am Backend zusätzlich ausschließlich
+        # host/remote-node sowie den öffentlichen MX-Pfad. NetBird-Policy und
+        # Interface-Firewall begrenzen den Zugang zu Envoy :2525 auf den
+        # Stalwart-Peer.
         - name: POSTFIX_mynetworks
           value: "127.0.0.0/8 [::1]/128 10.42.0.0/24 10.42.1.0/24"
         # Internet-MX-Sender müssen eine SMTP-Session beginnen dürfen. Die
