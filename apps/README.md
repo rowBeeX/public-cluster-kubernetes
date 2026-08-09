@@ -11,6 +11,7 @@ Kubernetes-Manifeste für die öffentlichen Cluster-Apps. Deployment erfolgt
 | `netbird` | `app-netbird` | WireGuard-VPN-Management (Server + Dashboard) |
 | `adguard-home` | `app-adguard-home` | DNS-Resolver mit Rewrite-Regeln |
 | `mail-edge` | `app-mailedge` | Mail Edge / MX-Relay (SMTP :25) vor dem Local-Stalwart-Backend |
+| `mail-autoconfig` | `app-mail-autoconfig` | Statische Mozilla-Autoconfig-XML für Mail-Client-"Auto Setup" |
 | `postgresql` | `app-postgresql` | CNPG-PostgreSQL-Cluster (Datenbank-Backend für Authentik) |
 | `valkey` | `app-valkey` | Redis-kompatibler Cache/Session-Store (Backend für Authentik) |
 
