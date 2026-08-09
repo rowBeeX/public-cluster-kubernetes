@@ -1,0 +1,117 @@
+# Deckt NUR den ".well-known/autoconfig"-Fallback ab, den Mail-Clients laut
+# Mozilla-Autoconfig-Standard auf der nackten Domain abfragen (RFC-lose
+# De-facto-Konvention, siehe local-cluster-kubernetes/apps/mail-autoconfig
+# README). Die eigentliche "autoconfig.sedware.net"-Antwort liegt seit der
+# Migration im lokalen Cluster (LAN/NetBird-Origin); dieser Pfad hängt aber am
+# Apex "sedware.net" selbst, der nur über den Public-Edge geroutet wird -- ohne
+# eigene Antwort hier fällt die Anfrage auf die Authentik-Weiterleitung
+# (apex-to-authentik in public-cluster-nix) zurück und liefert eine HTML-Seite
+# statt XML. Das ist mehr als kosmetisch: ältere Thunderbird/Betterbird-Versionen
+# (PriorityOrderAbortable-Codepfad, vor der promiseFirstSuccessful-Umstellung in
+# comm-central) parsen den Body dieser Priority-Gruppe unabhängig vom Ergebnis
+# der eigentlich schon erfolgreichen "autoconfig.<domain>"-Antwort und werfen bei
+# der unparsbaren HTML-Seite eine Exception, die den GESAMTEN Abruf abbricht
+# (derselbe Bug wie bei "autodiscover.sedware.net", siehe dortige README).
+# Inhalt ist unkritisch (keine Secrets, vergleichbar mit öffentlich sichtbaren
+# MX/SPF-Records) und deshalb bewusst ohne NetBird-Beschränkung öffentlich --
+# exakt wie reale ISPs (GMX, Web.de, T-Online) ihren ".well-known"-Fallback
+# handhaben. Der Mailserver selbst bleibt NetBird/LAN-only, diese Datei ändert
+# daran nichts.
+#
+# Inhalt MUSS mit local-cluster-kubernetes/apps/mail-autoconfig/
+# mail-autoconfig-config/config-v1.1.xml synchron bleiben.
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: mail-wellknown-config, namespace: app-mail-wellknown}
+data:
+  config-v1.1.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <clientConfig version="1.1">
+      <emailProvider id="sedware.net">
+        <domain>sedware.net</domain>
+        <displayName>sedware.net Mail</displayName>
+        <displayShortName>sedware.net</displayShortName>
+        <incomingServer type="imap">
+          <hostname>stalwart.local.sedware.net</hostname>
+          <port>993</port>
+          <socketType>SSL</socketType>
+          <username>%EMAILADDRESS%</username>
+          <authentication>password-cleartext</authentication>
+        </incomingServer>
+        <outgoingServer type="smtp">
+          <hostname>stalwart.local.sedware.net</hostname>
+          <port>465</port>
+          <socketType>SSL</socketType>
+          <username>%EMAILADDRESS%</username>
+          <authentication>password-cleartext</authentication>
+        </outgoingServer>
+      </emailProvider>
+    </clientConfig>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: mail-wellknown, namespace: app-mail-wellknown}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: mail-wellknown}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: mail-wellknown}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: httpd
+        image: docker.io/rancher/mirrored-library-busybox:1.37.0@sha256:101b4afd76732482eff9b95cae5f94bcf295e521fbec4e01b69c5421f3f3f3e5
+        command: [busybox, httpd, -f, -v, -p, "8080", -h, /www]
+        ports:
+        - {name: http, protocol: TCP, containerPort: 8080}
+        readinessProbe:
+          httpGet: {path: /.well-known/autoconfig/mail/config-v1.1.xml, port: http}
+          initialDelaySeconds: 2
+        livenessProbe:
+          httpGet: {path: /.well-known/autoconfig/mail/config-v1.1.xml, port: http}
+          initialDelaySeconds: 10
+        resources:
+          requests: {cpu: 10m, memory: 16Mi}
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 100
+          runAsGroup: 100
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities: {drop: [ALL]}
+          seccompProfile: {type: RuntimeDefault}
+        volumeMounts:
+        - {name: config, mountPath: /www/.well-known/autoconfig/mail/config-v1.1.xml, subPath: config-v1.1.xml}
+        - {name: tmp, mountPath: /tmp}
+      volumes:
+      - name: config
+        configMap: {name: mail-wellknown-config}
+      - name: tmp
+        emptyDir: {sizeLimit: 16Mi}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: mail-wellknown, namespace: app-mail-wellknown}
+spec:
+  selector: {app.kubernetes.io/name: mail-wellknown}
+  ports:
+  - {name: http, port: 8080, targetPort: http}
+---
+# Exact-Match statt PathPrefix: höchste Gateway-API-Präzedenz (schlägt den
+# pfadlosen Catch-all von apex-to-authentik) und deckt bewusst nur genau diese
+# eine Datei ab, nicht mehr.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: mail-wellknown, namespace: app-mail-wellknown}
+spec:
+  parentRefs:
+  - {name: public, namespace: gateway-system, sectionName: apex-http}
+  - {name: public, namespace: gateway-system, sectionName: apex-https}
+  hostnames: [sedware.net]
+  rules:
+  - matches:
+    - path: {type: Exact, value: /.well-known/autoconfig/mail/config-v1.1.xml}
+    backendRefs:
+    - {name: mail-wellknown, port: 8080}
