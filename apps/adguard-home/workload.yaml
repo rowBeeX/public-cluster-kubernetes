@@ -99,6 +99,17 @@ spec:
   - {name: public, namespace: gateway-system, sectionName: https}
   hostnames: [adguard.sedware.net]
   rules:
+  # AdGuard lädt beim Refresh mehrere MB-große Filterlisten sequentiell
+  # (aktuell 7 Listen, eine davon >2 Mio. Regeln); das dauert länger als
+  # Envoy Gateways Default-Request-Timeout, wodurch der Browser ein 504
+  # sieht, obwohl der Refresh serverseitig durchläuft (lastUpdated-Zeitstempel
+  # bestätigen das). Nur dieser Pfad bekommt ein längeres Timeout.
+  - matches:
+    - path: {type: PathPrefix, value: /control/filtering/refresh}
+    backendRefs:
+    - {name: adguard-home, port: 3000}
+    timeouts:
+      request: 180s
   - matches:
     - path: {type: PathPrefix, value: /}
     backendRefs:
