@@ -30,6 +30,8 @@ spec:
       - port: '3000'
         protocol: TCP
   egress:
+  # DNS-Visibility (rules.dns) ist Voraussetzung dafür, dass Cilium die unten
+  # stehende toFQDNs-Regel für den Filterlisten-Host auflösen/durchsetzen kann.
   - toCIDRSet:
     - cidr: 9.9.9.9/32
     - cidr: 149.112.112.112/32
@@ -38,4 +40,16 @@ spec:
       - port: '53'
         protocol: UDP
       - port: '53'
+        protocol: TCP
+      rules:
+        dns:
+        - matchPattern: '*'
+  # AdGuards konfigurierte Filterliste (platform-bootstrap.nix) lädt von GitHub
+  # Pages; ohne diese Freigabe schlägt jeder manuelle/periodische
+  # Filterlisten-Refresh mit "upstream request timeout" fehl (Default-Deny).
+  - toFQDNs:
+    - matchName: adguardteam.github.io
+    toPorts:
+    - ports:
+      - port: '443'
         protocol: TCP
