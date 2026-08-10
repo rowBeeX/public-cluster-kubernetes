@@ -1,0 +1,64 @@
+# Ein einziger ServiceAccount fuer beide Rollen des Pods: Kubernetes-Discovery
+# (Alloy + kube-state-metrics-Sidecar) UND Vault-Login. Die generische
+# Vault-Rolle `apps` bindet `bound_service_account_names='*'` und selektiert nur
+# ueber das Namespace-Label, ein zweiter `*-vault`-SA braechte also nichts.
+# `app-alloy:alloy` steht bereits in cluster-testing/lib/service_account_policy.py
+# und darf deshalb einen automatischen API-Token mounten.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy
+  namespace: app-alloy
+  annotations: {argocd.argoproj.io/sync-wave: "-5"}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: app-alloy-collector
+  annotations: {argocd.argoproj.io/sync-wave: "-5"}
+rules:
+# pods: Log-Targets (discovery.kubernetes role=pod) und die Objekte, aus denen
+# kube-state-metrics kube_pod_* baut.
+# nodes: Scrape-Targets (role=node) und kube_node_*.
+# namespaces/persistentvolumeclaims: nur fuer kube-state-metrics.
+- apiGroups: [""]
+  resources: [pods]
+  verbs: [get, list, watch]
+- apiGroups: [""]
+  resources: [nodes, namespaces, persistentvolumeclaims]
+  verbs: [list, watch]
+# loki.source.kubernetes liest die Logzeilen ueber diesen Subresource-Endpunkt
+# statt ueber einen /var/log/pods-hostPath.
+- apiGroups: [""]
+  resources: [pods/log]
+  verbs: [get]
+# nodes/proxy ist das Recht, das der API-Server fuer
+# /api/v1/nodes/<n>/proxy/metrics[/cadvisor] prueft. Damit wird das kubelet
+# erreicht, ohne :10250 auf beiden Nodes fuer Pods zu oeffnen.
+- apiGroups: [""]
+  resources: [nodes/proxy, nodes/metrics]
+  verbs: [get]
+# Deckt den Rest der --resources-Liste aus workload.yaml ab. Jede zusaetzliche
+# Ressource waere sowohl unnoetiges Leserecht als auch zusaetzliche Serienlast
+# beim Empfaenger; replicasets steht bewusst drin, weil kube_replicaset_owner
+# die Kette Pod -> ReplicaSet -> Deployment schliesst.
+- apiGroups: [apps]
+  resources: [daemonsets, deployments, replicasets, statefulsets]
+  verbs: [list, watch]
+- apiGroups: [batch]
+  resources: [jobs]
+  verbs: [list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: app-alloy-collector
+  annotations: {argocd.argoproj.io/sync-wave: "-5"}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: app-alloy-collector
+subjects:
+- kind: ServiceAccount
+  name: alloy
+  namespace: app-alloy

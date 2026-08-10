@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-alloy
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  labels:
+    # part-of: public-cluster ist nicht kosmetisch — der Vault-Namespace-Selektor
+    # der generischen `apps`-Rolle (vault-bootstrap.nix:308) matcht genau darauf.
+    # Ohne das Label liefert VSO 403 und das Ingest-Passwort fehlt.
+    app.kubernetes.io/part-of: public-cluster
+    app.kubernetes.io/managed-by: argocd
+    core.sedware.net/owner: platform
+    core.sedware.net/purpose: platform
+    # Alloy liest Pod-Logs ueber die Kubernetes-API (pods/log) statt ueber einen
+    # /var/log/pods-hostPath. Damit braucht dieser Namespace — anders als der
+    # Alloy-DaemonSet im lokalen Cluster (runAsUser: 0) — keine PSA-Ausnahme und
+    # steht nicht in docs/exceptions.md.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36
+---
+apiVersion: v1
+kind: LimitRange
+metadata: {name: defaults, namespace: app-alloy}
+spec:
+  limits:
+  - type: Container
+    defaultRequest: {cpu: 25m, memory: 64Mi}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata: {name: quota, namespace: app-alloy}
+spec:
+  hard:
+    requests.cpu: "1"
+    requests.memory: 1Gi
+    # Ein Pod mit drei Containern; der Rest ist Luft fuer VPA-Anhebungen.
+    pods: "4"
+    # Alloys WAL/Positions liegen bewusst in einem emptyDir: nach einem Neustart
+    # ein paar Sekunden Log-Luecke ist billiger als ein PVC, das den Pod an
+    # einen Node bindet.
+    persistentvolumeclaims: "0"
+    requests.storage: "0"

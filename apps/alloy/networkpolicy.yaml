@@ -1,0 +1,59 @@
+# Default-Deny: Kommunikation ist nur über die folgenden Policies erlaubt.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: default-deny, namespace: app-alloy}
+spec:
+  endpointSelector: {}
+  # Leere ingress:[]/egress:[]-Arrays verwirft Cilium (Valid=False = No-op). Die
+  # gültige Default-Deny-Form selektiert eine leere Endpoint-Menge, wodurch der
+  # Endpoint in beide Richtungen in Default-Deny fällt (wie im lokalen Cluster).
+  ingress:
+    - fromEndpoints: []
+  egress:
+    - toEndpoints: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-alloy-flows, namespace: app-alloy}
+spec:
+  endpointSelector:
+    matchLabels: {app.kubernetes.io/name: alloy}
+  ingress:
+  # Einzige eingehende Verbindung ist die Readiness-Probe des kubelets auf
+  # :12345; die kommt als host beziehungsweise remote-node an. Es gibt bewusst
+  # keinen Service — der Alloy-UI-Port ist von nirgends sonst erreichbar.
+  - fromEntities: [host, remote-node]
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '12345'}
+  egress:
+  # CoreDNS löst loki./prometheus.local.sedware.net über den
+  # local-edge-services-Block auf die NetBird-Overlay-IP auf.
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - {protocol: UDP, port: '53'}
+      - {protocol: TCP, port: '53'}
+      rules:
+        dns:
+        - matchPattern: '*'
+  # Pod-Discovery, pods/log und die kubelet-/cAdvisor-Scrapes laufen alle über
+  # den API-Server: :443 ist der ClusterIP-Port des kubernetes-Service, :6443 der
+  # dahinterliegende k3s-Port, den Cilium nach der Service-Übersetzung sieht.
+  - toEntities: [kube-apiserver]
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '443'}
+      - {protocol: TCP, port: '6443'}
+  # Loki-Push und Prometheus-Remote-Write am Envoy-Edge des lokalen Clusters,
+  # erreichbar über das NetBird-Overlay. Der Peer-Name wird pro Verbindung
+  # aufgelöst; Cilium kann keine solche IP abgleichen, deshalb bleibt das
+  # Ziel-CIDR stabil (gleiches Muster wie apps/mail-edge).
+  - toCIDRSet:
+    - cidr: 100.64.0.0/10
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '443'}

@@ -1,0 +1,283 @@
+# Alloy-Pipeline des Public-Clusters. Ziel ist AUSSCHLIESSLICH der lokale
+# Cluster — hier laeuft weder Loki noch Prometheus.
+#
+# Bewusst NICHT hier: loki.source.journal. Das Host-Journal bleibt beim
+# NixOS-Dienst (public-cluster-nix/modules/observability/alloy-journal.nix), weil
+# genau dann, wenn k3s ausfaellt, dieser Pod nicht mehr laeuft — und dann braucht
+# man die Journal-Zeilen am dringendsten.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: app-alloy
+  annotations: {argocd.argoproj.io/sync-wave: "-3"}
+data:
+  config.alloy: |
+    // ── Pod-Logs aller Namespaces ────────────────────────────────────────
+    discovery.kubernetes "pods" {
+      role = "pod"
+    }
+
+    // Die folgenden acht Regeln sind ZEICHENGLEICH aus
+    // local-cluster-kubernetes/apps/alloy/values.yaml uebernommen. Weichen die
+    // Stream-Labels zwischen beiden Clustern ab, liefert eine Grafana-Query wie
+    // {app="authentik"} lautlos nur die Haelfte der Treffer.
+    discovery.relabel "pods" {
+      targets = discovery.kubernetes.pods.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_controller_name"]
+        regex         = "([0-9a-z-.]+?)(-[0-9a-f]{8,10})?"
+        action        = "replace"
+        target_label  = "__tmp_controller_name"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name", "__meta_kubernetes_pod_label_app", "__tmp_controller_name", "__meta_kubernetes_pod_name"]
+        regex         = "^;*([^;]+)(;.*)?$"
+        action        = "replace"
+        target_label  = "app"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component", "__meta_kubernetes_pod_label_component"]
+        regex         = "^;*([^;]+)(;.*)?$"
+        action        = "replace"
+        target_label  = "component"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_node_name"]
+        action        = "replace"
+        target_label  = "node_name"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        action        = "replace"
+        target_label  = "namespace"
+      }
+      rule {
+        source_labels = ["namespace", "app"]
+        separator     = "/"
+        replacement   = "$1"
+        action        = "replace"
+        target_label  = "job"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        action        = "replace"
+        target_label  = "pod"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        action        = "replace"
+        target_label  = "container"
+      }
+      // Spiegelbildlich zu cluster = "local" im lokalen Alloy und zu
+      // cluster = "public" im NixOS-Journal-Alloy. Ohne dieses Label liegen
+      // beide Cluster im selben Stream-Namensraum.
+      rule {
+        action       = "replace"
+        target_label = "cluster"
+        replacement  = "public"
+      }
+    }
+
+    // Liest die Zeilen ueber die API (pods/log). Deshalb braucht dieser Pod
+    // weder einen /var/log/pods-hostPath noch runAsUser: 0 — anders als der
+    // DaemonSet im lokalen Cluster.
+    loki.source.kubernetes "pods" {
+      targets    = discovery.relabel.pods.output
+      forward_to = [loki.write.central.receiver]
+    }
+
+    loki.write "central" {
+      endpoint {
+        url = "https://loki.local.sedware.net/loki/api/v1/push"
+        // Gegenstueck zur SecurityPolicy `loki-ingest` im lokalen Cluster.
+        // Benutzername und Passwort sind identisch mit denen des
+        // NixOS-Alloy-Dienstes (alloy-journal.nix); ein abweichender Wert
+        // liefert HTTP 401 und stillen Telemetrieverlust.
+        basic_auth {
+          username      = "public-cluster"
+          password_file = "/etc/alloy-secrets/password"
+        }
+      }
+    }
+
+    // ── kubelet + cAdvisor ueber den API-Server-Proxy ─────────────────────
+    // Der Umweg ueber /api/v1/nodes/<n>/proxy/... spart es, :10250 auf beiden
+    // Nodes fuer Pods zu oeffnen; autorisiert wird ueber nodes/proxy.
+    discovery.kubernetes "nodes" {
+      role = "node"
+    }
+
+    discovery.relabel "kubelet" {
+      targets = discovery.kubernetes.nodes.targets
+
+      rule {
+        target_label = "__address__"
+        replacement  = "kubernetes.default.svc.cluster.local:443"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        regex         = "(.+)"
+        target_label  = "__metrics_path__"
+        replacement   = "/api/v1/nodes/${1}/proxy/metrics"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        target_label  = "node"
+      }
+      // Ohne diese Regel truegen beide Nodes dieselbe instance
+      // (kubernetes.default.svc:443), weil das Ziel der Proxy ist und nicht der
+      // Node.
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        target_label  = "instance"
+      }
+      // kube-prometheus-stack setzt metrics_path im lokalen Cluster explizit
+      // (nachgemessen an container_cpu_usage_seconds_total). Der Scraper selbst
+      // erzeugt das Label nicht — ohne diese Regel fehlt es nur auf der
+      // Public-Seite und Dashboard-Filter greifen dort nicht.
+      rule {
+        target_label = "metrics_path"
+        replacement  = "/metrics"
+      }
+    }
+
+    discovery.relabel "cadvisor" {
+      targets = discovery.kubernetes.nodes.targets
+
+      rule {
+        target_label = "__address__"
+        replacement  = "kubernetes.default.svc.cluster.local:443"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        regex         = "(.+)"
+        target_label  = "__metrics_path__"
+        replacement   = "/api/v1/nodes/${1}/proxy/metrics/cadvisor"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        target_label  = "node"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        target_label  = "instance"
+      }
+      rule {
+        target_label = "metrics_path"
+        replacement  = "/metrics/cadvisor"
+      }
+    }
+
+    // job = "kubelet" fuer beide Pfade, exakt wie im lokalen Cluster; die
+    // Standard-Dashboards des kube-prometheus-stack selektieren darauf.
+    // 60 s statt der lokalen 30 s: der Empfaenger ist ein Node, der bis gestern
+    // 35x taeglich neu startete — die halbe Samplerate ist hier billiger als
+    // eine hoehere Aufloesung.
+    prometheus.scrape "kubelet" {
+      targets           = discovery.relabel.kubelet.output
+      forward_to        = [prometheus.relabel.budget.receiver]
+      job_name          = "kubelet"
+      scheme            = "https"
+      scrape_interval   = "60s"
+      bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+      tls_config {
+        ca_file = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+      }
+    }
+
+    prometheus.scrape "cadvisor" {
+      targets           = discovery.relabel.cadvisor.output
+      forward_to        = [prometheus.relabel.budget.receiver]
+      job_name          = "kubelet"
+      scheme            = "https"
+      scrape_interval   = "60s"
+      bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+      tls_config {
+        ca_file = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+      }
+    }
+
+    // kube-state-metrics laeuft als Sidecar und lauscht nur auf 127.0.0.1
+    // (s. workload.yaml). Deshalb kein Service und keine Ingress-Regel.
+    prometheus.scrape "kube_state_metrics" {
+      targets         = [{__address__ = "127.0.0.1:8080"}]
+      forward_to      = [prometheus.relabel.budget.receiver]
+      job_name        = "kube-state-metrics"
+      scrape_interval = "60s"
+    }
+
+    // ── Serienbudget ─────────────────────────────────────────────────────
+    // Der empfangende Prometheus haelt ~332k Serien auf einem Node mit 30 GiB
+    // RAM und startete deswegen im 31-Minuten-Takt neu. Es verlassen deshalb nur
+    // die Metriken den Cluster, die die Standard-Dashboards des
+    // kube-prometheus-stack wirklich auswerten. Jeder Name unten wurde gegen
+    // `group by(__name__)` der laufenden lokalen Instanz geprueft; die naheliegenden
+    // kube_pod_container_status_waiting_reason und kubelet_volume_stats_* stehen
+    // absichtlich NICHT hier, weil es sie in dieser Installation nicht gibt.
+    prometheus.relabel "budget" {
+      forward_to = [prometheus.remote_write.central.receiver]
+
+      rule {
+        source_labels = ["__name__"]
+        action        = "keep"
+        regex = "up" +
+          "|container_cpu_usage_seconds_total" +
+          "|container_cpu_cfs_periods_total|container_cpu_cfs_throttled_periods_total" +
+          "|container_memory_working_set_bytes|container_memory_rss|container_memory_cache" +
+          "|container_network_(receive|transmit)_bytes_total" +
+          "|container_fs_(reads|writes)_bytes_total" +
+          "|kubelet_running_(pods|containers)" +
+          "|kube_pod_(info|owner|status_phase|status_reason)" +
+          "|kube_pod_container_(info|resource_requests|resource_limits)" +
+          "|kube_pod_container_status_(ready|restarts_total|waiting|last_terminated_reason)" +
+          "|kube_node_(info|spec_unschedulable)" +
+          "|kube_node_status_(condition|allocatable|capacity)" +
+          "|kube_replicaset_owner" +
+          "|kube_deployment_(spec_replicas|status_replicas_available|status_replicas_ready)" +
+          "|kube_statefulset_(replicas|status_replicas_ready)" +
+          "|kube_daemonset_status_(desired_number_scheduled|number_ready)" +
+          "|kube_job_status_(failed|succeeded)" +
+          "|kube_namespace_status_phase" +
+          "|kube_persistentvolumeclaim_(status_phase|resource_requests_storage_bytes)"
+      }
+
+      // cAdvisor liefert dieselben container_*-Namen auch fuer die Cgroups des
+      // Hosts (id="/", "/system.slice/..."). Die tragen kein pod-Label, sind in
+      // keinem Pod-Dashboard sichtbar und verdoppeln die cAdvisor-Serien
+      // beinahe. Host-CPU/RAM liefert ohnehin der node_exporter im
+      // NixOS-Alloy-Dienst.
+      rule {
+        source_labels = ["__name__", "pod"]
+        separator     = "@"
+        regex         = "container_.*@"
+        action        = "drop"
+      }
+    }
+
+    prometheus.remote_write "central" {
+      endpoint {
+        url = "https://prometheus.local.sedware.net/api/v1/write"
+        // Gegenstueck zur SecurityPolicy `prometheus-ingest`; dieselbe
+        // Credential wie oben bei Loki und im NixOS-Alloy-Dienst.
+        basic_auth {
+          username      = "public-cluster"
+          password_file = "/etc/alloy-secrets/password"
+        }
+      }
+      // Uebernommen aus alloy-journal.nix: ohne wal-Block gilt
+      // max_keepalive_time = 8h, und nach einer Stoerung spielt Alloy
+      // stundenalten WAL-Inhalt nach, den der Receiver als out-of-bounds
+      // verwirft — Last ohne Nutzen.
+      wal {
+        truncate_frequency = "1h"
+        min_keepalive_time = "5m"
+        max_keepalive_time = "2h"
+      }
+      // host bleibt hier bewusst weg: diese Serien sind clusterweit, nicht
+      // hostgebunden. Der Node steht im node-Label.
+      external_labels = {
+        cluster = "public",
+      }
+    }
