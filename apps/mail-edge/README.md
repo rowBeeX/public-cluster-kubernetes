@@ -55,6 +55,34 @@ und ohne Accounts.
   `cluster-testing/public-cluster/nix/cluster/provision_mail_relay_policy.py`);
   seit der NetBird-Least-Privilege-Umstellung `Default All→All` entfernt hat,
   ist diese Policy die durchsetzende Zugriffskontrolle für den Relay-Pfad.
+- **Empfängerprüfung** — `smtpd_recipient_restrictions =
+  permit_mynetworks, reject_unverified_recipient`. Ein Empfänger in
+  `sedware.net`, den es in Stalwart nicht gibt, wird beim RCPT mit 550
+  abgewiesen (`unverified_recipient_reject_code`) statt angenommen und später
+  gebounct. Annehmen-und-bouncen machte diesen Edge zur Backscatter-Quelle
+  (Blocklist-Risiko für beide Public-IPs) und bestätigte Angreifern gültige
+  Adressen.
+
+  Bewusst **keine** `relay_recipient_maps`: eine zweite, hier gepflegte
+  Empfängerliste würde still gegen die Stalwart-Mailboxen driften (deren
+  Quelle ist `MAIL_USERS`/`MAIL_LOGIN_USERS` in
+  `local-cluster-kubernetes/apps/stalwart/seed-noreply-account-job.yaml`).
+  Postfix probt stattdessen bei jedem unbekannten Empfänger über dieselbe
+  `transport_maps`-Route Stalwart selbst an; Stalwart antwortet dort
+  `550 5.1.2 Mailbox does not exist`. Die Antwort ist per Konstruktion aktuell.
+  Ein **Ausfall** von Stalwart führt nicht zu 550: die Probe endet dann
+  `unknown`, und `unverified_recipient_tempfail_action = defer_if_permit`
+  antwortet weiter mit 4xx. Die Probe-Ergebnisse liegen in
+  `address_verify_map` (`btree:/var/lib/postfix/verify_cache`, bewusst
+  flüchtig — nach einem Restart wird neu geprobt).
+- **Informationsminimierung** — `disable_vrfy_command = yes` (VRFY ist hier nur
+  ein Enumerationswerkzeug) und `smtpd_banner = mail.sedware.net ESMTP` statt
+  des Defaults, der Distribution und MTA-Namen nannte.
+- **Kein lokales Endziel** — `mydestination = localhost`. Der Postfix-Default
+  enthält `$myhostname`; Mail an `<unix-user>@mail.sedware.net` landete damit
+  in einer Container-Mailbox, die niemand liest. Ein leerer Wert ist keine
+  Option: das boky-Image löscht bei leerem `POSTFIX_*`-Wert den Parameter und
+  stellt genau diesen Default wieder her.
 - **TLS** — STARTTLS auf :25 mit dem cert-manager-`Certificate` `mail-edge-tls`
   (SANs `mail.sedware.net` und `public-cluster-host-1.nb.sedware.net`, DNS-01
   über ClusterIssuer `letsencrypt`). Das gateway-system-Wildcard-Secret wird

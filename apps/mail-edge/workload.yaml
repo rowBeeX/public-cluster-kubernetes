@@ -1,6 +1,5 @@
-# STARTTLS-Zertifikat für den SMTP-Edge per DNS-01 und gemeinsamem
-# letsencrypt-ClusterIssuer. Das dedizierte Namespace-Zertifikat vermeidet
-# eine clusterübergreifende Wiederverwendung des gateway-system-Wildcard-Secrets.
+# Eigenes Namespace-Zertifikat statt des gateway-system-Wildcard-Secrets:
+# keine clusterübergreifende Wiederverwendung von Secrets.
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata: {name: mail-edge-tls, namespace: app-mailedge}
@@ -12,17 +11,14 @@ spec:
     name: letsencrypt
   dnsNames:
     - mail.sedware.net
-    # Stalwart verbindet sich über diesen NetBird-Peer-FQDN. Der zusätzliche SAN
-    # erlaubt eine vollständige STARTTLS-Prüfung ohne allowInvalidCerts-Ausnahme.
-    # Der ausgehende Weg hängt damit an genau diesem einen Peer: MAIL_RELAY_HOST
-    # in local-cluster-kubernetes/apps/stalwart/seed-noreply-account-job.yaml
-    # zeigt fest hierher. Ein Umschwenken auf Host 2 erfordert deshalb zusätzlich
-    # dessen SAN, sonst schlägt die STARTTLS-Prüfung von Stalwart fehl.
+    # SAN des Smarthost-Peers, den Stalwart anspricht — ohne ihn bräuchte
+    # Stalwart eine allowInvalidCerts-Ausnahme. Ein Umschwenken auf Host 2
+    # verlangt zusätzlich dessen SAN (siehe README.md).
     - public-cluster-host-1.nb.sedware.net
 ---
-# Öffentlicher SMTP-Eingang über Cilium Node IPAM auf den Gateway-Node-Adressen.
-# Dies ist der einzige Internet-Mail-Ein-/Ausgang; Envoy bedient separat nur den
-# privaten Smarthost-Port :2525 über NetBird.
+# Der einzige Internet-Mail-Ein-/Ausgang, über Cilium Node IPAM auf beiden
+# Gateway-Node-Adressen. Envoy bedient separat nur den privaten
+# Smarthost-Port :2525 über NetBird.
 apiVersion: v1
 kind: Service
 metadata:
@@ -35,24 +31,17 @@ spec:
   type: LoadBalancer
   loadBalancerClass: io.cilium/node
   allocateLoadBalancerNodePorts: false
-  # Local, NICHT Cluster — sicherheitskritisch. Bei Cluster wird eine Verbindung,
-  # die auf einem Node ohne lokalen Pod ankommt, quer weitergeleitet und dabei
-  # SNAT-t: Postfix sieht als Quelle dann eine Adresse aus dem Pod-CIDR jenes
-  # Nodes. Genau diese CIDRs stehen weiter unten in POSTFIX_mynetworks, damit
-  # der Smarthost-Pfad von Stalwart über Envoy relayen darf — womit jeder
-  # beliebige Internet-Absender über diesen Node als vertrauenswürdig gälte.
-  # Live nachgewiesen: RCPT an eine externe Domain wurde über host-2 mit 250
-  # angenommen, also ein offenes Relay. Local erhält die Client-IP und schließt
-  # das; Voraussetzung ist ein Pod auf JEDEM Gateway-Node (siehe StatefulSet).
+  # Local, NICHT Cluster — sicherheitskritisch: Cluster SNAT-t quer
+  # weitergeleitete Verbindungen auf eine Adresse aus POSTFIX_mynetworks und
+  # macht damit jeden Internet-Absender vertrauenswürdig (live als offenes
+  # Relay nachgewiesen). Setzt einen Pod auf JEDEM Gateway-Node voraus.
   externalTrafficPolicy: Local
   ports:
   - {name: smtp, protocol: TCP, port: 25, targetPort: smtp}
 ---
-# StatefulSet statt Deployment: ein Postfix-Spool darf nicht geteilt werden, und
-# jeder Gateway-Node braucht einen eigenen Pod, damit externalTrafficPolicy
-# Local auf beiden Adressen liefert. volumeClaimTemplates gibt jedem Pod seine
-# eigene RWO-Queue; die beiden Warteschlangen sind unabhängig, wie bei zwei
-# gleichrangigen MX üblich.
+# StatefulSet statt Deployment: ein Postfix-Spool darf nicht geteilt werden,
+# und jeder Gateway-Node braucht einen eigenen Pod, damit
+# externalTrafficPolicy Local auf beiden Adressen liefert.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -87,76 +76,61 @@ spec:
         # Öffentlicher MX-Name dieses Edge; zugleich HELO-Name und SAN des
         # STARTTLS-Zertifikats oben.
         - {name: POSTFIX_myhostname, value: mail.sedware.net}
-        # Bounce-Vorlagen: setzen nur den From-Header der Unzustellbarkeits- und
-        # Verzoegerungsmeldungen auf die eigene Absenderidentitaet statt auf
-        # MAILER-DAEMON@$myhostname. Der Envelope-Sender bleibt leer (<>), wie
-        # RFC 5321 es verlangt — sonst entstehen Bounce-Schleifen.
+        # Setzt nur den From-Header der Unzustellbarkeitsmeldungen; der
+        # Envelope-Sender bleibt leer (<>, RFC 5321), sonst Bounce-Schleifen.
         - {name: POSTFIX_bounce_template_file, value: /etc/postfix/bounce/bounce.cf}
-        # Nachrichten an sedware.net annehmen ...
         - {name: POSTFIX_relay_domains, value: sedware.net}
-        # ... und über den mail-smtp-Listener des Local Private Edge an Stalwart
-        # weiterleiten. Eckige Klammern deaktivieren die MX-Auflösung; Postfix
-        # löst den stabilen Peer-FQDN bei jeder Zustellung zur aktuellen Overlay-
-        # IP auf. Dieser FQDN statt einer rohen Overlay-IP ist die GitOps-Quelle.
-        # Der :25-TCPRoute am Local Cluster führt zum Stalwart-ClusterIP.
+        # Eckige Klammern deaktivieren die MX-Auflösung; der stabile
+        # NetBird-Peer-FQDN wird bei jeder Zustellung neu aufgelöst und ist
+        # damit die GitOps-Quelle statt einer rohen Overlay-IP.
         - name: POSTFIX_transport_maps
           value: "inline:{ sedware.net=smtp:[beelink-server.nb.sedware.net]:25 }"
-        # Empfängerbegrenztes Relay: Internet-MX-Absender bleiben zulässig
-        # (siehe smtpd_sender_restrictions weiter unten); relay_domains und
-        # mynetworks autorisieren Empfänger beziehungsweise Quelle.
         - {name: ALLOW_EMPTY_SENDER_DOMAINS, value: "true"}
         - {name: POSTFIX_inet_protocols, value: ipv4}
-        # Dieser Host ist für keine Domain das Endziel. sedware.net ist eine
-        # Relay-Domain, die an Stalwart weitergeleitet wird, keine lokale
-        # Mailbox-Domain.
-        - {name: POSTFIX_mydestination, value: ""}
-        # --- Ausgehender Relay-Trust (Anti-Open-Relay-Gate) ------------------
-        # mynetworks begrenzt Quellen, die an beliebige Internet-Ziele relayen
-        # dürfen. Das frühere 100.64.0.0/10 hätte jedem NetBird-/CGNAT-Peer
-        # vertraut und damit ein Open-Relay-Risiko erzeugt (#2/#3).
-        #
-        # Der Smarthost-Pfad endet am hostNetwork-Envoy des Nodes, den Stalwart
-        # adressiert. Beim Weiterreichen an dieses Backend wird die Quelle auf
-        # die CiliumInternalIP jenes Nodes umgesetzt, die aus seinem PodCIDR
-        # stammt. k3s vergibt die Node-PodCIDRs der Reihe nach aus 10.42.0.0/16:
-        # Host 1 bekommt 10.42.0.0/24, Host 2 10.42.1.0/24.
-        #
-        # Genutzt wird davon derzeit ausschließlich Host 1. Stalwart relayt
-        # gegen einen festen Einzel-Peer, MAIL_RELAY_HOST =
-        # public-cluster-host-1.nb.sedware.net:2525 in
-        # local-cluster-kubernetes/apps/stalwart/seed-noreply-account-job.yaml.
-        # Für den ausgehenden Weg gibt es kein DNS-Round-Robin; das gilt nur für
-        # den eingehenden MX, dessen A/AAAA-Records für mail.sedware.net auf
-        # beide Public-Hosts zeigen. 10.42.1.0/24 steht hier vorsorglich, damit
-        # ein Umschwenken auf Host 2 nicht zusätzlich an Postfix scheitert — die
-        # NetBird-Gruppe mail-edge enthält aus demselben Grund bereits beide
-        # Hosts. Bekannter offener Punkt: fällt Host 1 aus, steht der ausgehende
-        # Weg still, bis MAIL_RELAY_HOST und der SAN des Zertifikats oben auf
-        # Host 2 umgestellt sind.
-        #
-        # Vertraut werden nur diese beiden /24, nicht das ganze /16 — sonst
-        # dürfte jeder Pod im Cluster nach außen relayen. Die
-        # CiliumNetworkPolicy erlaubt am Backend zusätzlich ausschließlich
-        # host/remote-node sowie den öffentlichen MX-Pfad. NetBird-Policy und
-        # Interface-Firewall begrenzen den Zugang zu Envoy :2525 auf den
-        # Stalwart-Peer.
+        # Dieser Host ist für keine Mail das Endziel: sedware.net ist Relay-,
+        # keine Mailbox-Domain. Ohne diese Zeile bliebe der Postfix-Default
+        # "$myhostname, localhost.$mydomain, localhost" stehen und Mail an
+        # <unix-user>@mail.sedware.net verschwände in einer Container-Mailbox,
+        # die niemand liest. Ein leerer Wert geht nicht: das boky-Image löscht
+        # bei leerem POSTFIX_*-Wert den Parameter und stellt damit genau diesen
+        # Default wieder her.
+        - {name: POSTFIX_mydestination, value: localhost}
+        # --- Ausgehender Relay-Trust (Anti-Open-Relay-Gate #2/#3) ------------
+        # Quellen, die an beliebige Internet-Ziele relayen dürfen. Nur Loopback
+        # plus die beiden Node-PodCIDRs, aus denen die CiliumInternalIP des
+        # hostNetwork-Envoy stammt, über den der Stalwart-Smarthost eintrifft —
+        # NICHT das ganze /16 (sonst relayt jeder Pod im Cluster) und nicht
+        # 100.64.0.0/10 (das wäre das gesamte NetBird-Overlay). Warum
+        # 10.42.1.0/24 trotz Einzel-Peer-Pfad dabeisteht: siehe README.md.
         - name: POSTFIX_mynetworks
           value: "127.0.0.0/8 [::1]/128 10.42.0.0/24 10.42.1.0/24"
-        # Internet-MX-Sender müssen eine SMTP-Session beginnen dürfen. Die
-        # Empfänger-/Relay-Autorisierung erfolgt darunter separat und verweigert
-        # externe Ziele weiterhin für alle nicht vertrauenswürdigen Quellen.
         - {name: POSTFIX_smtpd_client_restrictions, value: "permit"}
-        # ZWINGEND: der Image-Default ist "permit_mynetworks, reject" und weist
-        # damit JEDEN Absender ab, der nicht aus mynetworks kommt — also die
-        # gesamte eingehende Internet-Mail, obwohl der MX hierher zeigt. Der
-        # Anti-Open-Relay-Schutz hängt an smtpd_relay_restrictions
-        # (reject_unauth_destination), nicht an dieser Liste; sie darf externe
-        # Absender deshalb zulassen. reject_unknown_sender_domain hält Absender
-        # mit nicht auflösbarer Domain draußen, ohne legitime MX-Sender zu
-        # treffen.
+        # ZWINGEND: der Image-Default "permit_mynetworks, reject" wiese die
+        # gesamte eingehende Internet-Mail ab, obwohl der MX hierher zeigt. Der
+        # Anti-Open-Relay-Schutz hängt an smtpd_relay_restrictions, nicht hier.
         - {name: POSTFIX_smtpd_sender_restrictions, value: "permit_mynetworks, reject_unknown_sender_domain"}
         # Kein SASL und kein öffentlicher Login: Relay nur per permit_mynetworks.
         - {name: POSTFIX_smtpd_relay_restrictions, value: "permit_mynetworks reject_unauth_destination"}
+        # Unbekannte Empfänger in sedware.net schon beim RCPT abweisen statt
+        # anzunehmen und später zu bouncen (Backscatter = Blocklist-Risiko für
+        # beide Public-IPs, und die Annahme verrät gültige Adressen nicht).
+        # Bewusst KEINE relay_recipient_maps: eine zweite Empfängerliste würde
+        # gegen die Stalwart-Mailboxen driften. Postfix fragt stattdessen bei
+        # jedem unbekannten Empfänger über transport_maps oben bei Stalwart
+        # selbst nach (Stalwart antwortet "550 5.1.2 Mailbox does not exist").
+        # permit_mynetworks steht davor: der ausgehende Smarthost-Pfad
+        # adressiert externe Ziele, für die es nichts zu verifizieren gibt.
+        - {name: POSTFIX_smtpd_recipient_restrictions, value: "permit_mynetworks, reject_unverified_recipient"}
+        # Default wäre 450: ein nachweislich nicht existierender Empfänger
+        # bekommt sonst fünf Tage lang Zustellversuche. Ein AUSFALL von Stalwart
+        # fällt nicht hierunter — die Probe endet dann "unknown" und
+        # unverified_recipient_tempfail_action (defer_if_permit) antwortet 4xx.
+        - {name: POSTFIX_unverified_recipient_reject_code, value: "550"}
+        # VRFY ist hier nur ein Werkzeug zur Adressen-Enumeration.
+        - {name: POSTFIX_disable_vrfy_command, value: "yes"}
+        # Der Default "$myhostname ESMTP $mail_name (Ubuntu)" nennt Distribution
+        # und MTA; RFC 5321 verlangt nur den FQDN am Anfang.
+        - {name: POSTFIX_smtpd_banner, value: "mail.sedware.net ESMTP"}
         # Opportunistisches STARTTLS auf :25 mit dem cert-manager-Zertifikat.
         - {name: POSTFIX_smtpd_tls_security_level, value: may}
         - {name: POSTFIX_smtpd_tls_cert_file, value: /etc/postfix/tls/tls.crt}
@@ -176,11 +150,9 @@ spec:
         resources:
           requests: {cpu: 100m, memory: 128Mi}
         securityContext:
-          # Der privilege-separierte Postfix-Master benötigt UID 0; außerdem
-          # erzeugt das boky-Image /etc/postfix beim Start neu. runAsNonRoot und
-          # readOnlyRootFilesystem sind daher nicht erreichbar (siehe Exceptions).
-          # #11: Alle Capabilities entfernen und nur tatsächlich benötigte wieder
-          # ergänzen; NET_RAW, MKNOD, AUDIT_WRITE, SETFCAP, SETPCAP und FSETID entfallen.
+          # UID 0 und beschreibbares Root-FS sind beim boky-Image unvermeidbar
+          # (siehe docs/exceptions.md). Deshalb hier alle Capabilities weg und
+          # nur die tatsächlich benötigten zurück.
           allowPrivilegeEscalation: false
           seccompProfile: {type: RuntimeDefault}
           capabilities:
@@ -209,13 +181,8 @@ spec:
   - metadata: {name: spool}
     spec:
       accessModes: [ReadWriteOnce]
-      # public-primary-super-fast statt local-path. Beide zeigen auf denselben
-      # Pfad (/persist/kubernetes/super-fast), unterscheiden sich aber in der
-      # Reclaim-Politik: local-path loescht das Volume MIT dem PVC, die
-      # public-Klasse behaelt es (Retain). Ein versehentlich geloeschtes PVC
-      # nahm hier bisher die Daten unwiederbringlich mit.
-      # Hier liegt die Postfix-Queue: bei Verlust gehen zugestellte, aber noch
-      # nicht ausgelieferte Mails verloren.
+      # Reclaim Retain: hier liegt die Postfix-Queue, bei Verlust gehen
+      # angenommene, aber noch nicht ausgelieferte Mails verloren.
       storageClassName: public-primary-super-fast
       resources:
         requests: {storage: 2Gi}
