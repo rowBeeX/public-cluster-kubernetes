@@ -30,7 +30,16 @@ spec:
         app.kubernetes.io/part-of: public-cluster
     spec:
       automountServiceAccountToken: false
-      nodeSelector: {public.sedware.net/control-plane: "true"}
+      # Folgt Authentik auf den Nicht-Datenbank-Knoten: Valkey ist dessen
+      # Session-Cache und damit die mit Abstand häufigste Verbindung. Ein
+      # eigenes Volume hat Valkey nicht, es ist frei platzierbar.
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                cnpg.io/cluster: postgres
+            topologyKey: kubernetes.io/hostname
       securityContext:
         runAsNonRoot: true
         runAsUser: 999

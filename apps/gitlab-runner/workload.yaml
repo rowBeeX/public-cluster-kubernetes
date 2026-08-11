@@ -1,0 +1,364 @@
+# GitLab-Runner fuer beide Architekturen.
+#
+# Warum handgeschrieben statt des offiziellen Charts: das ApplicationSet dieses
+# Clusters kennt ausschliesslich `path` und rendert mit `kubectl kustomize` --
+# es gibt keine Helm-Quelle (siehe applicationset.yaml.in). Zweitens besitzt der
+# hiesige argocd-application-controller weder `escalate` noch `bind`; die Role
+# des Charts (`apiGroups: [""], resources: ["*"], verbs: ["*"]`) waere hier
+# ueberhaupt nicht anlegbar. Die Rolle unten ist deshalb auf das eingeschraenkt,
+# was der Kubernetes-Executor wirklich braucht.
+#
+# Zwei Manager, je einer pro Host, unterschieden ueber `kubernetes.io/arch`:
+# host-1 ist amd64, host-2 aarch64. Jeder Manager haengt an einem EIGENEN
+# Runner-Token, weil Tags serverseitig am Runner haengen und nicht am Manager --
+# mit einem gemeinsamen Token liessen sich Jobs nicht nach Architektur lenken.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitlab-runner
+  namespace: app-gitlab-runner
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitlab-runner
+  namespace: app-gitlab-runner
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+rules:
+  # Job-Pods anlegen, ueberwachen und abraeumen.
+  - apiGroups: [""]
+    resources: [pods, pods/status]
+    verbs: [get, list, watch, create, delete]
+  # Der Executor haengt sich zum Ausfuehren der Job-Skripte in den Container.
+  - apiGroups: [""]
+    resources: [pods/exec, pods/attach]
+    verbs: [create, get]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get, list]
+  # Cache- und Zertifikats-Secrets sowie ConfigMaps der Job-Pods.
+  - apiGroups: [""]
+    resources: [secrets, configmaps]
+    verbs: [get, list, create, delete, update]
+  # `services` nur fuer Job-Services (CI-`services:`-Schluessel).
+  - apiGroups: [""]
+    resources: [services]
+    verbs: [get, list, create, delete]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitlab-runner
+  namespace: app-gitlab-runner
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+subjects:
+  - kind: ServiceAccount
+    name: gitlab-runner
+    namespace: app-gitlab-runner
+roleRef:
+  kind: Role
+  name: gitlab-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+# Bindet den Namespace an die generische Self-Service-Vault-Rolle `apps` des
+# PUBLIC-Vault. Der Token selbst wird von
+# cluster-testing/local-cluster/nix/cluster/provision_gitlab_runner.py dorthin
+# gespiegelt -- erzeugen kann ihn nur der Toolbox-Pod im lokalen Cluster.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: vault
+  namespace: app-gitlab-runner
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: apps
+    serviceAccount: gitlab-runner-vault
+    audiences:
+      - vault
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitlab-runner-vault
+  namespace: app-gitlab-runner
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+automountServiceAccountToken: false
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: gitlab-runner-auth
+  namespace: app-gitlab-runner
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  type: kv-v2
+  mount: secret
+  path: apps/app-gitlab-runner/auth
+  refreshAfter: 1h
+  vaultAuthRef: vault
+  destination:
+    create: true
+    name: gitlab-runner-auth
+    overwrite: true
+    type: Opaque
+    transformation:
+      excludeRaw: true
+      includes:
+        - runner-token-amd64
+        - runner-token-arm64
+    labels:
+      app.kubernetes.io/name: gitlab-runner
+      app.kubernetes.io/part-of: public-cluster
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-runner-config
+  namespace: app-gitlab-runner
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+  labels:
+    app.kubernetes.io/name: gitlab-runner
+    app.kubernetes.io/part-of: public-cluster
+data:
+  # `config.toml` wird beim Start aus dieser Vorlage erzeugt; der Token kommt
+  # ueber eine Umgebungsvariable, damit er nicht in einer ConfigMap steht.
+  # $ARCH und $RUNNER_TOKEN setzt das entrypoint-Skript ein.
+  config.toml.tmpl: |
+    concurrent = 2
+    check_interval = 3
+    log_format = "json"
+    shutdown_timeout = 0
+
+    [session_server]
+      session_timeout = 1800
+
+    [[runners]]
+      name = "sedware-public-ARCH_PLACEHOLDER"
+      url = "https://gitlab.local.sedware.net"
+      token = "TOKEN_PLACEHOLDER"
+      executor = "kubernetes"
+      request_concurrency = 2
+      environment = ["HOME=/tmp"]
+      [runners.kubernetes]
+        namespace = "app-gitlab-runner"
+        # Multi-Arch-Index, nicht der amd64-Einzeldigest: host-2 ist aarch64
+        # und koennte ein arch-spezifisches Manifest gar nicht ausfuehren.
+        image = "docker.io/library/alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"
+        pull_policy = ["if-not-present"]
+        allow_privilege_escalation = false
+        cap_drop = ["ALL"]
+        cpu_request = "100m"
+        memory_request = "192Mi"
+        service_cpu_request = "50m"
+        service_memory_request = "64Mi"
+        helper_cpu_request = "50m"
+        helper_memory_request = "64Mi"
+        # Job-Pods bleiben auf dem Host ihres Managers: nur dort passt die
+        # Architektur des gewaehlten Runners zu den Job-Images.
+        [runners.kubernetes.node_selector]
+          "kubernetes.io/arch" = "ARCH_PLACEHOLDER"
+        [runners.kubernetes.pod_labels]
+          "app.kubernetes.io/name" = "gitlab-runner-job"
+          "app.kubernetes.io/part-of" = "public-cluster"
+        [runners.kubernetes.pod_security_context]
+          run_as_non_root = true
+          run_as_user = 1000
+          run_as_group = 1000
+          fs_group = 1000
+          [runners.kubernetes.pod_security_context.seccomp_profile]
+            type = "RuntimeDefault"
+        [runners.kubernetes.init_permissions_container_security_context]
+          run_as_non_root = true
+          run_as_user = 1000
+          run_as_group = 1000
+        [runners.kubernetes.build_container_security_context]
+          run_as_non_root = true
+          run_as_user = 1000
+          run_as_group = 1000
+        [runners.kubernetes.helper_container_security_context]
+          run_as_non_root = true
+          run_as_user = 1000
+          run_as_group = 1000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-runner-amd64
+  namespace: app-gitlab-runner
+  labels:
+    app.kubernetes.io/name: gitlab-runner
+    app.kubernetes.io/component: manager-amd64
+    app.kubernetes.io/part-of: public-cluster
+spec:
+  replicas: 1
+  # RollingUpdate waere hier harmlos (kein RWO-Volume), Recreate ist aber
+  # ehrlicher: zwei Manager mit demselben Token wuerden sich waehrend des
+  # Wechsels kurzzeitig dieselben Jobs teilen.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gitlab-runner
+      app.kubernetes.io/component: manager-amd64
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gitlab-runner
+        app.kubernetes.io/component: manager-amd64
+        app.kubernetes.io/part-of: public-cluster
+    spec:
+      serviceAccountName: gitlab-runner
+      automountServiceAccountToken: true
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 65533
+        fsGroup: 65533
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: runner
+        image: docker.io/gitlab/gitlab-runner:alpine-v19.2.0@sha256:a6573f496d41ca633fd2fedb3348dafc8f386db00bd8c42a3d358410ad21bf84
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          # Jeder Schreibpfad ist ein eigenes emptyDir: /etc/gitlab-runner
+          # (gerenderte config.toml), /home/gitlab-runner (Build-Verzeichnisse
+          # des Executors) und /tmp. Der Runner braucht darueber hinaus keinen
+          # beschreibbaren Ort im Image.
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: [ALL]
+        env:
+        - name: RUNNER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: gitlab-runner-auth
+              key: runner-token-amd64
+        command: [sh, -ec]
+        args:
+        - |
+          # Der Token darf nicht in der ConfigMap stehen, die Vorlage schon.
+          # sed liest ihn aus der Umgebung; `config.toml` entsteht in einem
+          # emptyDir und verlaesst den Pod nie.
+          sed -e "s|ARCH_PLACEHOLDER|amd64|g" \
+              -e "s|TOKEN_PLACEHOLDER|$RUNNER_TOKEN|" \
+              /etc/gitlab-runner-tmpl/config.toml.tmpl > /etc/gitlab-runner/config.toml
+          unset RUNNER_TOKEN
+          exec /usr/bin/dumb-init /entrypoint run \
+            --config /etc/gitlab-runner/config.toml \
+            --working-directory /home/gitlab-runner
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - {name: config, mountPath: /etc/gitlab-runner}
+        - {name: tmpl, mountPath: /etc/gitlab-runner-tmpl, readOnly: true}
+        - {name: home, mountPath: /home/gitlab-runner}
+        - {name: tmp, mountPath: /tmp}
+      volumes:
+      - {name: config, emptyDir: {}}
+      - {name: home, emptyDir: {}}
+      - {name: tmp, emptyDir: {}}
+      - name: tmpl
+        configMap:
+          name: gitlab-runner-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-runner-arm64
+  namespace: app-gitlab-runner
+  labels:
+    app.kubernetes.io/name: gitlab-runner
+    app.kubernetes.io/component: manager-arm64
+    app.kubernetes.io/part-of: public-cluster
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gitlab-runner
+      app.kubernetes.io/component: manager-arm64
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gitlab-runner
+        app.kubernetes.io/component: manager-arm64
+        app.kubernetes.io/part-of: public-cluster
+    spec:
+      serviceAccountName: gitlab-runner
+      automountServiceAccountToken: true
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 65533
+        fsGroup: 65533
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: runner
+        image: docker.io/gitlab/gitlab-runner:alpine-v19.2.0@sha256:a6573f496d41ca633fd2fedb3348dafc8f386db00bd8c42a3d358410ad21bf84
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          # Jeder Schreibpfad ist ein eigenes emptyDir: /etc/gitlab-runner
+          # (gerenderte config.toml), /home/gitlab-runner (Build-Verzeichnisse
+          # des Executors) und /tmp. Der Runner braucht darueber hinaus keinen
+          # beschreibbaren Ort im Image.
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: [ALL]
+        env:
+        - name: RUNNER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: gitlab-runner-auth
+              key: runner-token-arm64
+        command: [sh, -ec]
+        args:
+        - |
+          sed -e "s|ARCH_PLACEHOLDER|arm64|g" \
+              -e "s|TOKEN_PLACEHOLDER|$RUNNER_TOKEN|" \
+              /etc/gitlab-runner-tmpl/config.toml.tmpl > /etc/gitlab-runner/config.toml
+          unset RUNNER_TOKEN
+          exec /usr/bin/dumb-init /entrypoint run \
+            --config /etc/gitlab-runner/config.toml \
+            --working-directory /home/gitlab-runner
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - {name: config, mountPath: /etc/gitlab-runner}
+        - {name: tmpl, mountPath: /etc/gitlab-runner-tmpl, readOnly: true}
+        - {name: home, mountPath: /home/gitlab-runner}
+        - {name: tmp, mountPath: /tmp}
+      volumes:
+      - {name: config, emptyDir: {}}
+      - {name: home, emptyDir: {}}
+      - {name: tmp, emptyDir: {}}
+      - name: tmpl
+        configMap:
+          name: gitlab-runner-config

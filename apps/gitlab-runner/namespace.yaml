@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-gitlab-runner
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  labels:
+    # `app.kubernetes.io/part-of: public-cluster` ist nicht dekorativ: der
+    # Namespace-Selektor der Vault-Rolle `apps` (vault-bootstrap.nix) haengt
+    # daran. Ohne das Label bekommt die VaultAuth keinen Token.
+    app.kubernetes.io/part-of: public-cluster
+    app.kubernetes.io/managed-by: argocd
+    core.sedware.net/owner: platform
+    core.sedware.net/purpose: application
+    # CI-Job-Pods erzeugt der Runner selbst in DIESEM Namespace. Sie laufen
+    # ausnahmslos non-root mit gedroppten Capabilities (config.toml unten),
+    # erfuellen also `restricted`. Der Runner-Manager selbst ebenfalls.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36
+---
+apiVersion: v1
+kind: LimitRange
+metadata: {name: defaults, namespace: app-gitlab-runner}
+spec:
+  limits:
+  - type: Container
+    defaultRequest: {cpu: 25m, memory: 64Mi}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: quota
+  namespace: app-gitlab-runner
+spec:
+  # Bewusst knapp. host-1 hatte bei der Einrichtung 1861 MiB frei, host-2
+  # 4149 MiB; ein entlaufener CI-Job darf dort nichts reissen. `pods: 8` deckt
+  # zwei Manager plus je drei gleichzeitige Jobs ab (concurrent = 2 je Manager).
+  hard:
+    requests.cpu: "1500m"
+    requests.memory: 1536Mi
+    pods: "8"
+    persistentvolumeclaims: "0"
+    requests.storage: "0"
+    services.nodeports: "0"
+    services.loadbalancers: "0"

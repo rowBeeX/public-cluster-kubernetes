@@ -1,0 +1,109 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: default-deny, namespace: app-gitlab-runner}
+spec:
+  # Leere ingress:[]/egress:[]-Arrays verwirft Cilium (Valid=False = No-op).
+  # Die gueltige Form selektiert eine leere Endpoint-Menge.
+  endpointSelector: {}
+  ingress:
+    - fromEndpoints: []
+  egress:
+    - toEndpoints: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-dns-egress, namespace: app-gitlab-runner}
+spec:
+  endpointSelector: {}
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - {protocol: UDP, port: '53'}
+      - {protocol: TCP, port: '53'}
+      rules:
+        dns:
+        - matchPattern: '*'
+---
+# Der Manager spricht GitLab ueber das NetBird-Overlay an. `gitlab.local.
+# sedware.net` loest zur NetBird-Adresse des lokalen Managers auf (100.80.224.24,
+# von beiden Public-Hosts aus geprueft: HTTP 200 auf /-/readiness). Cilium sieht
+# das Ziel damit als CIDR, nicht als Cluster-Endpoint.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-gitlab-egress, namespace: app-gitlab-runner}
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: gitlab-runner
+  egress:
+  - toCIDRSet:
+    - cidr: 100.64.0.0/10
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '443'}
+---
+# Der Kubernetes-Executor legt Job-Pods ueber den kube-apiserver an.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-apiserver-egress, namespace: app-gitlab-runner}
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: gitlab-runner
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '443'}
+      - {protocol: TCP, port: '6443'}
+---
+# Manager <-> Job-Pod: der Executor haengt sich per `pods/exec` an den
+# Job-Container und streamt Logs zurueck. Beide Richtungen brauchen eine
+# ausdrueckliche Regel, weil `default-deny` auch Verkehr INNERHALB des
+# Namespace verwirft.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-job-pods, namespace: app-gitlab-runner}
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: gitlab-runner-job
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: app-gitlab-runner
+        app.kubernetes.io/name: gitlab-runner
+  egress:
+  # Job-Pods klonen ueber NetBird von GitLab und laden Abhaengigkeiten aus dem
+  # Internet (Paketregistries, Container-Images im Build). Beides ueber HTTPS.
+  - toCIDRSet:
+    - cidr: 100.64.0.0/10
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '443'}
+  - toEntities:
+    - world
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '443'}
+      - {protocol: TCP, port: '80'}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata: {name: allow-monitoring-ingress, namespace: app-gitlab-runner}
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: gitlab-runner
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: app-alloy
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '9252'}
