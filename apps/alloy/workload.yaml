@@ -84,7 +84,7 @@ spec:
       # (dort ist der einzige Node amd64). Verwechslung = ImagePullBackOff genau
       # dann, wenn der Pod auf Host 2 landet.
       - name: alloy
-        image: docker.io/grafana/alloy:v1.18.0@sha256:491b0578c04983fd54fe99b587b6fab4404dc46d0dc16677bd6b00cc1140b308
+        image: docker.io/grafana/alloy:v1.18.1@sha256:0f4434c92b3e6cdac38bb129b344e1790c246f7b6e2eaffcc16a5fa363240e33
         args:
         - run
         - /etc/alloy/config.alloy
@@ -122,7 +122,7 @@ spec:
       # Pod; --host/--telemetry-host binden auf 127.0.0.1, damit die Metriken den
       # Pod nicht verlassen.
       - name: kube-state-metrics
-        image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.19.0@sha256:6b2f0b6f2f86ac5b1aa883a033a8dd55bb96c16d191ec973393bdaadaddac914
+        image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.19.1@sha256:85108987d044b18a098126732f98602df408888c0f7d456241f5abefb9744bc1
         args:
         - --host=127.0.0.1
         - --telemetry-host=127.0.0.1
@@ -143,7 +143,7 @@ spec:
       # Pod liefe still mit der alten Pipeline weiter. Gleiches Muster wie im
       # lokalen Cluster (dort vom Alloy-Chart erzeugt).
       - name: config-reloader
-        image: quay.io/prometheus-operator/prometheus-config-reloader:v0.93.0@sha256:0ccb22ca9f3f6fd9f76ce95585d18bd2e363d421c534dde710be4bd13caa551d
+        image: quay.io/prometheus-operator/prometheus-config-reloader:v0.93.1@sha256:428f088fe6fe07ab138bda92113664b04848a1dc408e4d3680a60ecdb55d1a65
         args:
         - --watched-dir=/etc/alloy
         - --watched-dir=/etc/alloy-secrets
