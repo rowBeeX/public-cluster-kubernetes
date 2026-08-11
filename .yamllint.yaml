@@ -1,13 +1,18 @@
 extends: default
 
 rules:
+  # Kubernetes-Manifeste sind Multi-Dokument-Dateien: "---" ist hier der
+  # Dokumenttrenner, nicht ein optionaler Dokumentanfang.
+  document-start: disable
+  # Sequenzen stehen mal auf, mal unter der Einrückung ihres Schlüssels;
+  # beides ist gültiges YAML und beides kommt hier vor.
+  indentation:
+    indent-sequences: whatever
   line-length:
     max: 140
     level: warning
   comments:
     min-spaces-from-content: 1
-  document-start:
-    present: false
   truthy:
     allowed-values: ["true", "false"]
     check-keys: false
