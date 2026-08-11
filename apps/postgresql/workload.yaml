@@ -172,6 +172,25 @@ spec:
     annotations: {descheduler.alpha.kubernetes.io/evict: "false"}
   monitoring:
     disableDefaultQueries: true
+  # WAL-Volumen. Base-Backups laufen einmal taeglich (ScheduledBackup unten),
+  # die WAL-Archivierung dauernd — nur sie erlaubt eine Wiederherstellung auf
+  # einen Zeitpunkt. Ziel ist der RustFS-Bucket im LOKALEN Cluster ueber
+  # NetBird, jedes Byte geht also durch den Tunnel.
+  #
+  # Gemessen am 2026-08-11: 19 GB WAL in 2 d 16 h bei zwei kleinen Datenbanken
+  # (Authentik, NetBird). Der groessere Teil davon war Polsterung —
+  # archive_timeout=300 erzwingt alle 5 Minuten einen Segmentwechsel, und
+  # archiviert wird immer ein volles 16-MB-Segment, egal wie leer es ist.
+  # 900 s drittelt das und begrenzt den maximalen Datenverlust auf 15 Minuten.
+  # wal_compression=zstd halbiert den Rest; max_wal_size streckt den Abstand
+  # zwischen Checkpoints, nach denen Postgres beim ersten Zugriff auf eine
+  # Seite die ganze Seite statt des Deltas ins WAL schreibt (full_page_writes).
+  postgresql:
+    parameters:
+      max_wal_size: "2GB"
+      min_wal_size: "512MB"
+      wal_compression: "zstd"
+      archive_timeout: "900s"
   storage:
     size: 10Gi
     storageClass: public-primary-super-fast
