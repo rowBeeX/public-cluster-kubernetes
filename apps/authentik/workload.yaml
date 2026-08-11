@@ -88,6 +88,12 @@ spec:
           - labelSelector:
               matchLabels:
                 cnpg.io/cluster: postgres
+            # ZWINGEND: `labelSelector` in podAntiAffinity durchsucht per
+            # Default NUR den eigenen Namespace. Ohne diese Zeile findet die
+            # Regel in app-authentik/app-valkey gar keinen postgres-Pod, ist
+            # damit trivial erfuellt und der Scheduler platziert frei -- genau
+            # das passierte beim ersten Rollout.
+            namespaces: [app-postgresql]
             topologyKey: kubernetes.io/hostname
       containers:
       - name: authentik
@@ -170,6 +176,12 @@ spec:
           - labelSelector:
               matchLabels:
                 cnpg.io/cluster: postgres
+            # ZWINGEND: `labelSelector` in podAntiAffinity durchsucht per
+            # Default NUR den eigenen Namespace. Ohne diese Zeile findet die
+            # Regel in app-authentik/app-valkey gar keinen postgres-Pod, ist
+            # damit trivial erfuellt und der Scheduler platziert frei -- genau
+            # das passierte beim ersten Rollout.
+            namespaces: [app-postgresql]
             topologyKey: kubernetes.io/hostname
       containers:
       - name: authentik
