@@ -82,7 +82,14 @@ spec:
   - metadata: {name: data}
     spec:
       accessModes: [ReadWriteOnce]
-      storageClassName: local-path
+      # public-primary-super-fast statt local-path. Beide zeigen auf denselben
+      # Pfad (/persist/kubernetes/super-fast), unterscheiden sich aber in der
+      # Reclaim-Politik: local-path loescht das Volume MIT dem PVC, die
+      # public-Klasse behaelt es (Retain). Ein versehentlich geloeschtes PVC
+      # nahm hier bisher die Daten unwiederbringlich mit.
+      # Hier liegt der Management-Zustand: Peers, Setup-Keys, Policies. Von
+      # allen vier betroffenen Volumes das schmerzhafteste bei Verlust.
+      storageClassName: public-primary-super-fast
       resources:
         requests: {storage: 10Gi}
 ---
