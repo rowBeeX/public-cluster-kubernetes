@@ -35,6 +35,24 @@ data:
         </outgoingServer>
       </emailProvider>
     </clientConfig>
+  # Outlook und Thunderbird fragen VOR der Apex-.well-known-URL auch
+  # /autodiscover/autodiscover.xml am Apex ab. Ohne eigene Route fiel das in
+  # den Apex-Catch-All auf Authentik: gemessen 301 -> authentik.sedware.net ->
+  # 404/405. Dieser Exchange-Fehlerstub ist die korrekte Antwort ("hier ist
+  # kein Exchange") und beendet den Versuch sauber, statt den Client auf einen
+  # fremden Host zu schicken. Inhalt identisch mit
+  # local-cluster-kubernetes/apps/mail-autoconfig/mail-autoconfig-config/autodiscover.xml.
+  autodiscover.xml: |
+    <?xml version="1.0" encoding="utf-8"?>
+    <Autodiscover xmlns="http://schemas.microsoft.com/exchange/autodiscover/responseschema/2006">
+      <Response xmlns="http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a">
+        <Error Time="00:00:00" Id="0">
+          <ErrorCode>600</ErrorCode>
+          <Message>Invalid Request</Message>
+          <DebugData/>
+        </Error>
+      </Response>
+    </Autodiscover>
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -72,6 +90,7 @@ spec:
           seccompProfile: {type: RuntimeDefault}
         volumeMounts:
         - {name: config, mountPath: /www/.well-known/autoconfig/mail/config-v1.1.xml, subPath: config-v1.1.xml}
+        - {name: config, mountPath: /www/autodiscover/autodiscover.xml, subPath: autodiscover.xml}
         - {name: config, mountPath: /etc/httpd.conf, subPath: httpd.conf}
         - {name: tmp, mountPath: /tmp}
       volumes:
@@ -107,5 +126,7 @@ spec:
   rules:
   - matches:
     - path: {type: Exact, value: /.well-known/autoconfig/mail/config-v1.1.xml}
+    - path: {type: Exact, value: /autodiscover/autodiscover.xml}
+    - path: {type: Exact, value: /Autodiscover/Autodiscover.xml}
     backendRefs:
     - {name: mail-wellknown, port: 8080}
