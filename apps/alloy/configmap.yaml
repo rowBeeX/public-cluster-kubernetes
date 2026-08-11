@@ -85,7 +85,26 @@ data:
     // DaemonSet im lokalen Cluster.
     loki.source.kubernetes "pods" {
       targets    = discovery.relabel.pods.output
+      forward_to = [loki.process.pods.receiver]
+    }
+
+    // NetBird v0.71.4 schreibt native nft-Regeln in die iptables-nft-Tabelle
+    // "ip filter". Der cilium-agent kann die Tabelle danach nicht mehr
+    // auflisten und meldet den Abgleich alle 10 s als Fehler — gemessen
+    // 2026-08-11: 234 Zeilen/h auf host-1, 188/h auf host-2. Es ist KEIN
+    // Datapath-Defekt: das nft-Ruleset enthaelt 0 OLD_CILIUM-Ketten, es
+    // sammelt sich also nichts an. Begruendung, warum der Datapath NICHT
+    // umgebaut wird, und die Bedingung fuer den Rueckbau dieser Regel stehen
+    // in public-cluster-nix/docs/hetzner-workarounds.md, Abschnitt 3.
+    // Der Ausdruck verlangt BEIDE Textstellen — jeder andere
+    // cilium-agent-Fehler bleibt sichtbar.
+    loki.process "pods" {
       forward_to = [loki.write.central.receiver]
+
+      stage.drop {
+        expression         = "iptables rules full reconciliation failed.*is incompatible, use 'nft' tool"
+        drop_counter_reason = "cilium-iptables-nft"
+      }
     }
 
     loki.write "central" {
