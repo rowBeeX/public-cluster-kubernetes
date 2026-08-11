@@ -1,7 +1,35 @@
-local-secrets/
-.playwright-mcp/
-.codex/
+# Lokale Prompts und generierter Kontext
+prompt*.md
+passwords*.md
+memory.md
+todo.md
+issues.md
+codebase.md
+tree.md
+
+# Lokaler Editor- und Assistant-Zustand
+/.codex/
+/.direnv/
+/.playwright-mcp/
+/.vscode/
 .env
+.env.*
+
+# Lokale Secrets und Bootstrap-Material
+/local-secrets/
+/bootstrap-secrets/
+*.pem
+*.key
+id_*
+!*.pub
+
+# Temporäre SOPS- und Klartextdateien
+*.dec
+*.plain
+*.decrypted
+
+# Renderausgaben und Arbeitsdateien
+rendered/
+*.bak
 *.log
 *.tmp
-rendered/
