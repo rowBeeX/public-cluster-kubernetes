@@ -12,7 +12,7 @@ Diese Tabelle ist die **einzige** App-Liste des Repositories; `README.md` und
 |-----|-----------|-----|----------|
 | [`adguard-home`](adguard-home/) | `app-adguard-home` | privileged | DNS-Resolver mit Rewrite-Regeln, ausschließlich NetBird-intern (hostNetwork `:53`) |
 | [`alloy`](alloy/) | `app-alloy` | restricted | Liefert Pod-Logs und Kubernetes-Metriken an Loki/Prometheus im lokalen Cluster |
-| [`authentik`](authentik/) | `app-authentik` | baseline | Öffentlicher OIDC-Provider für alle Cluster-Dienste |
+| [`authentik`](authentik/) | `app-authentik` | restricted | Öffentlicher OIDC-Provider für alle Cluster-Dienste |
 | [`gitlab-runner`](gitlab-runner/) | `app-gitlab-runner` | restricted | CI-Runner je Architektur (amd64/arm64) für das GitLab im lokalen Cluster |
 | [`mail-edge`](mail-edge/) | `app-mailedge` | baseline | Mail Edge / MX-Relay (SMTP `:25`) vor dem Local-Stalwart-Backend |
 | [`mail-wellknown`](mail-wellknown/) | `app-mail-wellknown` | restricted | Mozilla-Autoconfig-XML für den `.well-known/autoconfig`-Fallback am Apex (die `autoconfig.sedware.net`-Antwort selbst liegt in local-cluster-kubernetes) |
