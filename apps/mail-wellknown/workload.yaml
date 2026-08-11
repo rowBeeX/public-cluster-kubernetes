@@ -1,23 +1,4 @@
-# Deckt NUR den ".well-known/autoconfig"-Fallback ab, den Mail-Clients laut
-# Mozilla-Autoconfig-Standard auf der nackten Domain abfragen (RFC-lose
-# De-facto-Konvention, siehe local-cluster-kubernetes/apps/mail-autoconfig
-# README). Die eigentliche "autoconfig.sedware.net"-Antwort liegt seit der
-# Migration im lokalen Cluster (LAN/NetBird-Origin); dieser Pfad hängt aber am
-# Apex "sedware.net" selbst, der nur über den Public-Edge geroutet wird -- ohne
-# eigene Antwort hier fällt die Anfrage auf die Authentik-Weiterleitung
-# (apex-to-authentik in public-cluster-nix) zurück und liefert eine HTML-Seite
-# statt XML. Das ist mehr als kosmetisch: ältere Thunderbird/Betterbird-Versionen
-# (PriorityOrderAbortable-Codepfad, vor der promiseFirstSuccessful-Umstellung in
-# comm-central) parsen den Body dieser Priority-Gruppe unabhängig vom Ergebnis
-# der eigentlich schon erfolgreichen "autoconfig.<domain>"-Antwort und werfen bei
-# der unparsbaren HTML-Seite eine Exception, die den GESAMTEN Abruf abbricht
-# (derselbe Bug wie bei "autodiscover.sedware.net", siehe dortige README).
-# Inhalt ist unkritisch (keine Secrets, vergleichbar mit öffentlich sichtbaren
-# MX/SPF-Records) und deshalb bewusst ohne NetBird-Beschränkung öffentlich --
-# exakt wie reale ISPs (GMX, Web.de, T-Online) ihren ".well-known"-Fallback
-# handhaben. Der Mailserver selbst bleibt NetBird/LAN-only, diese Datei ändert
-# daran nichts.
-#
+# Hintergrund und Exposition: siehe README.md.
 # Inhalt MUSS mit local-cluster-kubernetes/apps/mail-autoconfig/
 # mail-autoconfig-config/config-v1.1.xml synchron bleiben.
 apiVersion: v1
@@ -102,12 +83,17 @@ spec:
 # Exact-Match statt PathPrefix: höchste Gateway-API-Präzedenz (schlägt den
 # pfadlosen Catch-all von apex-to-authentik) und deckt bewusst nur genau diese
 # eine Datei ab, nicht mehr.
+#
+# NUR apex-https: hinge die Route auch am apex-http-Listener, lieferte der Edge
+# die XML im Klartext aus (nachgewiesen: 200 statt 301). Die Datei nennt die
+# Hostnamen und den Auth-Mechanismus, denen ein Mail-Client vertrauen soll —
+# über HTTP ist sie manipulierbar. Port 80 am Apex gehört dem
+# HTTP->HTTPS-Redirect in public-cluster-nix.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata: {name: mail-wellknown, namespace: app-mail-wellknown}
 spec:
   parentRefs:
-  - {name: public, namespace: gateway-system, sectionName: apex-http}
   - {name: public, namespace: gateway-system, sectionName: apex-https}
   hostnames: [sedware.net]
   rules:
