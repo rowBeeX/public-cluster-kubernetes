@@ -12,11 +12,8 @@ spec:
     serviceAccount: alloy
     audiences: [vault]
 ---
-# Basic-Auth-Passwort fuer Loki-Push und Prometheus-Remote-Write im lokalen
-# Cluster. Dieselbe Credential, die der NixOS-Alloy-Dienst auf beiden Hosts aus
-# SOPS (`observability/alloy_ingest_password`) liest; die Empfaengerseite haelt
-# davon die {SHA}-htpasswd-Zeile. Hier wird der KLARTEXT gebraucht, weil Alloy
-# ihn als Basic-Auth-Passwort sendet.
+# Klartext-Basic-Auth fuer Loki-Push und Prometheus-Remote-Write im lokalen
+# Cluster; Quelle der Wahrheit und Fehlerbild siehe README.md.
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
@@ -45,16 +42,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata: {name: alloy, namespace: app-alloy}
 spec:
-  # Deployment mit einer Replik, KEIN DaemonSet: Pod-Logs kommen ueber die
-  # Kubernetes-API und kubelet/cAdvisor ueber den API-Server-Proxy — beides
-  # node-uebergreifend. Ein Agent pro Node wuerde jede Logzeile doppelt nach Loki
-  # schicken und fuer jede Node-Serie zwei Remote-Write-Sender mit identischen
-  # Labels erzeugen (der Empfaenger verwirft das zweite Sample als Duplikat).
-  # Das Host-Journal, das echte Node-Praesenz braucht, liegt ohnehin beim
-  # NixOS-Dienst.
+  # Eine Replik und Recreate, KEIN DaemonSet: beide Quellen sind
+  # node-uebergreifend, ein zweiter Agent doppelte jede Logzeile (README.md).
   replicas: 1
-  # Aus demselben Grund Recreate: waehrend eines RollingUpdate liefen zwei Alloys
-  # gleichzeitig und wuerden Logs doppeln.
   strategy: {type: Recreate}
   selector:
     matchLabels: {app.kubernetes.io/name: alloy}
@@ -64,46 +54,37 @@ spec:
       annotations: {kubectl.kubernetes.io/default-container: alloy}
     spec:
       serviceAccountName: alloy
-      # Kein nodeSelector und keine tolerations: beide Public-Nodes sind
-      # untainted (nachgeprueft: `kubectl get nodes -o jsonpath=…spec.taints` ist
-      # auf beiden leer). Der Pod darf ueberall laufen, damit der Ausfall von
+      # Kein nodeSelector: der Pod darf ueberall laufen, damit ein Ausfall von
       # Host 1 die Telemetrie nicht mitnimmt.
       securityContext:
-        # Das grafana/alloy-Image setzt KEIN USER und liefe sonst als root, was
-        # der Namespace mit enforce: restricted ablehnt. 473 ist die im Image
-        # angelegte alloy-UID; die beiden Sidecars brauchen keinen eigenen
-        # Benutzer. fsGroup macht das emptyDir und das Secret fuer 473 lesbar.
+        # Das grafana/alloy-Image setzt KEIN USER und liefe sonst als root. 473
+        # ist die im Image angelegte alloy-UID; fsGroup macht emptyDir und
+        # Secret fuer sie lesbar.
         runAsNonRoot: true
         runAsUser: 473
         runAsGroup: 473
         fsGroup: 473
         seccompProfile: {type: RuntimeDefault}
       containers:
-      # Host 2 ist aarch64. Der Digest muss deshalb der MULTI-ARCH-INDEX sein,
-      # nicht der amd64-Child-Digest, den local-cluster-kubernetes verwendet
-      # (dort ist der einzige Node amd64). Verwechslung = ImagePullBackOff genau
-      # dann, wenn der Pod auf Host 2 landet.
+      # Host 2 ist aarch64: der Digest MUSS der Multi-Arch-Index sein, nicht der
+      # amd64-Child-Digest aus local-cluster-kubernetes.
       - name: alloy
         image: docker.io/grafana/alloy:v1.18.1@sha256:0f4434c92b3e6cdac38bb129b344e1790c246f7b6e2eaffcc16a5fa363240e33
         args:
         - run
         - /etc/alloy/config.alloy
         - --storage.path=/tmp/alloy
-        # 0.0.0.0 statt des Defaults 127.0.0.1, weil sonst weder die
-        # Readiness-Probe des kubelets noch der Reloader-Sidecar den Endpunkt
-        # erreicht. Nach aussen ist der Port durch Default-Deny und das Fehlen
-        # eines Service verschlossen.
+        # 0.0.0.0 statt 127.0.0.1: sonst erreichen weder Readiness-Probe noch
+        # Reloader-Sidecar den Endpunkt. Nach aussen deckt Default-Deny ab.
         - --server.http.listen-addr=0.0.0.0:12345
         - --stability.level=generally-available
-        # Ohne das versucht Alloy periodisch, Nutzungsdaten an stats.grafana.org
-        # zu senden. Die CiliumNetworkPolicy blockt das, der Fehler landet aber
-        # in genau den Logs, die dieser Pod einsammelt.
+        # Sonst schickt Alloy Nutzungsdaten an stats.grafana.org; die
+        # CiliumNetworkPolicy blockt das und der Fehler flutet die eigenen Logs.
         - --disable-reporting
         ports:
         - {name: http, protocol: TCP, containerPort: 12345}
-        # Alloy startet auch mit kaputter Konfiguration weiter; /-/ready wird
-        # dann nicht gruen. Erst dadurch faellt die App in ArgoCD auf Degraded
-        # statt still nichts mehr zu liefern.
+        # Alloy laeuft auch mit kaputter Konfiguration weiter; ohne diese Probe
+        # bliebe die App in ArgoCD gruen und lieferte still nichts.
         readinessProbe:
           httpGet: {path: /-/ready, port: http}
           initialDelaySeconds: 10
@@ -117,20 +98,15 @@ spec:
         - {name: config, mountPath: /etc/alloy, readOnly: true}
         - {name: ingest, mountPath: /etc/alloy-secrets, readOnly: true}
         - {name: tmp, mountPath: /tmp}
-      # Sidecar statt eigenem Deployment + Service: einziger Konsument ist der
-      # Alloy im selben Pod. Das spart Service, Ingress-Policy und einen zweiten
-      # Pod; --host/--telemetry-host binden auf 127.0.0.1, damit die Metriken den
-      # Pod nicht verlassen.
+      # Sidecar statt eigenem Deployment: einziger Konsument ist der Alloy im
+      # selben Pod, deshalb binden --host/--telemetry-host auf 127.0.0.1.
       - name: kube-state-metrics
         image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.19.1@sha256:85108987d044b18a098126732f98602df408888c0f7d456241f5abefb9744bc1
         args:
         - --host=127.0.0.1
         - --telemetry-host=127.0.0.1
-        # Serienbudget an der Quelle: die Default-Ressourcenliste enthaelt unter
-        # anderem leases, endpointslices, configmaps und secrets — zusammen ein
-        # Vielfaches der hier gebrauchten Serien. replicasets steht bewusst drin,
-        # weil kube_replicaset_owner die Kette Pod -> ReplicaSet -> Deployment
-        # schliesst, ohne die die Workload-Dashboards leer bleiben.
+        # Serienbudget an der Quelle (README.md). replicasets steht bewusst
+        # drin: ohne kube_replicaset_owner bleiben die Workload-Dashboards leer.
         - --resources=daemonsets,deployments,jobs,namespaces,nodes,persistentvolumeclaims,pods,replicasets,statefulsets
         resources:
           requests: {cpu: 25m, memory: 96Mi}
@@ -139,9 +115,8 @@ spec:
           capabilities: {drop: [ALL]}
           readOnlyRootFilesystem: true
       # Alloy laedt seine Konfiguration nur beim Start oder auf POST /-/reload.
-      # Ohne diesen Sidecar wuerde ein ArgoCD-Sync die ConfigMap aendern und der
-      # Pod liefe still mit der alten Pipeline weiter. Gleiches Muster wie im
-      # lokalen Cluster (dort vom Alloy-Chart erzeugt).
+      # Ohne diesen Sidecar liefe der Pod nach einem ArgoCD-Sync still mit der
+      # alten Pipeline weiter.
       - name: config-reloader
         image: quay.io/prometheus-operator/prometheus-config-reloader:v0.93.1@sha256:428f088fe6fe07ab138bda92113664b04848a1dc408e4d3680a60ecdb55d1a65
         args:
@@ -162,7 +137,7 @@ spec:
         configMap: {name: alloy-config}
       - name: ingest
         secret: {secretName: alloy-ingest}
-      # WAL und Log-Positionen. Bewusst fluechtig: ein PVC wuerde den Pod an
-      # einen Node binden und damit den Vorteil des Deployments aufheben.
+      # WAL und Log-Positionen. Bewusst fluechtig: ein PVC bände den Pod an
+      # einen Node und höbe den Vorteil des Deployments auf.
       - name: tmp
         emptyDir: {sizeLimit: 512Mi}

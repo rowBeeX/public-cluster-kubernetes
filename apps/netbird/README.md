@@ -18,8 +18,9 @@ WireGuard-basiertes VPN-Management für den Public-Cluster und verbundene Client
 - UDP 3478 ist für STUN aus der Cilium-Entity `world` freigegeben
 - Config kommt aus dem `netbird-config` Secret (SOPS via `public-cluster-nix`)
 - Lange Envoy-Streams (Signal-gRPC, Relay-WebSocket) werden per
-  `BackendTrafficPolicy` `netbird-longlived-streams` (`streamIdleTimeout: 24h`)
-  offengehalten — ersetzt das alte Cilium-Setting `proxy-stream-idle-timeout-seconds=86400`
+  `BackendTrafficPolicy` `netbird-longlived-streams` offengehalten
+  (`requestTimeout: 0s`, `streamIdleTimeout: 24h`); ohne sie trennt Envoy
+  Gateway den server-streaming Sync-RPC nach 15 Sekunden
 
 ## Relay (im Combined-Server eingebettet)
 

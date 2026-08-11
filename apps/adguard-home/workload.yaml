@@ -3,11 +3,7 @@ kind: PersistentVolumeClaim
 metadata: {name: adguard-data, namespace: app-adguard-home}
 spec:
   accessModes: [ReadWriteOnce]
-  # public-primary-super-fast statt local-path. Beide zeigen auf denselben Pfad
-  # (/persist/kubernetes/super-fast), unterscheiden sich aber in der
-  # Reclaim-Politik: local-path loescht das Volume MIT dem PVC, die
-  # public-Klasse behaelt es (Retain). Hier liegen Konfiguration, Filterlisten
-  # und das Query-Log.
+  # Reclaim Retain: hier liegen Konfiguration, Filterlisten und Query-Log.
   storageClassName: public-primary-super-fast
   resources:
     requests: {storage: 5Gi}

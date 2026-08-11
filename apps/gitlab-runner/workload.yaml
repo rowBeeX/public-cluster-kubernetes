@@ -1,17 +1,5 @@
-# GitLab-Runner fuer beide Architekturen.
-#
-# Warum handgeschrieben statt des offiziellen Charts: das ApplicationSet dieses
-# Clusters kennt ausschliesslich `path` und rendert mit `kubectl kustomize` --
-# es gibt keine Helm-Quelle (siehe applicationset.yaml.in). Zweitens besitzt der
-# hiesige argocd-application-controller weder `escalate` noch `bind`; die Role
-# des Charts (`apiGroups: [""], resources: ["*"], verbs: ["*"]`) waere hier
-# ueberhaupt nicht anlegbar. Die Rolle unten ist deshalb auf das eingeschraenkt,
-# was der Kubernetes-Executor wirklich braucht.
-#
-# Zwei Manager, je einer pro Host, unterschieden ueber `kubernetes.io/arch`:
-# host-1 ist amd64, host-2 aarch64. Jeder Manager haengt an einem EIGENEN
-# Runner-Token, weil Tags serverseitig am Runner haengen und nicht am Manager --
-# mit einem gemeinsamen Token liessen sich Jobs nicht nach Architektur lenken.
+# CI-Runner fuer das GitLab im LOKALEN Cluster, erreicht ueber NetBird.
+# Warum handgeschrieben, warum zwei Deployments, warum eigene Tokens: README.md.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -68,10 +56,8 @@ roleRef:
   name: gitlab-runner
   apiGroup: rbac.authorization.k8s.io
 ---
-# Bindet den Namespace an die generische Self-Service-Vault-Rolle `apps` des
-# PUBLIC-Vault. Der Token selbst wird von
-# cluster-testing/local-cluster/nix/cluster/provision_gitlab_runner.py dorthin
-# gespiegelt -- erzeugen kann ihn nur der Toolbox-Pod im lokalen Cluster.
+# Self-Service-Vault-Rolle `apps` des PUBLIC-Vault. Woher der Token kommt:
+# README.md.
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultAuth
 metadata:
@@ -135,9 +121,8 @@ metadata:
     app.kubernetes.io/name: gitlab-runner
     app.kubernetes.io/part-of: public-cluster
 data:
-  # `config.toml` wird beim Start aus dieser Vorlage erzeugt; der Token kommt
-  # ueber eine Umgebungsvariable, damit er nicht in einer ConfigMap steht.
-  # $ARCH und $RUNNER_TOKEN setzt das entrypoint-Skript ein.
+  # Vorlage fuer `config.toml`; die beiden PLACEHOLDER ersetzt das
+  # Container-Kommando beim Start.
   config.toml.tmpl: |
     concurrent = 2
     check_interval = 3
@@ -156,8 +141,7 @@ data:
       environment = ["HOME=/tmp"]
       [runners.kubernetes]
         namespace = "app-gitlab-runner"
-        # Multi-Arch-Index, nicht der amd64-Einzeldigest: host-2 ist aarch64
-        # und koennte ein arch-spezifisches Manifest gar nicht ausfuehren.
+        # Multi-Arch-Index, nicht der amd64-Einzeldigest: host-2 ist aarch64.
         image = "docker.io/library/alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"
         pull_policy = ["if-not-present"]
         allow_privilege_escalation = false
@@ -206,9 +190,8 @@ metadata:
     app.kubernetes.io/part-of: public-cluster
 spec:
   replicas: 1
-  # RollingUpdate waere hier harmlos (kein RWO-Volume), Recreate ist aber
-  # ehrlicher: zwei Manager mit demselben Token wuerden sich waehrend des
-  # Wechsels kurzzeitig dieselben Jobs teilen.
+  # Zwei Manager mit demselben Token teilten sich waehrend eines RollingUpdate
+  # kurzzeitig dieselben Jobs.
   strategy:
     type: Recreate
   selector:
@@ -239,10 +222,8 @@ spec:
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
-          # Jeder Schreibpfad ist ein eigenes emptyDir: /etc/gitlab-runner
-          # (gerenderte config.toml), /home/gitlab-runner (Build-Verzeichnisse
-          # des Executors) und /tmp. Der Runner braucht darueber hinaus keinen
-          # beschreibbaren Ort im Image.
+          # Jeder Schreibpfad ist ein eigenes emptyDir: /etc/gitlab-runner,
+          # /home/gitlab-runner und /tmp.
           readOnlyRootFilesystem: true
           capabilities:
             drop: [ALL]
@@ -256,8 +237,7 @@ spec:
         args:
         - |
           # Der Token darf nicht in der ConfigMap stehen, die Vorlage schon.
-          # sed liest ihn aus der Umgebung; `config.toml` entsteht in einem
-          # emptyDir und verlaesst den Pod nie.
+          # `config.toml` entsteht im emptyDir und verlaesst den Pod nie.
           sed -e "s|ARCH_PLACEHOLDER|amd64|g" \
               -e "s|TOKEN_PLACEHOLDER|$RUNNER_TOKEN|" \
               /etc/gitlab-runner-tmpl/config.toml.tmpl > /etc/gitlab-runner/config.toml
@@ -323,10 +303,6 @@ spec:
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
-          # Jeder Schreibpfad ist ein eigenes emptyDir: /etc/gitlab-runner
-          # (gerenderte config.toml), /home/gitlab-runner (Build-Verzeichnisse
-          # des Executors) und /tmp. Der Runner braucht darueber hinaus keinen
-          # beschreibbaren Ort im Image.
           readOnlyRootFilesystem: true
           capabilities:
             drop: [ALL]
