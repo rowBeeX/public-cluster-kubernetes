@@ -57,10 +57,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata: {name: authentik-server, namespace: app-authentik}
 spec:
-  # PostgreSQL und Valkey laufen als einzelne Replik auf Host 1 mit Local-Path-
-  # Storage ohne Failover. Weitere Server-Repliken würden einen Node-Ausfall
-  # daher nicht überstehen und nur falsche HA suggerieren. Ein Rollout
-  # unterbricht SSO im Cluster kurzzeitig.
+  # Beide Backends sind Single-Replica und ohne Failover: der CNPG-Cluster
+  # läuft mit instances: 1 knotenlokal auf Host 1, Valkey mit replicas: 1 auf
+  # emptyDir. Weitere Server-Repliken überstünden einen Ausfall von Host 1
+  # daher trotzdem nicht und suggerierten nur HA. Ein Rollout unterbricht SSO
+  # im Cluster kurzzeitig.
   replicas: 1
   selector:
     matchLabels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: server}
