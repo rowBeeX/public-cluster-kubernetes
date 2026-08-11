@@ -1,14 +1,12 @@
 # Repository-Struktur
 
+Welche Apps es gibt und was sie tun, steht ausschließlich in
+[`apps/README.md`](../apps/README.md). Hier steht nur, wie ein App-Verzeichnis
+aufgebaut ist.
+
 ```text
 apps/
-  adguard-home/               DNS/UI, ausschließlich NetBird-intern (Envoy-Route per SecurityPolicy auf NetBird begrenzt)
-  authentik/                  öffentlicher OIDC-Provider (Envoy Gateway)
-  mail-edge/                  Mail Edge / MX-Relay (SMTP :25 eingehend + ausgehendes Relay via Envoy :2525)
-  netbird/                    Dashboard/Management/Signal/Relay (Envoy Gateway)
-  postgresql/                 CNPG-Cluster als Backend für Authentik
-  valkey/                     Cache-/Session-Store als Backend für Authentik
-
+  README.md                   die App-Liste (einzige Quelle)
   <app>/                      jedes App-Verzeichnis hat dasselbe flache Layout:
     argocd.yaml               Argo-CD-Markerdatei, die vom ApplicationSet entdeckt wird
     README.md

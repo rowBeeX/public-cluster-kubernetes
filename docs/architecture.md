@@ -16,7 +16,13 @@ Non-HTTP-Protokollpfade und die CiliumNetworkPolicies je Namespace.
 Öffentliche HTTP/gRPC/WebSocket-Dienste am Envoy Gateway: Authentik
 (öffentlicher OIDC-Provider, `authentik.sedware.net`), das NetBird-Dashboard
 (`netbird.sedware.net`) sowie die NetBird-Management-API, Signal-gRPC- und
-Relay-WebSocket-Endpunkte (`netbird-control.sedware.net`).
+Relay-WebSocket-Endpunkte (`netbird-control.sedware.net`). Am Apex
+`sedware.net` liefert `mail-wellknown` genau einen Exact-Match-Pfad
+(`/.well-known/autoconfig/mail/config-v1.1.xml`), nur am HTTPS-Listener.
+
+Ohne eigene Route, aber ebenfalls hier: `alloy` schiebt Telemetrie in den
+lokalen Cluster und `gitlab-runner` holt CI-Jobs vom dortigen GitLab — beide
+ausschließlich als Egress über das NetBird-Overlay, kein Internet-Ingress.
 
 Non-HTTP-Protokolle bekommen eigene, protokollspezifische Pfade, nie Envoy:
 

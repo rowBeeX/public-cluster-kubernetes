@@ -4,19 +4,13 @@ Argo-CD-Applikationsquelle für den Sedware Public-k3s-Cluster. Cilium-
 Dataplane, Gateway API, cert-manager, CrowdSec und Argo CD selbst werden vom
 Schwester-Repository `public-cluster-nix` verwaltet.
 
-Hier verwaltete Applikationen:
+Die Liste der hier verwalteten Applikationen steht an genau einer Stelle:
+[`apps/README.md`](apps/README.md).
 
-- `authentik`: öffentlicher Identity-Provider;
-- `postgresql`: CNPG-PostgreSQL-Cluster als Backend für Authentik;
-- `valkey`: Redis-kompatibler Cache-/Session-Store als Backend für Authentik;
-- `netbird`: selbst gehostetes Control-Plane und Dashboard;
-- `adguard-home`: NetBird-only DNS und Administrations-UI;
-- `mail-edge`: Mail Edge / MX-Relay (SMTP :25) vor dem Local-Stalwart-Backend.
-
-WordPress ist bewusst noch nicht deployt. Künftige öffentliche Applikationen
-können die RWX-StorageClass `public-shared-bulk` nutzen; Datenbank-Workloads
-sollten weiterhin node-lokalen SSD-Storage verwenden, sofern kein
-applikationsspezifisches HA-Datenbankdesign eingeführt wird.
+Künftige öffentliche Applikationen können die RWX-StorageClass
+`public-shared-bulk` nutzen; Datenbank-Workloads sollten weiterhin node-lokalen
+SSD-Storage verwenden, sofern kein applikationsspezifisches HA-Datenbankdesign
+eingeführt wird.
 
 ## Validierung
 
