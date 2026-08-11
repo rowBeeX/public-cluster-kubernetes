@@ -1,6 +1,6 @@
 ---
 name: kubernetes
-description: Den Public-k3s-Cluster und seine Argo-CD-Applikationen betreiben und diagnostizieren.
+description: Workloads dieses Repos im Public-k3s deployen und diagnostizieren — Zugriff über Host 1, der HTTP-/TLS-Pfad, Node-IPAM-Sonderfälle, Storage und die Validierung. Verwenden beim Hinzufügen oder Ändern einer App und bei 404/502/504 gegen einen öffentlichen Namen.
 ---
 
 # Public k3s Cluster
@@ -33,3 +33,22 @@ description: Den Public-k3s-Cluster und seine Argo-CD-Applikationen betreiben un
 - Die gerenderten Apps mit
   `cluster-testing/public-cluster/kubernetes/validate.sh` validieren, danach
   Nodes, Pods, Applications, Events und relevante Logs auf Host 1 inspizieren.
+
+## Beim Debuggen leicht zu übersehen
+
+- Die **Envoy-Proxy-Pods liegen in `envoy-gateway-system`**, nur das
+  `Gateway`-Objekt in `gateway-system`. Ihre Container sind distroless:
+  `kubectl exec` schreibt den Fehler nach stderr und lässt stdout **leer** — in
+  eine Pipe geschoben sieht das aus wie „Zähler ist null". Zähler stattdessen
+  vom Host holen: `curl -s http://127.0.0.1:19000/stats`.
+- **Envoys `connectionIdleTimeout` (30 s) muss kleiner sein als das Keep-Alive
+  des Backends.** Ist es größer, schreibt Envoy in tote Verbindungen und die
+  Anfrage versandet bis zum Route-Timeout — die Ursache reproduzierbarer 504er.
+  Node.js und Apache liegen per Default bei 5 s. Herleitung in
+  `../docs/02-anfragewege.md`.
+- **Logs und Metriken dieses Clusters liegen im Local-Cluster**, unterschieden
+  über das Label `cluster="public"`. Wie man sie ohne Gateway-BasicAuth
+  abfragt, steht in
+  `../local-cluster-nix/.claude/skills/observability/SKILL.md`.
+- Bevor ein Dauerzustand als neuer Befund gemeldet wird:
+  `../docs/09-offene-punkte.md` lesen.

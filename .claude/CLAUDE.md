@@ -2,6 +2,15 @@
 
 Diese Datei gibt Claude Code Hinweise für die Arbeit in diesem Repository.
 
+Was mehr als ein Repository betrifft, steht in `../docs/` und wird hier nicht
+wiederholt — `../CLAUDE.md` nennt die Regeln, `../docs/10-repo-wegweiser.md`
+beantwortet „ich will X ändern, wo?", `../docs/05-deploy.md` beschreibt, wie
+eine Änderung live geht.
+
+Skills hier: `argocd` und `kubernetes`. Plattform und Edge liegen in
+`public-cluster-nix`, die bestandsweiten Skills (Logs, CrowdSec, DNS,
+GitHub-Auth) in `local-cluster-nix/.claude/skills/`.
+
 ## Zweck
 
 ArgoCD-App-Repository für den **öffentlichen** Sedware-Cluster — den einzigen
@@ -92,9 +101,10 @@ StorageClasses: `public-primary-super-fast` (node-lokal, Host 1, Reclaim
 `Retain`) für Zustand, `public-shared-bulk` (SMB CSI gegen eine Hetzner
 StorageBox, RWX) für gemeinsame Bulk-Daten.
 
-Das ApplicationSet synchronisiert vom `release`-Branch, `selfHeal` an,
-Auto-Prune aus — ein aus Git entferntes Objekt verschwindet live nicht von
-selbst.
+Das ApplicationSet synchronisiert vom `release`-Branch, mit `selfHeal: true`
+**und `prune: true`** — ein aus dem Render verschwundenes Objekt wird live
+gelöscht. Ein Push nach `main` allein deployt nichts; nötig sind beide Refs
+(`../docs/05-deploy.md`).
 
 ## Validieren
 
