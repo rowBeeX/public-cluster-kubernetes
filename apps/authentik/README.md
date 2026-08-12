@@ -27,6 +27,14 @@ private_key` in `authentik/crypto/models.py` cacht das geparste PEM nur auf der
 Modellinstanz (`self._private_key`), nie im Django-Cache. Er wird deshalb pro
 Anfrage neu geparst, unabhängig vom Cache-Backend.
 
+Deshalb signieren alle zehn Provider mit einem eigenen **RSA-2048**-Schlüssel
+(`sedware-oidc-signing`) statt mit dem RSA-4096-Schlüssel, den Authentik sich
+beim ersten Start selbst anlegt: auf aarch64 kostet `load_pem_private_key`
+1279 ms bei 4096 Bit und 177 ms bei 2048 Bit. `alg` bleibt RS256, es schrumpft
+nur der Modulus. Deklariert ist der Schlüssel im Blueprint in
+`public-cluster-nix`; der auto-generierte Schlüssel bleibt unreferenziert
+bestehen.
+
 Die Pods haben per CiliumNetworkPolicy keinen Internet-Egress — erlaubt sind nur
 DNS und PostgreSQL. Update-Prüfung, Start-Analyse und Fehlerberichte sind
 deshalb auf Server und Worker deaktiviert. Da ausschließlich OIDC-Provider verwendet werden, sind auch der
@@ -38,7 +46,11 @@ Kubernetes-API-Retries.
 
 Kommen aus SOPS via `public-cluster-nix/secrets/public-cluster-host-1.yaml`:
 - `authentik-runtime` — Secret-Key und Bootstrap-Zugangsdaten (`akadmin`)
-- `authentik-blueprint` — Blueprint-YAML für initiale OIDC-Client-Konfiguration
+- `authentik-blueprint` — Blueprint-YAML für initiale OIDC-Client-Konfiguration,
+  dazu `signing-key.pem` und `signing-cert.pem`. Beide Pods mounten das Secret
+  nach `/blueprints/custom`; das Blueprint liest die PEMs von dort per `!File`,
+  weil `envsubst` mehrzeilige Werte nicht eingerückt einsetzen kann. Die
+  Blueprint-Suche greift nur `**/*.yaml` ab, die PEMs stören sie nicht.
 
 Das Datenbankpasswort kommt aus Vault über den `authentik-db` VaultStaticSecret
 (nicht aus `authentik-runtime`).
