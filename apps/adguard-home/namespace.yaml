@@ -30,7 +30,9 @@ metadata: {name: quota, namespace: app-adguard-home}
 spec:
   hard:
     requests.cpu: "500m"
-    requests.memory: 512Mi
+    # 2x der Pod-Request: bei maxSurge 0 zaehlt der noch terminierende alte Pod
+    # waehrend des Rollouts weiter gegen das Kontingent.
+    requests.memory: 2560Mi
     requests.storage: 10Gi
     persistentvolumeclaims: "2"
     pods: "4"
