@@ -227,6 +227,43 @@ data:
       scrape_interval = "60s"
     }
 
+    // cert-manager. Die Zertifikate dieses Clusters sind die Internet-Edge-
+    // Zertifikate, und sie waren bis 2026-08-12 voellig ungemessen: der zentrale
+    // Prometheus kannte certmanager_-Serien nur mit cluster="local". Ein
+    // abgelaufenes oder haengendes Edge-Zertifikat haette also keinen Alarm
+    // ausgeloest. Der Exporter laeuft ohnehin auf :9402 (104 Serien gemessen),
+    // abgeholt hat ihn nur niemand.
+    discovery.relabel "certmanager" {
+      targets = discovery.kubernetes.pods.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+        separator     = "/"
+        regex         = "cert-manager/cert-manager"
+        action        = "keep"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_port_number"]
+        regex         = "9402"
+        action        = "keep"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+    }
+
+    prometheus.scrape "certmanager" {
+      targets         = discovery.relabel.certmanager.output
+      forward_to      = [prometheus.relabel.budget.receiver]
+      job_name        = "cert-manager"
+      scrape_interval = "60s"
+    }
+
     // CNPG-Instanzmetriken. Dieser Cluster sichert in denselben rustfs-Bucket
     // wie der lokale, und am 2026-08-10 scheiterte seine Nachtsicherung, ohne
     // dass ein Alarm entstand — Postgres-Metriken verliessen den Cluster bisher
@@ -301,7 +338,19 @@ data:
           // verlassen nur diese den Cluster: zwei Serien gegen ein Budget von
           // ~332k.
           "|cnpg_pg_stat_archiver_seconds_since_last_archival" +
-          "|cnpg_collector_last_failed_backup_timestamp"
+          "|cnpg_collector_last_failed_backup_timestamp" +
+          // Zertifikatsablauf am Internet-Edge. Zwei Namen, fuenf Zertifikate.
+          "|certmanager_certificate_expiration_timestamp_seconds" +
+          "|certmanager_certificate_ready_status" +
+          // Ohne diese Serien koennen die mitgelieferten Chart-Alarme fuer
+          // Deployments, StatefulSets, DaemonSets und Jobs im Public-Cluster
+          // NIE feuern — sie stehen namentlich im Regelwerk, fanden hier aber
+          // keine Daten. Betroffen sind unter anderem KubeDeploymentReplicasMismatch,
+          // KubeStatefulSetUpdateNotRolledOut und KubeJobFailed.
+          "|kube_deployment_status_replicas_updated" +
+          "|kube_statefulset_status_(replicas|replicas_updated|current_revision|update_revision)" +
+          "|kube_daemonset_status_current_number_scheduled" +
+          "|kube_job_failed|kube_job_status_start_time"
       }
 
       // cAdvisor liefert dieselben container_*-Namen auch fuer die Cgroups des

@@ -66,3 +66,13 @@ spec:
     toPorts:
     - ports:
       - {protocol: TCP, port: '9187'}
+  # cert-manager-Metriken auf :9402. Die Zertifikate dieses Clusters sind die
+  # Internet-Edge-Zertifikate; ohne diese Regel scheitert der Scrape stumm an
+  # Default-Deny und der Ablauf bliebe unbewacht.
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: cert-manager
+        app.kubernetes.io/name: cert-manager
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '9402'}
