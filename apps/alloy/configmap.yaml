@@ -227,6 +227,41 @@ data:
       scrape_interval = "60s"
     }
 
+    // CNPG-Instanzmetriken. Dieser Cluster sichert in denselben rustfs-Bucket
+    // wie der lokale, und am 2026-08-10 scheiterte seine Nachtsicherung, ohne
+    // dass ein Alarm entstand — Postgres-Metriken verliessen den Cluster bisher
+    // ueberhaupt nicht. Der Exporter laeuft ohnehin im Instance-Manager auf
+    // :9187; abgeholt hat ihn nur niemand.
+    discovery.relabel "cnpg" {
+      targets = discovery.kubernetes.pods.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_cnpg_io_podRole"]
+        regex         = "instance"
+        action        = "keep"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_port_name"]
+        regex         = "metrics"
+        action        = "keep"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+    }
+
+    prometheus.scrape "cnpg" {
+      targets         = discovery.relabel.cnpg.output
+      forward_to      = [prometheus.relabel.budget.receiver]
+      job_name        = "cnpg"
+      scrape_interval = "60s"
+    }
+
     // ── Serienbudget ─────────────────────────────────────────────────────
     // Der empfangende Prometheus haelt ~332k Serien auf einem Node mit 30 GiB
     // RAM und startete deswegen im 31-Minuten-Takt neu. Es verlassen deshalb nur
@@ -259,7 +294,14 @@ data:
           "|kube_daemonset_status_(desired_number_scheduled|number_ready)" +
           "|kube_job_status_(failed|succeeded)" +
           "|kube_namespace_status_phase" +
-          "|kube_persistentvolumeclaim_(status_phase|resource_requests_storage_bytes)"
+          "|kube_persistentvolumeclaim_(status_phase|resource_requests_storage_bytes)" +
+          // Genau die beiden Serien, auf denen die Sicherungs-Alarme im
+          // lokalen Grafana stehen (monitoring/values.yaml, Gruppe
+          // `sicherungs-alarme`). Von den 37 cnpg_-Metriken der Instanz
+          // verlassen nur diese den Cluster: zwei Serien gegen ein Budget von
+          // ~332k.
+          "|cnpg_pg_stat_archiver_seconds_since_last_archival" +
+          "|cnpg_collector_last_failed_backup_timestamp"
       }
 
       // cAdvisor liefert dieselben container_*-Namen auch fuer die Cgroups des

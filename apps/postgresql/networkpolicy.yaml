@@ -73,5 +73,13 @@ spec:
       - {port: '8000', protocol: TCP}
       - {port: '9187', protocol: TCP}
       - {port: '5432', protocol: TCP}
+  # Alloy holt zwei Metriken der Sicherungskette ab und schickt sie an den
+  # zentralen Prometheus im lokalen Cluster; darauf stehen die Alarme
+  # `sedware-wal-archiving-stalled` und `sedware-base-backup-failed`.
+  - fromEndpoints:
+    - matchLabels: {k8s:io.kubernetes.pod.namespace: app-alloy}
+    toPorts:
+    - ports:
+      - {port: '9187', protocol: TCP}
   # Kubelet-Probes und interner Instance-Manager-Traffic kommen als host an.
   - fromEntities: [host, remote-node, kube-apiserver]

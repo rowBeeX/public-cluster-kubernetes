@@ -57,3 +57,12 @@ spec:
     toPorts:
     - ports:
       - {protocol: TCP, port: '443'}
+  # CNPG-Instanzmetriken auf :9187. Der Exporter laeuft im Instance-Manager des
+  # Postgres-Pods; ohne diese Regel scheitert der Scrape stumm an Default-Deny.
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: app-postgresql
+        cnpg.io/podRole: instance
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '9187'}

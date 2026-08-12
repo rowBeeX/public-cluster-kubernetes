@@ -171,7 +171,13 @@ spec:
   inheritedMetadata:
     annotations: {descheduler.alpha.kubernetes.io/evict: "false"}
   monitoring:
-    disableDefaultQueries: true
+    # Die Standardabfragen liefern als einzige die pg_stat_archiver-Sicht, und
+    # nur sie beantwortet "steht die WAL-Archivierung". Am 2026-08-10 scheiterte
+    # hier die Nachtsicherung, ohne dass irgendwo ein Alarm entstand; zuvor stand
+    # die Archivierung ueber 48 h still. Kosten: ein paar Dutzend SELECTs auf
+    # pg_stat_* je Scrape. Das Serienbudget bleibt unberuehrt — der Alloy-Filter
+    # laesst von den 37 Metriken genau zwei aus dem Cluster heraus.
+    disableDefaultQueries: false
   # WAL-Volumen. Base-Backups laufen einmal taeglich (ScheduledBackup unten),
   # die WAL-Archivierung dauernd — nur sie erlaubt eine Wiederherstellung auf
   # einen Zeitpunkt. Ziel ist der RustFS-Bucket im LOKALEN Cluster ueber
