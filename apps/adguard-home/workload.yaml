@@ -25,6 +25,9 @@ spec:
       labels: {app.kubernetes.io/name: adguard-home}
     spec:
       automountServiceAccountToken: false
+      # Am Pod gesetzt, damit Init- und Hauptcontainer es gemeinsam erben.
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
       hostNetwork: true
       dnsPolicy: None
       dnsConfig:

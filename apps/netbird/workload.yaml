@@ -41,6 +41,8 @@ spec:
       labels: {app.kubernetes.io/name: netbird-server}
     spec:
       automountServiceAccountToken: false
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
       nodeSelector: {public.sedware.net/control-plane: "true"}
       containers:
       - name: netbird-server
@@ -108,6 +110,8 @@ spec:
       labels: {app.kubernetes.io/name: netbird-dashboard}
     spec:
       automountServiceAccountToken: false
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
       topologySpreadConstraints:
       - maxSkew: 1
         topologyKey: kubernetes.io/hostname
