@@ -59,11 +59,3 @@ spec:
     - ports:
       - port: '5432'
         protocol: TCP
-  # Egress zum gemeinsamen Cache in app-valkey.
-  - toEndpoints:
-    - matchLabels:
-        k8s:io.kubernetes.pod.namespace: app-valkey
-    toPorts:
-    - ports:
-      - port: '6379'
-        protocol: TCP

@@ -7,14 +7,28 @@ OIDC-Provider für alle öffentlichen Cluster-Dienste, fest auf Version
 
 | Ressource | Beschreibung |
 |-----------|-------------|
-| Externe PostgreSQL (`app-postgresql`, CNPG) | Datenbank im separaten App-Cluster `app-postgresql` (Host `postgres-rw.app-postgresql`, Passwort aus Vault) |
-| Externer Valkey-Cache (`app-valkey`) | Redis-kompatibler Cache im separaten App `app-valkey` (`valkey.app-valkey`) |
+| Externe PostgreSQL (`app-postgresql`, CNPG) | Datenbank im separaten App-Cluster `app-postgresql` (Host `postgres-rw.app-postgresql`, Passwort aus Vault); trägt seit 2026.5 auch Cache und Channel-Layer |
 | Authentik Server (1 Replica) | HTTP-Server, OIDC-Endpunkte, Admin-UI |
 | Authentik Worker (1 Replica) | Hintergrund-Tasks (E-Mail, Events) |
 | authentik-media PVC | Medien-Speicher (public-shared-bulk, ReadWriteMany) |
 
+## Kein Redis/Valkey
+
+Authentik 2026.5 hat Redis vollständig abgelegt: `authentik/root/settings.py`
+setzt `CACHES["default"]` auf `django_postgres_cache.backend.DatabaseCache` und
+`CHANNEL_LAYERS` auf `django_channels_postgres`; im gesamten Paket kommt die
+Zeichenkette `redis` nicht mehr vor. `AUTHENTIK_REDIS__*` wird vom Config-Loader
+zwar noch in `ak dump_config` gespiegelt, aber von nichts gelesen — die Angabe
+sah nach Konfiguration aus und war keine. Nachgewiesen am laufenden Pod: genau
+eine etablierte TCP-Verbindung, die nach Postgres:5432.
+
+Der Signierschlüssel profitiert davon ohnehin nicht: `CertificateKeyPair.
+private_key` in `authentik/crypto/models.py` cacht das geparste PEM nur auf der
+Modellinstanz (`self._private_key`), nie im Django-Cache. Er wird deshalb pro
+Anfrage neu geparst, unabhängig vom Cache-Backend.
+
 Die Pods haben per CiliumNetworkPolicy keinen Internet-Egress — erlaubt sind nur
-DNS, PostgreSQL und Valkey. Update-Prüfung, Start-Analyse und Fehlerberichte sind
+DNS und PostgreSQL. Update-Prüfung, Start-Analyse und Fehlerberichte sind
 deshalb auf Server und Worker deaktiviert. Da ausschließlich OIDC-Provider verwendet werden, sind auch der
 eingebettete Proxy-Outpost und die Kubernetes-Discovery abgeschaltet. So
 entstehen in der Admin-Übersicht keine dauerhaften Internet- oder

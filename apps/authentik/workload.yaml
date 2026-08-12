@@ -57,11 +57,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata: {name: authentik-server, namespace: app-authentik}
 spec:
-  # Beide Backends sind Single-Replica und ohne Failover: der CNPG-Cluster
-  # läuft mit instances: 1 knotenlokal auf Host 1, Valkey mit replicas: 1 auf
-  # emptyDir. Weitere Server-Repliken überstünden einen Ausfall von Host 1
-  # daher trotzdem nicht und suggerierten nur HA. Ein Rollout unterbricht SSO
-  # im Cluster kurzzeitig.
+  # Das einzige Backend ist Single-Replica und ohne Failover: der CNPG-Cluster
+  # läuft mit instances: 1 knotenlokal auf Host 1. Weitere Server-Repliken
+  # überstünden einen Ausfall von Host 1 daher trotzdem nicht und suggerierten
+  # nur HA. Ein Rollout unterbricht SSO im Cluster kurzzeitig.
   replicas: 1
   selector:
     matchLabels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: server}
@@ -81,8 +80,6 @@ spec:
       # liegt als ReadWriteMany auf der SMB-Storage-Box, nicht knotenlokal.
       # Der Preis sind 3,3 ms RTT je Datenbank-Roundtrip über das private
       # Hetzner-Netz (gemessen, 10.10.0.0/24) statt eines Loopbacks.
-      # Der Cache zieht mit (siehe apps/valkey), damit die häufigste
-      # Verbindung wieder knotenlokal ist.
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -91,7 +88,7 @@ spec:
                 cnpg.io/cluster: postgres
             # ZWINGEND: `labelSelector` in podAntiAffinity durchsucht per
             # Default NUR den eigenen Namespace. Ohne diese Zeile findet die
-            # Regel in app-authentik/app-valkey gar keinen postgres-Pod, ist
+            # Regel in app-authentik gar keinen postgres-Pod, ist
             # damit trivial erfuellt und der Scheduler platziert frei -- genau
             # das passierte beim ersten Rollout.
             namespaces: [app-postgresql]
@@ -117,7 +114,6 @@ spec:
           valueFrom: {secretKeyRef: {name: authentik-db, key: password}}
         - {name: AUTHENTIK_POSTGRESQL__USER, value: authentik}
         - {name: AUTHENTIK_POSTGRESQL__NAME, value: authentik}
-        - {name: AUTHENTIK_REDIS__HOST, value: valkey.app-valkey.svc.cluster.local}
         - {name: AUTHENTIK_LISTEN__HTTP, value: "0.0.0.0:9000"}
         - {name: AUTHENTIK_DISABLE_STARTUP_ANALYTICS, value: "true"}
         - {name: AUTHENTIK_DISABLE_UPDATE_CHECK, value: "true"}
@@ -188,7 +184,7 @@ spec:
                 cnpg.io/cluster: postgres
             # ZWINGEND: `labelSelector` in podAntiAffinity durchsucht per
             # Default NUR den eigenen Namespace. Ohne diese Zeile findet die
-            # Regel in app-authentik/app-valkey gar keinen postgres-Pod, ist
+            # Regel in app-authentik gar keinen postgres-Pod, ist
             # damit trivial erfuellt und der Scheduler platziert frei -- genau
             # das passierte beim ersten Rollout.
             namespaces: [app-postgresql]
@@ -211,7 +207,6 @@ spec:
           valueFrom: {secretKeyRef: {name: authentik-db, key: password}}
         - {name: AUTHENTIK_POSTGRESQL__USER, value: authentik}
         - {name: AUTHENTIK_POSTGRESQL__NAME, value: authentik}
-        - {name: AUTHENTIK_REDIS__HOST, value: valkey.app-valkey.svc.cluster.local}
         - {name: AUTHENTIK_LISTEN__HTTP, value: "0.0.0.0:9000"}
         - {name: AUTHENTIK_DISABLE_STARTUP_ANALYTICS, value: "true"}
         - {name: AUTHENTIK_DISABLE_UPDATE_CHECK, value: "true"}

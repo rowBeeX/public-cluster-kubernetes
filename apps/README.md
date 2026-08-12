@@ -17,8 +17,7 @@ Diese Tabelle ist die **einzige** App-Liste des Repositories; `README.md` und
 | [`mail-edge`](mail-edge/) | `app-mailedge` | baseline | Mail Edge / MX-Relay (SMTP `:25`) vor dem Local-Stalwart-Backend |
 | [`mail-wellknown`](mail-wellknown/) | `app-mail-wellknown` | restricted | Mozilla-Autoconfig-XML für den `.well-known/autoconfig`-Fallback am Apex (die `autoconfig.sedware.net`-Antwort selbst liegt in local-cluster-kubernetes) |
 | [`netbird`](netbird/) | `app-netbird` | baseline | WireGuard-VPN-Management (Server + Dashboard) |
-| [`postgresql`](postgresql/) | `app-postgresql` | restricted | CNPG-PostgreSQL-Cluster (Datenbank-Backend für Authentik) |
-| [`valkey`](valkey/) | `app-valkey` | restricted | Redis-kompatibler Cache/Session-Store (Backend für Authentik) |
+| [`postgresql`](postgresql/) | `app-postgresql` | restricted | CNPG-PostgreSQL-Cluster (Datenbank- **und** Cache-Backend für Authentik) |
 
 Jede PSA-Stufe außer `restricted` ist eine begründete Ausnahme und in
 [`docs/exceptions.md`](../docs/exceptions.md) geführt;

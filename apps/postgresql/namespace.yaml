@@ -1,6 +1,7 @@
 # Zentrales CloudNativePG-PostgreSQL des Public-Clusters. Authentik ist die erste
 # Datenbank; weitere verwaltete Rollen und Datenbanken können folgen. Die einzelne
-# Instanz läuft zusammen mit Authentik und Valkey auf dem Control-Plane-Node.
+# Instanz läuft knotenlokal auf dem Control-Plane-Node; Authentik wird per
+# podAntiAffinity bewusst auf den anderen Knoten gelegt (apps/authentik).
 # Fortlaufende Backups gehen über NetBird zum lokalen RustFS-S3.
 apiVersion: v1
 kind: Namespace
