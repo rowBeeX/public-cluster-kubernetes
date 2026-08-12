@@ -170,11 +170,16 @@ spec:
         - {name: spool, mountPath: /var/spool/postfix}
         - {name: tls, mountPath: /etc/postfix/tls, readOnly: true}
         - {name: bounce-template, mountPath: /etc/postfix/bounce, readOnly: true}
+        # subPath, nicht das ganze Verzeichnis: /etc/rsyslog.d/postfix.conf des
+        # Images meldet den chroot-Log-Socket an und muss erhalten bleiben.
+        - {name: rsyslog, mountPath: /etc/rsyslog.d/50-default.conf, subPath: 50-default.conf, readOnly: true}
       volumes:
       - name: tls
         secret: {secretName: mail-edge-tls}
       - name: bounce-template
         configMap: {name: mail-edge-bounce-template}
+      - name: rsyslog
+        configMap: {name: mail-edge-rsyslog}
   # Dauerhafter Queue-Spool je Pod: ein Mail-Relay stellt bei vorübergehend
   # unerreichbaren Zielen zurück, die Queue muss Pod-Restarts überstehen.
   volumeClaimTemplates:

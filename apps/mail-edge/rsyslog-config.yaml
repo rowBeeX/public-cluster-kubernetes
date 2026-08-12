@@ -1,0 +1,12 @@
+# Ersetzt Ubuntus Stock-Regeln, die jede Syslog-Zeile ZUSAETZLICH zum
+# stdout-Ziel des Images nach /var/log/{syslog,mail.log,auth.log} im Container
+# schreiben. Hintergrund und Messung: README.md.
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: mail-edge-rsyslog, namespace: app-mailedge}
+data:
+  # Leer, aber vorhanden: /etc/rsyslog.conf des Images bindet
+  # /etc/rsyslog.d/*.conf pauschal ein; die Datei laesst sich nur
+  # ueberschreiben, nicht entfernen.
+  50-default.conf: |
+    # Absichtlich ohne Regeln: Logs gehen ausschliesslich nach stdout.

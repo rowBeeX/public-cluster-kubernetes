@@ -122,7 +122,21 @@ und ohne Accounts.
   **eingehenden** Weg; der ausgehende Smarthost-Pfad hängt davon unabhängig an
   Host 1 (siehe **Bekannter offener Punkt**).
 
-## Integrationspunkte
+## Logging: nur stdout
+
+`/etc/rsyslog.conf` des Images schreibt bereits jede Zeile nach `/dev/stdout`,
+bindet danach aber `/etc/rsyslog.d/*.conf` ein — und damit Ubuntus
+`50-default.conf`, die dieselben Zeilen ein zweites Mal in
+`/var/log/{syslog,mail.log,auth.log}` im Container ablegt. Rotiert wird davon
+nichts: `/scripts/functions.sh` des Images nimmt `mail.log` beim Start
+ausdrücklich aus `logrotate` heraus. Gemessen am 2026-08-12 wuchsen `syslog`
+und `mail.log` in elf Stunden auf je 1,9 MB, also rund 4 MB pro Tag und Pod in
+die Container-Schreibschicht des Nodes — Daten, die über Alloy längst in Loki
+liegen.
+
+`rsyslog-config.yaml` überschreibt `50-default.conf` daher per `subPath` mit
+einer regellosen Datei. Das stdout-Ziel und `postfix.conf` (meldet den
+chroot-Log-Socket an) bleiben unberührt.
 
 - **Local-Stalwart-Backend.** `POSTFIX_transport_maps` leitet `sedware.net`
   an `smtp:[beelink-server.nb.sedware.net]:25` weiter — der stabile
