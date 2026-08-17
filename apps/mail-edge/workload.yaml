@@ -152,16 +152,24 @@ spec:
         #
         # Am 2026-08-17 im laufenden Pod gegengeprueft: dreimal rc=0 gegen :25,
         # rc=1 gegen einen toten Port. nc, timeout und sh liegen im Image.
+        # timeoutSeconds MUSS zum inneren `timeout 5` passen. Kubernetes setzt
+        # sonst den Default 1 s, und der kubelet bricht die Probe ab, bevor das
+        # innere Zeitlimit ueberhaupt greift — bei der Liveness-Probe waere das
+        # ein Neustart des einzigen SMTP-Eingangs wegen einer Lastspitze.
+        # Gemessen am 2026-08-17: rund 390 ms je Durchlauf inklusive
+        # exec-Overhead, also reichlich Abstand zu 5 s.
         readinessProbe:
           exec:
             command: ['/bin/sh', '-c', 'printf "QUIT\r\n" | timeout 5 nc 127.0.0.1 25 | grep -q "^220 "']
           initialDelaySeconds: 5
           periodSeconds: 10
+          timeoutSeconds: 5
         livenessProbe:
           exec:
             command: ['/bin/sh', '-c', 'printf "QUIT\r\n" | timeout 5 nc 127.0.0.1 25 | grep -q "^220 "']
           initialDelaySeconds: 20
           periodSeconds: 30
+          timeoutSeconds: 5
         resources:
           requests: {cpu: 100m, memory: 128Mi}
         securityContext:
