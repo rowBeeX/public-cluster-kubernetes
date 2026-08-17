@@ -139,12 +139,27 @@ spec:
         - {name: POSTFIX_smtp_tls_security_level, value: may}
         ports:
         - {name: smtp, containerPort: 25, protocol: TCP}
+        # Kein tcpSocket: der kubelet oeffnet dabei eine Verbindung und schliesst
+        # sie ohne ein Wort wieder, was Postfix als "lost connection after
+        # CONNECT" protokolliert — gemessen 23.040 Zeilen pro Tag, 32 % des
+        # gesamten mail-edge-Logs. Echte Auffaelligkeiten (NOQUEUE-Rejects,
+        # abgebrochene EHLO) gehen darin unter.
+        #
+        # Die exec-Probe fuehrt stattdessen einen ordentlichen SMTP-Abschluss:
+        # sie liest das 220-Banner und verabschiedet sich mit QUIT. Damit
+        # prueft sie zugleich mehr als der Portcheck — ein Postfix, der lauscht
+        # aber kein Banner mehr sendet, faellt jetzt auf.
+        #
+        # Am 2026-08-17 im laufenden Pod gegengeprueft: dreimal rc=0 gegen :25,
+        # rc=1 gegen einen toten Port. nc, timeout und sh liegen im Image.
         readinessProbe:
-          tcpSocket: {port: smtp}
+          exec:
+            command: ['/bin/sh', '-c', 'printf "QUIT\r\n" | timeout 5 nc 127.0.0.1 25 | grep -q "^220 "']
           initialDelaySeconds: 5
           periodSeconds: 10
         livenessProbe:
-          tcpSocket: {port: smtp}
+          exec:
+            command: ['/bin/sh', '-c', 'printf "QUIT\r\n" | timeout 5 nc 127.0.0.1 25 | grep -q "^220 "']
           initialDelaySeconds: 20
           periodSeconds: 30
         resources:
