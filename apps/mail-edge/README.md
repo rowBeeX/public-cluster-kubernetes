@@ -10,7 +10,7 @@ Ausgehend: Local Stalwart ─▶ Public Envoy Host 1 :2525 ─▶ Mail Edge :25 
 ```
 
 Die beiden Richtungen sind unterschiedlich redundant: eingehende Internet-Mail
-nehmen **beide** Nodes an (die A/AAAA-Records von `mail.sedware.net` zeigen im
+nehmen **beide** Nodes an (die A-Records von `mail.sedware.net` zeigen im
 Round-Robin auf beide Public-Hosts, und je Gateway-Node läuft ein
 mail-edge-Pod). Ausgehende Mail läuft dagegen über einen **festen Einzel-Peer**,
 `public-cluster-host-1.nb.sedware.net:2525`; siehe **Bekannter offener Punkt**
@@ -149,10 +149,12 @@ chroot-Log-Socket an) bleiben unberührt.
   in `local-cluster-kubernetes/apps/stalwart/seed-noreply-account-job.yaml`.
   Der Listener ist nur auf `nb-wt0` geöffnet und leitet per TCPRoute an diesen
   Service weiter.
-- **DNS.** Ein MX-Record `sedware.net` → `mail.sedware.net` sowie A/AAAA-Records
-  `mail.sedware.net` → die öffentlichen Adressen beider Gateway-Nodes
+- **DNS.** Ein MX-Record `sedware.net` → `mail.sedware.net` sowie A-Records
+  `mail.sedware.net` → die öffentlichen IPv4-Adressen beider Gateway-Nodes
   (Round-Robin), dazu SPF/DKIM/DMARC, werden über Cloudflare veröffentlicht
-  (außerhalb des Scopes dieses Manifests).
+  (außerhalb des Scopes dieses Manifests). **Kein AAAA:** der Service oben ist
+  `ipFamilies: [IPv4]` und trägt keine v6-Ingress-Adresse; ein AAAA schickt
+  jeden v6-bevorzugenden MTA in ein `connection refused`.
 
 ## Bekannter offener Punkt: ausgehende Mail ist nicht redundant
 

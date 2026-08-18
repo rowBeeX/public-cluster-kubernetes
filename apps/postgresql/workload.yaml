@@ -149,6 +149,13 @@ spec:
     wal: {compression: gzip}
     data: {compression: gzip}
   instanceSidecarConfiguration:
+    # Begründung siehe local-cluster-kubernetes/apps/postgresql/objectstore.yaml:
+    # botocore gibt per Default nach 5 Versuchen und rund 7 s auf, RustFS hängt
+    # unter Plattenlast länger. Dieser Cluster archiviert über NetBird in
+    # dieselbe RustFS auf beelink und trifft damit dieselbe Grenze.
+    env:
+    - {name: AWS_RETRY_MODE, value: standard}
+    - {name: AWS_MAX_ATTEMPTS, value: "10"}
     resources:
       requests: {cpu: 20m, memory: 64Mi}
 ---
@@ -230,7 +237,11 @@ apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata: {name: postgres-daily, namespace: app-postgresql}
 spec:
-  schedule: "0 30 2 * * *"
+  # CNPG-Cron rechnet in UTC: 23:00 UTC = 01:00 CEST / 00:00 CET. Der Lauf dauert
+  # gemessen rund 25 s und liegt bewusst 15 min VOR dem Local-Backup (23:15 UTC)
+  # — beide schreiben in dieselbe RustFS auf beelink, das kurze zuerst. Beide
+  # liegen jetzt VOR borgmatic (02:30 lokal) statt danach.
+  schedule: "0 0 23 * * *"
   backupOwnerReference: self
   method: plugin
   pluginConfiguration: {name: barman-cloud.cloudnative-pg.io}

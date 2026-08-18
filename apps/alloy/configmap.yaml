@@ -299,14 +299,74 @@ data:
       scrape_interval = "60s"
     }
 
+    // Envoy-Proxy-Datenebene. Dies ist die einzige Internetkante des Bestands,
+    // und ihre Request-Metriken verliessen den Cluster bisher nicht: 5xx-Rate
+    // und Latenz von :443 waren nicht alarmierbar.
+    //
+    // An der EnvoyProxy-Ressource ist NICHTS zu aendern —
+    // telemetry.metrics.prometheus ist in Envoy Gateway per Default aktiv. Live
+    // geprueft auf host-1: hostPort 19001 (Portname "metrics"),
+    // `curl 127.0.0.1:19001/stats/prometheus` liefert HTTP 200 mit 4878
+    // envoy_-Reihen. Der Admin auf 127.0.0.1:19000 ist NICHT der Metrikpfad,
+    // und `/metrics` gibt es auf :19001 nicht.
+    //
+    // Der Envoy-Gateway-CONTROLLER liegt im selben Namespace und hat ebenfalls
+    // einen Port 19001 — aber unter /metrics. Er traegt kein
+    // app.kubernetes.io/managed-by, die erste Regel schliesst ihn deshalb aus;
+    // sonst haette der Job ein Ziel mit HTTP 404 und dauerhaft up=0.
+    discovery.relabel "envoy" {
+      targets = discovery.kubernetes.pods.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_label_app_kubernetes_io_managed_by"]
+        separator     = "/"
+        regex         = "envoy-gateway-system/envoy-gateway"
+        action        = "keep"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_port_number"]
+        regex         = "19001"
+        action        = "keep"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+      // Die Pod-Namen des DaemonSets wechseln bei jedem Rollout; der Node ist
+      // das stabile Merkmal, an dem die beiden Kanten unterscheidbar bleiben.
+      rule {
+        source_labels = ["__meta_kubernetes_pod_node_name"]
+        target_label  = "node"
+      }
+    }
+
+    prometheus.scrape "envoy" {
+      targets         = discovery.relabel.envoy.output
+      forward_to      = [prometheus.relabel.budget.receiver]
+      job_name        = "envoy-proxy"
+      metrics_path    = "/stats/prometheus"
+      scrape_interval = "60s"
+    }
+
     // ── Serienbudget ─────────────────────────────────────────────────────
     // Der empfangende Prometheus haelt ~332k Serien auf einem Node mit 30 GiB
     // RAM und startete deswegen im 31-Minuten-Takt neu. Es verlassen deshalb nur
     // die Metriken den Cluster, die die Standard-Dashboards des
     // kube-prometheus-stack wirklich auswerten. Jeder Name unten wurde gegen
-    // `group by(__name__)` der laufenden lokalen Instanz geprueft; die naheliegenden
-    // kube_pod_container_status_waiting_reason und kubelet_volume_stats_* stehen
-    // absichtlich NICHT hier, weil es sie in dieser Installation nicht gibt.
+    // `group by(__name__)` der laufenden lokalen Instanz geprueft; das naheliegende
+    // kube_pod_container_status_waiting_reason steht absichtlich NICHT hier, weil
+    // es das im Local-Cluster nicht gibt.
+    //
+    // Fuer kubelet_volume_stats_* galt dieselbe Begruendung — und sie war falsch:
+    // gemessen an der LOKALEN Instanz (dort nur hostPath-PVs, also wirklich keine
+    // Serie), waehrend der Public-kubelet sie fuer die eine CSI-PVC sehr wohl
+    // liefert. Die vier KubePersistentVolume*FillingUp-Regeln standen deshalb ohne
+    // Eingangsserie da und taeuschten Abdeckung vor. Wer hier etwas streicht, misst
+    // am Public-kubelet, nicht am lokalen Prometheus.
     prometheus.relabel "budget" {
       forward_to = [prometheus.remote_write.central.receiver]
 
@@ -332,6 +392,12 @@ data:
           "|kube_job_status_(failed|succeeded)" +
           "|kube_namespace_status_phase" +
           "|kube_persistentvolumeclaim_(status_phase|resource_requests_storage_bytes)" +
+          // Der Public-Cluster hat genau EINE CSI-PVC (app-authentik/authentik-media,
+          // smb.csi.k8s.io, StorageClass public-shared-bulk). Der kubelet auf host-2
+          // liefert dafuer sechs kubelet_volume_stats_-Serien — sie sind die
+          // Eingangsserie der vier KubePersistentVolume*FillingUp-Regeln. Sechs
+          // Serien gegen ein Budget von ~332k.
+          "|kubelet_volume_stats_((available|capacity|used)_bytes|inodes(_free|_used)?)" +
           // Genau die beiden Serien, auf denen die Sicherungs-Alarme im
           // lokalen Grafana stehen (monitoring/values.yaml, Gruppe
           // `sicherungs-alarme`). Von den 37 cnpg_-Metriken der Instanz
@@ -350,7 +416,18 @@ data:
           "|kube_deployment_status_replicas_updated" +
           "|kube_statefulset_status_(replicas|replicas_updated|current_revision|update_revision)" +
           "|kube_daemonset_status_current_number_scheduled" +
-          "|kube_job_failed|kube_job_status_start_time"
+          "|kube_job_failed|kube_job_status_start_time" +
+          // Die einzige Internetkante. envoy_http_downstream_rq_xx traegt die
+          // 5xx-Rate je Listener, _time_(sum|count) die mittlere Latenz,
+          // envoy_cluster_upstream_rq_(xx|timeout) ordnet einen Fehler der
+          // HTTPRoute zu und trennt Route-Timeout von Backend-Fehler.
+          // Gemessen 63 Reihen je Proxy-Pod, also ~126 gegen ein Budget von
+          // ~332k. Die _bucket-Reihen bleiben draussen — dieselbe Entscheidung
+          // wie beim PodMonitor `envoy-proxy` im lokalen Cluster; allein
+          // envoy_http_downstream_rq_time_bucket waeren 200 weitere Reihen.
+          "|envoy_http_downstream_rq_xx" +
+          "|envoy_http_downstream_rq_time_(sum|count)" +
+          "|envoy_cluster_upstream_rq_xx|envoy_cluster_upstream_rq_timeout"
       }
 
       // cAdvisor liefert dieselben container_*-Namen auch fuer die Cgroups des

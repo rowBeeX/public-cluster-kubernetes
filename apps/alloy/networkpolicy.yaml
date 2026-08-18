@@ -76,3 +76,12 @@ spec:
     toPorts:
     - ports:
       - {protocol: TCP, port: '9402'}
+  # Envoy-Proxy-Metriken auf :19001 (/stats/prometheus). Die beiden Proxy-Pods
+  # laufen mit hostNetwork und sind fuer Cilium deshalb KEIN Endpoint (sie haben
+  # kein CiliumEndpoint-Objekt), sondern `host` auf dem eigenen und
+  # `remote-node` auf dem anderen Node — ein toEndpoints-Match auf ihre
+  # Pod-Labels griffe nie.
+  - toEntities: [host, remote-node]
+    toPorts:
+    - ports:
+      - {protocol: TCP, port: '19001'}
