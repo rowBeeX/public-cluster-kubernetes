@@ -33,3 +33,6 @@ rendered/
 *.bak
 *.log
 *.tmp
+
+# Editor-Workspace-Dateien
+*.code-workspace
