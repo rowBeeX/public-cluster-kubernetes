@@ -172,7 +172,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "0"
 spec:
   instances: 1
-  imageName: ghcr.io/cloudnative-pg/postgresql:18@sha256:7af186660aead1b948d827ef1c52c20a8d2cb7b2a4089424b8f612e0a61dc2f9
+  imageName: ghcr.io/cloudnative-pg/postgresql:18@sha256:d7a81cb5da3182d95d0da5fabfb9e484e375db899dcd54b684105f1e8966e9ca
   imagePullPolicy: IfNotPresent
   enableSuperuserAccess: false
   enablePDB: false
