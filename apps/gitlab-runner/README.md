@@ -24,6 +24,24 @@ Job-Pods klonen über denselben Weg (`allow-job-pods`, ebenfalls
 `100.64.0.0/10:443`) und dürfen zusätzlich nach `world:80/443`, um
 Paketregistries zu erreichen.
 
+## Der Runner darf nicht neuer sein als der Server
+
+GitLab liefert Runner und Server als eine Versionsreihe aus und stützt sich
+darauf, dass der Runner höchstens so neu ist wie die Instanz, gegen die er
+registriert ist. Der Server ist das GitLab in
+`local-cluster-kubernetes/apps/gitlab` — ein **anderes Repository**, und
+gemessen am 2026-08-22 läuft er auf `v19.2.1`.
+
+Der hier gepinnte `alpine-v19.3.0` ist damit **eine Minor-Version vor dem
+Server**. Vor dem Ausrollen dieses Repos muss deshalb der GitLab-Bump auf
+`v19.3.0` im lokalen Repo liegen. Ohne ihn läuft der Runner voraussichtlich
+weiter, aber in einer von Upstream nicht abgedeckten Kombination.
+
+Kein `helper_image` ist gepinnt (`config.toml` in `workload.yaml`) — der Runner
+wählt das zu seiner eigenen Version passende Helper-Image selbst. Der Bump
+zieht es also automatisch mit; ein zweiter Pin, der auseinanderlaufen könnte,
+existiert nicht.
+
 ## Warum zwei Deployments statt einem
 
 `kubernetes.io/arch` unterscheidet sie: Host 1 ist amd64, Host 2 aarch64. Tags
