@@ -22,6 +22,42 @@ WireGuard-basiertes VPN-Management für den Public-Cluster und verbundene Client
   (`requestTimeout: 0s`, `streamIdleTimeout: 24h`); ohne sie trennt Envoy
   Gateway den server-streaming Sync-RPC nach 15 Sekunden
 
+## Der Sprung von Server 0.76.3 auf 0.77.1
+
+Das Overlay trägt die gesamte Steuerstrecke zwischen beiden Clustern; ein
+Fehlschlag hier kappt sie. Deshalb sind die zwei Fragen, die zählen, gemessen
+statt vermutet:
+
+**Die Clients bleiben kompatibel.** Auf allen vier Hosts läuft `netbird
+v0.71.4`, der Server geht auf `0.77.1` — sechs Minor-Versionen Abstand. Die
+gRPC-Schnittstelle `shared/management/proto/management.proto` ist zwischen
+diesen beiden Tags **rein additiv**: kein entferntes Feld, keine
+wiederverwendete Feldnummer, keine geänderte Feldbedeutung. Das neue
+Wire-Format für die Network-Map (`NetworkMapEnvelope`, Feld 8) greift
+ausdrücklich nur bei Peers, die `PeerCapabilityComponentNetworkMap`
+annoncieren; ein 0.71.4-Client tut das nicht und bekommt weiter die expandierte
+`NetworkMap` in Feld 5.
+
+Der einzige entfernte Pfad in dieser Spanne ist der deprecated
+Hello-Handshake des Relays (0.75.0). Er wurde in **v0.29.1** durch den
+Auth-Handshake ersetzt — er bediente nur Clients vor v0.29.1 und ist für
+v0.71.4 ohne Bedeutung.
+
+**Die SQLite-Datenbank bekommt genau eine neue Migration.** Verglichen wurden
+die Migrationsketten von `management/server/store/store.go` in beiden Tags:
+identisch bis auf `MigrateAgentNetworkSettingsToDomain`. Die formt
+`agent_network_settings` von `(cluster, subdomain)` auf `(domain,
+proxy_address)` um und **löscht die beiden alten Spalten** — vorwärtsgerichtet,
+kein Rückweg über einen Image-Rollback. Gemessen in `store.db`: die Tabelle
+existiert mit den Altspalten, hat aber **0 Zeilen**, und keine Zeile mit
+leerem `cluster`/`subdomain`, an der die Migration laut ihrem eigenen Kommentar
+laut scheitern würde. Es geht also nichts verloren; der Rückhalt ist der
+stündliche btrfs-Snapshot des `@persist`-Subvolumes, in dem das PVC liegt.
+
+Reihenfolge: Server vor Dashboard. Danach die Least-Privilege-Policies und die
+Nameserver-Gruppe erneut prüfen — beide sind live über
+`provision_netbird_least_privilege.py` gesetzt und nicht Teil dieses Repos.
+
 ## Relay (im Combined-Server eingebettet)
 
 Der `netbird-server` (`netbirdio/netbird-server`) enthält Relay und STUN bereits
