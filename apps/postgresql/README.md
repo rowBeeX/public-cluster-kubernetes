@@ -22,3 +22,15 @@ Jeder Consumer bekommt seine eigene Datenbank und Rolle, provisioniert über
 Vault plus einen Seed-`Job` (kein gemeinsamer Superuser). Aktuelle Consumer:
 
 - **authentik** (`app-authentik`) — Datenbank `authentik`
+
+## Monitoring: warum die Standardabfragen an sind
+
+Nur `disableDefaultQueries: false` liefert die `pg_stat_archiver`-Sicht, die
+einzige Quelle für „steht die WAL-Archivierung". Bis 2026-08-10 liefen weder
+diese Abfragen noch die CNPG-Instanzmetriken (Exporter im Instance-Manager auf
+`:9187`) aus dem Cluster hinaus — Alloy holte sie schlicht nicht ab. Die
+Nachtsicherung scheiterte an diesem Tag, ohne dass irgendwo ein Alarm entstand;
+die Archivierung stand zuvor bereits 48 h still, unbemerkt. Kosten: ein paar
+Dutzend zusätzliche `SELECT`s auf `pg_stat_*` je Scrape, und von den 37
+`cnpg_`-Metriken lässt der Alloy-Serienbudget-Filter (`apps/alloy/configmap.yaml`)
+genau zwei aus dem Cluster heraus.
