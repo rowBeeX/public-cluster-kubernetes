@@ -77,7 +77,12 @@ spec:
         # 0.0.0.0 statt 127.0.0.1: sonst erreichen weder Readiness-Probe noch
         # Reloader-Sidecar den Endpunkt. Nach aussen deckt Default-Deny ab.
         - --server.http.listen-addr=0.0.0.0:12345
-        - --stability.level=generally-available
+        # experimental statt generally-available: einzig deswegen, weil
+        # loki.write erst dort seinen wal-Block freischaltet (configmap.yaml).
+        # Bestehende Komponenten bleiben stabil -- keine von ihnen adressiert
+        # experimentelle Syntax, die durch den herabgesetzten Level neu
+        # erreichbar wuerde.
+        - --stability.level=experimental
         # Sonst schickt Alloy Nutzungsdaten an stats.grafana.org; die
         # CiliumNetworkPolicy blockt das und der Fehler flutet die eigenen Logs.
         - --disable-reporting

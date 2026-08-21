@@ -119,6 +119,18 @@ data:
           password_file = "/etc/alloy-secrets/password"
         }
       }
+      // Ohne wal-Block haelt loki.write die Zeilen nur in einer
+      // In-Memory-Queue und wirft sie nach erschoepften Wiederholungen
+      // endgueltig weg. Gemessen 2026-08-19 bis 2026-08-21: 26 von 73
+      // Stundenfenstern kamen deswegen gar nicht in Loki an. Der lokale
+      // Alloy braucht diesen Block nicht -- er schreibt cluster-intern ohne
+      // den fehleranfaelligen NetBird-Hop. max_segment_age haelt eine Zeile
+      // so lange auf Platte vor, wie eine mehrstuendige Streckenstoerung
+      // dauern darf, ohne dass sie verlorengeht.
+      wal {
+        enabled         = true
+        max_segment_age = "6h"
+      }
     }
 
     // ── kubelet + cAdvisor ueber den API-Server-Proxy ─────────────────────
@@ -227,12 +239,8 @@ data:
       scrape_interval = "60s"
     }
 
-    // cert-manager. Die Zertifikate dieses Clusters sind die Internet-Edge-
-    // Zertifikate, und sie waren bis 2026-08-12 voellig ungemessen: der zentrale
-    // Prometheus kannte certmanager_-Serien nur mit cluster="local". Ein
-    // abgelaufenes oder haengendes Edge-Zertifikat haette also keinen Alarm
-    // ausgeloest. Der Exporter laeuft ohnehin auf :9402 (104 Serien gemessen),
-    // abgeholt hat ihn nur niemand.
+    // cert-manager. Diese Zertifikate sind die Internet-Edge-Zertifikate;
+    // der Exporter laeuft auf :9402. Vorgeschichte: README.md.
     discovery.relabel "certmanager" {
       targets = discovery.kubernetes.pods.targets
 
@@ -264,11 +272,8 @@ data:
       scrape_interval = "60s"
     }
 
-    // CNPG-Instanzmetriken. Dieser Cluster sichert in denselben rustfs-Bucket
-    // wie der lokale, und am 2026-08-10 scheiterte seine Nachtsicherung, ohne
-    // dass ein Alarm entstand — Postgres-Metriken verliessen den Cluster bisher
-    // ueberhaupt nicht. Der Exporter laeuft ohnehin im Instance-Manager auf
-    // :9187; abgeholt hat ihn nur niemand.
+    // CNPG-Instanzmetriken, Exporter im Instance-Manager auf :9187.
+    // Vorgeschichte: apps/postgresql/README.md.
     discovery.relabel "cnpg" {
       targets = discovery.kubernetes.pods.targets
 

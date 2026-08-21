@@ -39,6 +39,20 @@ dann braucht man die Journal-Zeilen.
   `discovery.relabel "pods"`-Regeln sind zeichengleich aus
   `local-cluster-kubernetes/apps/alloy/values.yaml` übernommen. Abweichende
   Labels brechen clusterübergreifende Grafana-Queries lautlos.
+- **cert-manager wird seit 2026-08-12 mitgescrapt.** Davor kannte der zentrale
+  Prometheus `certmanager_`-Serien nur mit `cluster="local"` — ein
+  abgelaufenes oder hängendes Edge-Zertifikat dieses Clusters hätte also
+  keinen Alarm ausgelöst, obwohl der Exporter auf `:9402` längst lief (104
+  Serien gemessen).
+- **WAL-Puffer für Loki.** `loki.write "central"` ohne `wal`-Block hält
+  Zeilen nur im Speicher und wirft sie nach erschöpften Wiederholungen
+  endgültig weg — gemessen 2026-08-19 bis 2026-08-21 fehlten deshalb 26 von 73
+  Stundenfenstern vollständig in Loki. Der `wal`-Block ist experimentell
+  (Alloy-Referenz `loki.write`) und verlangt deshalb
+  `--stability.level=experimental` statt `generally-available`; keine der
+  übrigen Komponenten hier nutzt experimentelle Syntax, die dadurch
+  zusätzlich erreichbar würde. Der lokale Alloy braucht das nicht — er
+  schreibt clusterintern, ohne den NetBird-Hop.
 
 ## Zugangsdaten
 
