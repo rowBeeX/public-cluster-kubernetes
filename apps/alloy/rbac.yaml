@@ -36,7 +36,7 @@ rules:
 # /api/v1/nodes/<n>/proxy/metrics[/cadvisor] prueft. Damit wird das kubelet
 # erreicht, ohne :10250 auf beiden Nodes fuer Pods zu oeffnen.
 - apiGroups: [""]
-  resources: [nodes/proxy, nodes/metrics]
+  resources: [nodes/proxy]
   verbs: [get]
 # Deckt den Rest der --resources-Liste aus workload.yaml ab. Jede zusaetzliche
 # Ressource waere sowohl unnoetiges Leserecht als auch zusaetzliche Serienlast
