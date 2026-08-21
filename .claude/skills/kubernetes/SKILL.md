@@ -23,7 +23,7 @@ description: Workloads dieses Repos im Public-k3s deployen und diagnostizieren �
 - Raw-TCP/UDP-Sonderfälle (NetBird STUN, Mail-Edge SMTP) werden über explizite
   Cilium-Node-IPAM-`LoadBalancer`-Services exponiert (`loadBalancerClass:
   io.cilium/node`, NodePorts deaktiviert), nicht über Envoy; `spec.externalIPs`
-  ist per Contract verboten (`validate.sh` #7). AdGuard DNS :53 läuft
+  ist per Contract verboten (`validate.sh` prüft das). AdGuard DNS :53 läuft
   hostNetwork über das NetBird-Overlay.
 - `public-shared-bulk` (SMB CSI gegen eine Hetzner StorageBox; es gibt hier
   kein NFS) nur für gemeinsame Bulk-/RWX-Daten verwenden. Datenbanken bleiben

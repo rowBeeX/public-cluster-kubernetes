@@ -1,4 +1,4 @@
-# App-Manifest-Layout (#37)
+# App-Manifest-Layout
 
 Einheitliches Layout für kustomize-native Apps, damit Review-Diffs klein bleiben
 und Ressourcen logisch getrennt sind. Statt eines Monolithen (`resources.yaml`

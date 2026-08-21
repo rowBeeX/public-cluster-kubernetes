@@ -67,7 +67,7 @@ Job-Pods: `config.toml` setzt für Build-, Helper- und Init-Container
 `run_as_non_root`, `cap_drop = ["ALL"]` und
 `allow_privilege_escalation = false`. Die letzte Zeile prüft
 `cluster-testing/public-cluster/kubernetes/validate.sh` ausdrücklich gegen
-diese Datei (#29) — ein fehlender Schlüssel wäre per Default zwar sicher, aber
+diese Datei — ein fehlender Schlüssel wäre per Default zwar sicher, aber
 nicht nachweisbar.
 
 Die `ResourceQuota` ist bewusst knapp und verbietet PVCs, NodePorts und

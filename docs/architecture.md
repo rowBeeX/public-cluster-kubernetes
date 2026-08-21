@@ -6,8 +6,7 @@
 > Firewall-/CrowdSec-Modell sind **einmalig** beschrieben in
 > [`public-cluster-nix/docs/architecture.md`](https://github.com/rowBeeX/public-cluster-nix/blob/main/docs/architecture.md).
 > Diese Datei deckt nur die **Applikationsschicht** ab, die in diesem Repo
-> liegt — welche Apps hinter diesem Edge sitzen und wie sie geroutet werden
-> (#36).
+> liegt — welche Apps hinter diesem Edge sitzen und wie sie geroutet werden.
 
 Der Public-Cluster ist der Internet-Edge. Dieses Repo besitzt die Workloads
 oberhalb der Plattform: die per Envoy Gateway gerouteten HTTP-Apps, die
