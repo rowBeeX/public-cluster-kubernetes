@@ -38,7 +38,12 @@ dann braucht man die Journal-Zeilen.
 - **Stream-Labels identisch zum lokalen Cluster.** Die acht
   `discovery.relabel "pods"`-Regeln sind zeichengleich aus
   `local-cluster-kubernetes/apps/alloy/values.yaml` übernommen. Abweichende
-  Labels brechen clusterübergreifende Grafana-Queries lautlos.
+  Labels brechen clusterübergreifende Grafana-Queries lautlos. Am 2026-08-22 an
+  Loki gegengeprüft, nicht am Diff: ein Stream aus `cluster="public"` und einer
+  aus `cluster="local"` tragen denselben Satz
+  `app, component, container, namespace, node_name, pod, job, cluster`. Der Node
+  heißt in Logstreams `node_name`, in Metrikreihen `node` — beides bewusst, weil
+  beide Cluster es so halten.
 - **cert-manager wird seit 2026-08-12 mitgescrapt.** Davor kannte der zentrale
   Prometheus `certmanager_`-Serien nur mit `cluster="local"` — ein
   abgelaufenes oder hängendes Edge-Zertifikat dieses Clusters hätte also
@@ -47,24 +52,57 @@ dann braucht man die Journal-Zeilen.
 - **WAL-Puffer für Loki.** `loki.write "central"` ohne `wal`-Block hält
   Zeilen nur im Speicher und wirft sie nach erschöpften Wiederholungen
   endgültig weg — gemessen 2026-08-19 bis 2026-08-21 fehlten deshalb 26 von 73
-  Stundenfenstern vollständig in Loki. Der `wal`-Block ist experimentell
-  (Alloy-Referenz `loki.write`) und verlangt deshalb
-  `--stability.level=experimental` statt `generally-available`; keine der
-  übrigen Komponenten hier nutzt experimentelle Syntax, die dadurch
-  zusätzlich erreichbar würde. Der lokale Alloy braucht das nicht — er
-  schreibt clusterintern, ohne den NetBird-Hop.
-  Geprüft mit `alloy validate` und `alloy fmt` **im laufenden Pod** (exakt
-  v1.18.1, siehe Prüfen unten): syntaktisch gültig auf allen drei
-  Stability-Stufen — `validate` erzwingt die Stability-Gate nicht, das tut
-  erst `alloy run`. Die Stability-Stufe von `wal` selbst steht in der
-  Alloy-Referenzdokumentation, Tag v1.18.1: `experimental`, nicht
-  `public-preview` — `--stability.level=experimental` ist damit die engste
-  ausreichende Stufe, keine unnötige Absenkung.
+  Stundenfenstern vollständig in Loki. Der lokale Alloy braucht den Block
+  nicht — er schreibt clusterintern, ohne den NetBird-Hop.
+
   Der `emptyDir` für `--storage.path` (`workload.yaml`, Volume `tmp`) trägt
-  `sizeLimit: 1Gi` — dimensioniert auf das schlechteste gemessene
-  6-Stunden-Fenster (297 MiB, siehe dort). `validate.sh` prüft nur
-  Kubernetes-Schema, nicht Alloy-Syntax; die Prüfmethode oben ist deshalb vor
-  jeder Änderung an `config.alloy` von Hand zu wiederholen.
+  `sizeLimit: 1Gi`, dimensioniert auf das schlechteste gemessene
+  6-Stunden-Fenster. Unabhängig nachgemessen am 2026-08-22 über sieben Tage
+  (`sum(bytes_over_time({cluster="public"}[6h]))`, Schritt 1 h): Maximum
+  311 924 792 Byte = **297 MiB**. `1Gi` hält dagegen das 3,4-fache vor.
+
+- **`--stability.level=experimental` ist nicht nötig, bleibt aber gesetzt.**
+  Die Referenzdoku (`docs/.../loki.write.md`, Tag v1.18.1) markiert den
+  `wal`-Block als experimentelles Feature. Das **Binary** derselben Version
+  setzt das nicht durch: `loki.write` ist als
+  `featuregate.StabilityGenerallyAvailable` registriert, und die einzige
+  Stability-Prüfung in der Komponente (`validateConfigStabilityLevel`) betrifft
+  ausschließlich `queue_config` — nicht `wal`. Alle acht hier verwendeten
+  Komponenten sind GA.
+
+  Nachgemessen mit dem gepinnten Image, ohne Flag: `alloy run` legt
+  `<storage.path>/loki.write.central/wal/remote` an und meldet keinen
+  Stability-Fehler. Gegenprobe, dass das Gate überhaupt scharf ist:
+  `--feature.prometheus.direct-fanout.enabled` wird auf derselben Stufe mit
+  „can only be used at experimental stability level" abgewiesen.
+
+  Die Stufe bleibt trotzdem stehen. Setzt eine künftige Alloy-Version das
+  Doku-Label doch durch, würde der `wal`-Block abgewiesen und Alloy startete
+  gar nicht mehr — das nimmt genau die Telemetrie mit, die der Block schützt.
+  Die Kosten der Absenkung sind dagegen null, solange keine Komponente
+  experimentelle Syntax verwendet.
+
+- **Ein kalter Alloy-Pod bringt die Logzeilen vor seinem Start nicht mehr
+  nach.** `loki.source.kubernetes` merkt sich seine Leseposition in
+  `<storage.path>/loki.source.kubernetes.pods/positions.yml` — also im
+  `emptyDir`. Existiert dort kein Eintrag, setzt der Tailer `SinceTime` auf
+  `time.Now()` (`kubetail/tailer.go`): alles, was vor dem Start im
+  Container-Log stand, wird nie abgeholt. Ein Container-Neustart im
+  bestehenden Pod ist harmlos (das `emptyDir` überlebt ihn und die Positionen
+  auch); verloren geht die Lücke, wenn der **Pod** neu entsteht — Rollout,
+  Eviction, Node-Reboot.
+
+  Das ist der Preis dafür, dass der Pod ohne PVC frei verschiebbar bleibt, und
+  seit die Pod-Log-Doppelung am 2026-08-12 aufgelöst wurde (der NixOS-Dienst
+  liest sie nicht mehr aus `/var/log/pods`) gibt es keinen zweiten Pfad, der
+  sie auffängt. Wer nach einem Node-Reboot von Host 2 die Absturzursache
+  sucht, findet sie im **Host-Journal** (`job="systemd-journal"`), nicht in den
+  Pod-Logs. Eine Änderung daran hieße PVC statt `emptyDir` — und damit
+  Node-Bindung; das ist die Abwägung, nicht ein offener Fehler.
+
+  `validate.sh` prüft nur Kubernetes-Schema, nicht Alloy-Syntax; die
+  Prüfmethode unten ist deshalb vor jeder Änderung an `config.alloy` von Hand
+  zu wiederholen.
 
 ## Zugangsdaten
 
@@ -95,6 +133,7 @@ POD=$(kubectl -n app-alloy get pod -l app.kubernetes.io/name=alloy -o name)
 kubectl -n app-alloy get configmap alloy-config -o jsonpath='{.data.config\.alloy}' \
   | kubectl -n app-alloy exec -i "$POD" -c alloy -- sh -c 'cat > /tmp/check.alloy'
 kubectl -n app-alloy exec "$POD" -c alloy -- alloy validate --stability.level=experimental /tmp/check.alloy
+kubectl -n app-alloy exec "$POD" -c alloy -- alloy validate /tmp/check.alloy   # ohne Flag: muss ebenso durchlaufen
 kubectl -n app-alloy exec "$POD" -c alloy -- alloy fmt -t /tmp/check.alloy   # nur Stilhinweis, kein Fehler
 kubectl -n app-alloy exec "$POD" -c alloy -- rm -f /tmp/check.alloy
 ```

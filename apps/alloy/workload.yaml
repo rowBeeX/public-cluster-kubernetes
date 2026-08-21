@@ -77,11 +77,14 @@ spec:
         # 0.0.0.0 statt 127.0.0.1: sonst erreichen weder Readiness-Probe noch
         # Reloader-Sidecar den Endpunkt. Nach aussen deckt Default-Deny ab.
         - --server.http.listen-addr=0.0.0.0:12345
-        # experimental statt generally-available: einzig deswegen, weil
-        # loki.write erst dort seinen wal-Block freischaltet (configmap.yaml).
-        # Bestehende Komponenten bleiben stabil -- keine von ihnen adressiert
-        # experimentelle Syntax, die durch den herabgesetzten Level neu
-        # erreichbar wuerde.
+        # Die Referenzdoku markiert den wal-Block von loki.write als
+        # experimentelles Feature; das Binary v1.18.1 setzt das NICHT durch
+        # (nachgemessen, README.md). Die Stufe bleibt trotzdem gesetzt: sie
+        # haelt die Konfiguration lauffaehig, falls eine kuenftige Version das
+        # Doku-Label doch erzwingt -- ein abgewiesener wal-Block liesse Alloy
+        # gar nicht starten und riss damit genau die Telemetrie mit, die der
+        # Block schuetzt. Keine der acht verwendeten Komponenten adressiert
+        # experimentelle Syntax, die dadurch zusaetzlich erreichbar wuerde.
         - --stability.level=experimental
         # Sonst schickt Alloy Nutzungsdaten an stats.grafana.org; die
         # CiliumNetworkPolicy blockt das und der Fehler flutet die eigenen Logs.
@@ -106,7 +109,7 @@ spec:
       # Sidecar statt eigenem Deployment: einziger Konsument ist der Alloy im
       # selben Pod, deshalb binden --host/--telemetry-host auf 127.0.0.1.
       - name: kube-state-metrics
-        image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.19.1@sha256:85108987d044b18a098126732f98602df408888c0f7d456241f5abefb9744bc1
+        image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0@sha256:42cfe3723a5f058171c627537fb57a3ea0f26e4380fa18555a95cb1a1b4cfc5b
         args:
         - --host=127.0.0.1
         - --telemetry-host=127.0.0.1
