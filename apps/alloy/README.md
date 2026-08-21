@@ -82,23 +82,30 @@ dann braucht man die Journal-Zeilen.
   Die Kosten der Absenkung sind dagegen null, solange keine Komponente
   experimentelle Syntax verwendet.
 
-- **Ein kalter Alloy-Pod bringt die Logzeilen vor seinem Start nicht mehr
-  nach.** `loki.source.kubernetes` merkt sich seine Leseposition in
-  `<storage.path>/loki.source.kubernetes.pods/positions.yml` — also im
-  `emptyDir`. Existiert dort kein Eintrag, setzt der Tailer `SinceTime` auf
-  `time.Now()` (`kubetail/tailer.go`): alles, was vor dem Start im
-  Container-Log stand, wird nie abgeholt. Ein Container-Neustart im
-  bestehenden Pod ist harmlos (das `emptyDir` überlebt ihn und die Positionen
-  auch); verloren geht die Lücke, wenn der **Pod** neu entsteht — Rollout,
-  Eviction, Node-Reboot.
+- **Ein kalter Alloy-Pod verliert Logzeilen von VOR seinem Start nicht.** Eine
+  frühere Fassung dieser Doku behauptete das Gegenteil (`SinceTime` auf
+  `time.Now()`) — falsch gelesen. Nachgeprüft am gepinnten Tag `v1.18.1`, drei
+  Quelldateien: `kubernetes.go` (`getTailerOptions`) setzt
+  `kubetail.Options.TailFromEnd` nirgends, Go-Zeitwert also `false`; in
+  `kubetail/tailer.go` bleibt `offsetTime` deshalb `nil`, wenn keine
+  Leseposition existiert (der `TailFromEnd`-Zweig in `tail()` greift nur bei
+  `true`); ein `nil`-`SinceTime` liefert die Kubernetes-Log-API das komplette
+  am Node vorgehaltene Log, genau wie `kubectl logs <pod>` ohne `--since`. Ein
+  Container, der vor dem Alloy-Pod hochkommt, wird also vollständig
+  nachgelesen, sobald `discovery.kubernetes` ihn findet — auch nach Rollout,
+  Eviction oder Node-Reboot des Alloy-Pods selbst.
 
-  Das ist der Preis dafür, dass der Pod ohne PVC frei verschiebbar bleibt, und
-  seit die Pod-Log-Doppelung am 2026-08-12 aufgelöst wurde (der NixOS-Dienst
-  liest sie nicht mehr aus `/var/log/pods`) gibt es keinen zweiten Pfad, der
-  sie auffängt. Wer nach einem Node-Reboot von Host 2 die Absturzursache
-  sucht, findet sie im **Host-Journal** (`job="systemd-journal"`), nicht in den
-  Pod-Logs. Eine Änderung daran hieße PVC statt `emptyDir` — und damit
-  Node-Bindung; das ist die Abwägung, nicht ein offener Fehler.
+  Die tatsächliche Grenze ist die Log-Rotation des Nodes (containerd, wenige
+  MB je Container): Steht der Alloy-Pod länger unten, als die Rotation
+  braucht, um die ältesten Zeilen zu verwerfen, sind genau die weg —
+  unabhängig von Alloys eigener Leseposition. `loki.source.kubernetes` merkt
+  sich seine Position trotzdem in
+  `<storage.path>/loki.source.kubernetes.pods/positions.yml` (`emptyDir`), um
+  bei einem bloßen Container-Neustart im bestehenden Pod nicht doppelt zu
+  lesen; ein Neuentstehen des **Pods** verwirft die Positionen und fängt beim
+  vollen, noch vorhandenen Node-Log neu an. Das Host-Journal
+  (`job="systemd-journal"`) bleibt trotzdem die richtige Quelle für einen
+  Node-Absturz: sein eigener Alloy-Dienst läuft unabhängig von diesem Pod.
 
   `validate.sh` prüft nur Kubernetes-Schema, nicht Alloy-Syntax; die
   Prüfmethode unten ist deshalb vor jeder Änderung an `config.alloy` von Hand

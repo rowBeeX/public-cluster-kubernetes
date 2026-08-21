@@ -422,6 +422,12 @@ data:
           "|kube_statefulset_status_(replicas|replicas_updated|current_revision|update_revision)" +
           "|kube_daemonset_status_current_number_scheduled" +
           "|kube_job_failed|kube_job_status_start_time" +
+          // Traegt allein sedware-vault-snapshot-missing-public
+          // (local-cluster-kubernetes/apps/monitoring/values.yaml). Braucht
+          // zusaetzlich --resources=cronjobs in workload.yaml, sonst liefert
+          // kube-state-metrics diese Familie gar nicht erst. Eine Serie je
+          // CronJob, aktuell zwei (descheduler, vault-raft-snapshot).
+          "|kube_cronjob_status_last_successful_time" +
           // Die einzige Internetkante. envoy_http_downstream_rq_xx traegt die
           // 5xx-Rate je Listener, _time_(sum|count) die mittlere Latenz,
           // envoy_cluster_upstream_rq_(xx|timeout) ordnet einen Fehler der

@@ -115,7 +115,19 @@ spec:
         - --telemetry-host=127.0.0.1
         # Serienbudget an der Quelle (README.md). replicasets steht bewusst
         # drin: ohne kube_replicaset_owner bleiben die Workload-Dashboards leer.
-        - --resources=daemonsets,deployments,jobs,namespaces,nodes,persistentvolumeclaims,pods,replicasets,statefulsets
+        # cronjobs seit 2026-08-22 dazu: ohne dieses Resource liefert
+        # kube-state-metrics keine Serie kube_cronjob_status_last_successful_time,
+        # und sedware-vault-snapshot-missing-public
+        # (local-cluster-kubernetes/apps/monitoring/values.yaml) kann per
+        # Konstruktion nie gruen werden. Kosten, nachgemessen an der lokalen
+        # Instanz (count by(__name__) je CronJob): zehn Metrikfamilien je
+        # CronJob. Der Public-Cluster traegt zwei CronJobs (descheduler, live;
+        # vault-raft-snapshot, in Auslieferung ueber public-cluster-nix) --
+        # macht 20 zusaetzliche Serien am Scrape, gegen ~332k Budget
+        # vernachlaessigbar. Nur eine der zehn Familien verlaesst den Cluster
+        # (configmap.yaml, prometheus.relabel "budget"):
+        # kube_cronjob_status_last_successful_time, also 2 der 20 Serien.
+        - --resources=cronjobs,daemonsets,deployments,jobs,namespaces,nodes,persistentvolumeclaims,pods,replicasets,statefulsets
         resources:
           requests: {cpu: 25m, memory: 96Mi}
         securityContext:
