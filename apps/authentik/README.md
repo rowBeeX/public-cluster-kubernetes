@@ -42,6 +42,19 @@ eingebettete Proxy-Outpost und die Kubernetes-Discovery abgeschaltet. So
 entstehen in der Admin-Übersicht keine dauerhaften Internet- oder
 Kubernetes-API-Retries.
 
+## Platzierung: weg vom Datenbank-Knoten
+
+Server und Worker meiden per `podAntiAffinity` den Node, auf dem der
+CNPG-Pod `postgres` läuft. Die frühere Bindung an den Control-Plane-Node
+belastete host-1 mit allem, was nicht durch ein Volume dort festgenagelt ist:
+gemessen am 2026-08-11 stand host-1 bei 4013 MiB / 1309m CPU gegen 2696 MiB /
+512m auf host-2, bei praktisch gleichen Requests — allein durch die
+Platzierung. Authentik ist frei verschiebbar, weil sein einziges Volume
+`authentik-media` als ReadWriteMany auf der SMB-Storage-Box liegt, nicht
+knotenlokal; der Preis dafür sind gemessene 3,3 ms RTT je
+Datenbank-Roundtrip über das private Hetzner-Netz (`10.10.0.0/24`) statt
+eines Loopbacks.
+
 ## Secrets
 
 Kommen aus SOPS via `public-cluster-nix/secrets/public-cluster-host-1.yaml`:

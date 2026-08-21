@@ -156,6 +156,23 @@ chroot-Log-Socket an) bleiben unberührt.
   `ipFamilies: [IPv4]` und trägt keine v6-Ingress-Adresse; ein AAAA schickt
   jeden v6-bevorzugenden MTA in ein `connection refused`.
 
+## Health-Check: SMTP-Abschluss statt Portcheck
+
+Ein `tcpSocket`-Check öffnet nur eine Verbindung und schließt sie sofort
+wieder; Postfix protokolliert das als „lost connection after CONNECT" —
+gemessen 23.040 Zeilen pro Tag, 32 % des gesamten mail-edge-Logs, und echte
+Auffälligkeiten (NOQUEUE-Rejects, abgebrochene EHLO) gingen darin unter. Die
+`exec`-Probe liest stattdessen das 220-Banner und verabschiedet sich mit
+QUIT — ein Postfix, das lauscht, aber kein Banner mehr sendet, fällt damit
+auf, ein reiner Portcheck hätte das nicht bemerkt.
+
+Am 2026-08-17 im laufenden Pod gegengeprüft: dreimal `rc=0` gegen `:25`,
+`rc=1` gegen einen toten Port, rund 390 ms je Durchlauf inklusive
+exec-Overhead. `timeoutSeconds` im Manifest muss zum inneren `timeout 5`
+passen — sonst bricht der kubelet beim Default 1 s ab, bevor das innere
+Zeitlimit greift, was bei der Liveness-Probe einen Neustart des einzigen
+SMTP-Eingangs wegen einer bloßen Lastspitze auslösen würde.
+
 ## Bekannter offener Punkt: ausgehende Mail ist nicht redundant
 
 Der ausgehende Weg hat kein Round-Robin und kein Failover. `MAIL_RELAY_HOST`

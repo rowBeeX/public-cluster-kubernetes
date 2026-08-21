@@ -69,17 +69,11 @@ spec:
       labels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: server}
     spec:
       automountServiceAccountToken: false
-      # BEWUSST WEG vom Datenbank-Knoten. Beide Public-Hosts sind
-      # gleichberechtigt; die frühere Bindung an den Control-Plane-Node hat
-      # host-1 alles aufgeladen, was nicht durch ein Volume dort festgenagelt
-      # ist. Gemessen am 2026-08-11: host-1 4013 MiB / 1309m CPU gegen host-2
-      # 2696 MiB / 512m — bei praktisch gleichen Requests, also allein durch
-      # die Platzierung.
-      #
-      # Authentik ist frei verschiebbar: sein einziges Volume `authentik-media`
-      # liegt als ReadWriteMany auf der SMB-Storage-Box, nicht knotenlokal.
-      # Der Preis sind 3,3 ms RTT je Datenbank-Roundtrip über das private
-      # Hetzner-Netz (gemessen, 10.10.0.0/24) statt eines Loopbacks.
+      # BEWUSST WEG vom Datenbank-Knoten: die frühere Bindung an den
+      # Control-Plane-Node lud host-1 alles auf, was nicht durch ein Volume
+      # dort festgenagelt ist. Authentik ist frei verschiebbar -- sein
+      # einziges Volume `authentik-media` liegt als ReadWriteMany auf der
+      # SMB-Storage-Box, nicht knotenlokal. Messwerte: README.md.
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

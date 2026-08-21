@@ -87,21 +87,13 @@ spec:
           value: "inline:{ sedware.net=smtp:[beelink-server.nb.sedware.net]:25 }"
         - {name: ALLOW_EMPTY_SENDER_DOMAINS, value: "true"}
         - {name: POSTFIX_inet_protocols, value: ipv4}
-        # Dieser Host ist für keine Mail das Endziel: sedware.net ist Relay-,
-        # keine Mailbox-Domain. Ohne diese Zeile bliebe der Postfix-Default
-        # "$myhostname, localhost.$mydomain, localhost" stehen und Mail an
-        # <unix-user>@mail.sedware.net verschwände in einer Container-Mailbox,
-        # die niemand liest. Ein leerer Wert geht nicht: das boky-Image löscht
-        # bei leerem POSTFIX_*-Wert den Parameter und stellt damit genau diesen
-        # Default wieder her.
+        # sedware.net ist Relay-, keine Mailbox-Domain (README.md, "Kein
+        # lokales Endziel"). Ein leerer Wert geht nicht: das boky-Image löscht
+        # bei leerem POSTFIX_*-Wert den Parameter und stellt den Postfix-
+        # Default wieder her, der hier gerade vermieden werden soll.
         - {name: POSTFIX_mydestination, value: localhost}
-        # --- Ausgehender Relay-Trust (Anti-Open-Relay-Gate #2/#3) ------------
-        # Quellen, die an beliebige Internet-Ziele relayen dürfen. Nur Loopback
-        # plus die beiden Node-PodCIDRs, aus denen die CiliumInternalIP des
-        # hostNetwork-Envoy stammt, über den der Stalwart-Smarthost eintrifft —
-        # NICHT das ganze /16 (sonst relayt jeder Pod im Cluster) und nicht
-        # 100.64.0.0/10 (das wäre das gesamte NetBird-Overlay). Warum
-        # 10.42.1.0/24 trotz Einzel-Peer-Pfad dabeisteht: siehe README.md.
+        # --- Ausgehender Relay-Trust ------------------------------------------
+        # Anti-Open-Relay-Grenze, siehe README.md ("Ausgehendes Relay").
         - name: POSTFIX_mynetworks
           value: "127.0.0.0/8 [::1]/128 10.42.0.0/24 10.42.1.0/24"
         - {name: POSTFIX_smtpd_client_restrictions, value: "permit"}
@@ -111,15 +103,9 @@ spec:
         - {name: POSTFIX_smtpd_sender_restrictions, value: "permit_mynetworks, reject_unknown_sender_domain"}
         # Kein SASL und kein öffentlicher Login: Relay nur per permit_mynetworks.
         - {name: POSTFIX_smtpd_relay_restrictions, value: "permit_mynetworks reject_unauth_destination"}
-        # Unbekannte Empfänger in sedware.net schon beim RCPT abweisen statt
-        # anzunehmen und später zu bouncen (Backscatter = Blocklist-Risiko für
-        # beide Public-IPs, und die Annahme verrät gültige Adressen nicht).
-        # Bewusst KEINE relay_recipient_maps: eine zweite Empfängerliste würde
-        # gegen die Stalwart-Mailboxen driften. Postfix fragt stattdessen bei
-        # jedem unbekannten Empfänger über transport_maps oben bei Stalwart
-        # selbst nach (Stalwart antwortet "550 5.1.2 Mailbox does not exist").
-        # permit_mynetworks steht davor: der ausgehende Smarthost-Pfad
-        # adressiert externe Ziele, für die es nichts zu verifizieren gibt.
+        # Weist unbekannte Empfänger schon beim RCPT ab statt sie anzunehmen
+        # und später zu bouncen (Backscatter-Risiko). Wie das ohne eigene
+        # Empfängerliste funktioniert: README.md ("Empfängerprüfung").
         - {name: POSTFIX_smtpd_recipient_restrictions, value: "permit_mynetworks, reject_unverified_recipient"}
         # Default wäre 450: ein nachweislich nicht existierender Empfänger
         # bekommt sonst fünf Tage lang Zustellversuche. Ein AUSFALL von Stalwart
@@ -139,25 +125,15 @@ spec:
         - {name: POSTFIX_smtp_tls_security_level, value: may}
         ports:
         - {name: smtp, containerPort: 25, protocol: TCP}
-        # Kein tcpSocket: der kubelet oeffnet dabei eine Verbindung und schliesst
-        # sie ohne ein Wort wieder, was Postfix als "lost connection after
-        # CONNECT" protokolliert — gemessen 23.040 Zeilen pro Tag, 32 % des
-        # gesamten mail-edge-Logs. Echte Auffaelligkeiten (NOQUEUE-Rejects,
-        # abgebrochene EHLO) gehen darin unter.
+        # Kein tcpSocket: der kubelet oeffnet dabei nur eine Verbindung und
+        # schliesst sie sofort wieder, was Postfix als "lost connection after
+        # CONNECT" protokolliert und echte Auffaelligkeiten im Log begraebt.
+        # Die exec-Probe schliesst stattdessen sauber mit QUIT ab und prueft
+        # damit zugleich, dass Postfix noch ein Banner sendet. Details und
+        # Messwerte: README.md.
         #
-        # Die exec-Probe fuehrt stattdessen einen ordentlichen SMTP-Abschluss:
-        # sie liest das 220-Banner und verabschiedet sich mit QUIT. Damit
-        # prueft sie zugleich mehr als der Portcheck — ein Postfix, der lauscht
-        # aber kein Banner mehr sendet, faellt jetzt auf.
-        #
-        # Am 2026-08-17 im laufenden Pod gegengeprueft: dreimal rc=0 gegen :25,
-        # rc=1 gegen einen toten Port. nc, timeout und sh liegen im Image.
-        # timeoutSeconds MUSS zum inneren `timeout 5` passen. Kubernetes setzt
-        # sonst den Default 1 s, und der kubelet bricht die Probe ab, bevor das
-        # innere Zeitlimit ueberhaupt greift — bei der Liveness-Probe waere das
-        # ein Neustart des einzigen SMTP-Eingangs wegen einer Lastspitze.
-        # Gemessen am 2026-08-17: rund 390 ms je Durchlauf inklusive
-        # exec-Overhead, also reichlich Abstand zu 5 s.
+        # timeoutSeconds MUSS zum inneren `timeout 5` passen -- sonst bricht
+        # der kubelet beim Default 1s ab, bevor das innere Zeitlimit greift.
         readinessProbe:
           exec:
             command: ['/bin/sh', '-c', 'printf "QUIT\r\n" | timeout 5 nc 127.0.0.1 25 | grep -q "^220 "']
