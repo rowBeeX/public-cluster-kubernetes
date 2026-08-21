@@ -98,7 +98,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
       - name: authentik
-        image: ghcr.io/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868
+        image: ghcr.io/goauthentik/server:2026.8.0@sha256:7421753cfea67e89a6d295a1f0173ccea3866b33768c88dad90453b151cdcfd5
         args: [server]
         envFrom:
         - secretRef: {name: authentik-runtime}
@@ -109,6 +109,12 @@ spec:
         - {name: AUTHENTIK_POSTGRESQL__USER, value: authentik}
         - {name: AUTHENTIK_POSTGRESQL__NAME, value: authentik}
         - {name: AUTHENTIK_LISTEN__HTTP, value: "0.0.0.0:9000"}
+        # Nur Schema und Host, kein Pfad -- auch wenn Authentik unter einem
+        # Unterpfad liegt. Ab 2026.11 ist die Einstellung Pflicht; ohne sie
+        # leitet Authentik aus dem Host-Header ab, was hinter dem Envoy-Edge
+        # falsch sein kann. Server und Worker brauchen denselben Wert: der
+        # Worker baut die Links in E-Mails.
+        - {name: AUTHENTIK_WEB__BASE_URL, value: "https://authentik.sedware.net"}
         - {name: AUTHENTIK_DISABLE_STARTUP_ANALYTICS, value: "true"}
         - {name: AUTHENTIK_DISABLE_UPDATE_CHECK, value: "true"}
         - {name: AUTHENTIK_ERROR_REPORTING__ENABLED, value: "false"}
@@ -191,7 +197,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
       - name: authentik
-        image: ghcr.io/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868
+        image: ghcr.io/goauthentik/server:2026.8.0@sha256:7421753cfea67e89a6d295a1f0173ccea3866b33768c88dad90453b151cdcfd5
         args: [worker]
         envFrom:
         - secretRef: {name: authentik-runtime}
@@ -202,6 +208,8 @@ spec:
         - {name: AUTHENTIK_POSTGRESQL__USER, value: authentik}
         - {name: AUTHENTIK_POSTGRESQL__NAME, value: authentik}
         - {name: AUTHENTIK_LISTEN__HTTP, value: "0.0.0.0:9000"}
+        # Siehe Server-Deployment oben.
+        - {name: AUTHENTIK_WEB__BASE_URL, value: "https://authentik.sedware.net"}
         - {name: AUTHENTIK_DISABLE_STARTUP_ANALYTICS, value: "true"}
         - {name: AUTHENTIK_DISABLE_UPDATE_CHECK, value: "true"}
         - {name: AUTHENTIK_ERROR_REPORTING__ENABLED, value: "false"}

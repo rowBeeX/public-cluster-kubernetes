@@ -1,7 +1,7 @@
 # Authentik
 
 OIDC-Provider für alle öffentlichen Cluster-Dienste, fest auf Version
-`2026.5.6` gepinnt.
+`2026.8.0` gepinnt.
 
 ## Komponenten
 
@@ -11,6 +11,44 @@ OIDC-Provider für alle öffentlichen Cluster-Dienste, fest auf Version
 | Authentik Server (1 Replica) | HTTP-Server, OIDC-Endpunkte, Admin-UI |
 | Authentik Worker (1 Replica) | Hintergrund-Tasks (E-Mail, Events) |
 | authentik-media PVC | Medien-Speicher (public-shared-bulk, ReadWriteMany) |
+
+## Der Sprung auf 2026.8.0 und warum es keinen Rückweg gibt
+
+`2026.5.6` → `2026.8.0` ist ein direkter Schritt: Trains `2026.6`/`2026.7`
+existieren nicht, `2026.5.6` ist die höchste `2026.5.x`. Die in 2026.8 neu
+eingebaute Lifecycle-Prüfung (`lifecycle/migrate.py`,
+`ensure_allowed_version`) lässt genau die eigene und die vorherige
+Version-Familie zu, und `authentik/__init__.py` des Zielimages setzt
+`VERSION_FAMILY_PREVIOUS = "2026.5"` — der Schritt ist also nicht nur
+inoffiziell möglich, sondern vom Zielcode ausdrücklich erlaubt.
+
+**Ein Image-Rollback ist danach kein Rückweg mehr.** Die Django-Migrationen
+laufen nur vorwärts; `kubectl rollout undo` holt das Pod-Template zurück, nicht
+das Schema, und alter Code trifft dann auf ein neueres Schema. Der einzige
+belastbare Rückweg ist ein CNPG-PITR der Datenbank `authentik` auf einen
+Zeitpunkt vor dem Image-Wechsel — deshalb gehört unmittelbar davor ein
+On-Demand-Base-Backup mit notiertem `stoppedAt`.
+
+Was sich fachlich ändert:
+
+- **`AUTHENTIK_WEB__BASE_URL` ist jetzt gesetzt** (beide Deployments). Ab
+  2026.11 ist die Einstellung Pflicht; sie hier vorzuziehen kostet nichts und
+  erspart den Zwang beim nächsten Sprung.
+- **Sessions werden bei Deaktivierung eines Nutzers gelöscht**, und
+  OAuth2-Provider schicken dabei ein Back-Channel-Logout. Ein deaktivierter
+  Nutzer verliert damit seinen Zugang zu allen zehn Applications sofort statt
+  erst mit Ablauf des Tokens — Absicht, aber eine Verhaltensänderung.
+- **`hash_password` nimmt das Passwort nicht mehr als Positionsargument.**
+  Hier ohne Wirkung: kein Manifest und kein Skript dieses Repos ruft es auf.
+- **`AUTHENTIK_POSTGRESQL__CONN_OPTIONS` ist deprecated.** Wird hier nicht
+  gesetzt — nichts zu tun, aber nicht neu einführen.
+- **WebAuthn-Option „Prevent duplicate devices" entfällt.** Im Blueprint
+  (`public-cluster-nix`) nicht gesetzt, also ohne Wirkung.
+
+Beide Deployments laufen wegen der `podAntiAffinity` gegen `postgres` auf
+`public-cluster-host-2`, also **aarch64**. Der gepinnte Digest muss deshalb der
+Multi-Arch-Index sein; für `2026.8.0` enthält er `linux/amd64` und
+`linux/arm64`.
 
 ## Kein Redis/Valkey
 
