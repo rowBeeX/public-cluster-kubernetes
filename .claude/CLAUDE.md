@@ -3,8 +3,8 @@
 Diese Datei gibt Claude Code Hinweise für die Arbeit in diesem Repository.
 
 Was mehr als ein Repository betrifft, steht in `../docs/` und wird hier nicht
-wiederholt — `../CLAUDE.md` nennt die Regeln, `../docs/10-repo-wegweiser.md`
-beantwortet „ich will X ändern, wo?", `../docs/05-deploy.md` beschreibt, wie
+wiederholt — `../CLAUDE.md` nennt die Regeln, `../../docs/10-repo-wegweiser.md`
+beantwortet „ich will X ändern, wo?", `../../docs/05-deploy.md` beschreibt, wie
 eine Änderung live geht.
 
 Skills hier: `argocd` und `kubernetes`. Plattform und Edge liegen in
@@ -104,7 +104,7 @@ StorageBox, RWX) für gemeinsame Bulk-Daten.
 Das ApplicationSet synchronisiert vom `release`-Branch, mit `selfHeal: true`
 **und `prune: true`** — ein aus dem Render verschwundenes Objekt wird live
 gelöscht. Ein Push nach `main` allein deployt nichts; nötig sind beide Refs
-(`../docs/05-deploy.md`).
+(`../../docs/05-deploy.md`).
 
 ## Validieren
 

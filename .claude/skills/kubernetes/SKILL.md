@@ -45,10 +45,10 @@ description: Workloads dieses Repos im Public-k3s deployen und diagnostizieren �
   des Backends.** Ist es größer, schreibt Envoy in tote Verbindungen und die
   Anfrage versandet bis zum Route-Timeout — die Ursache reproduzierbarer 504er.
   Node.js und Apache liegen per Default bei 5 s. Herleitung in
-  `../docs/02-anfragewege.md`.
+  `../../../../docs/02-anfragewege.md`.
 - **Logs und Metriken dieses Clusters liegen im Local-Cluster**, unterschieden
   über das Label `cluster="public"`. Wie man sie ohne Gateway-BasicAuth
   abfragt, steht in
   `../local-cluster-nix/.claude/skills/observability/SKILL.md`.
 - Bevor ein Dauerzustand als neuer Befund gemeldet wird:
-  `../docs/09-offene-punkte.md` lesen.
+  `../../../../docs/09-offene-punkte.md` lesen.
