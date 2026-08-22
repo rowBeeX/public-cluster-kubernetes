@@ -35,6 +35,16 @@ dann braucht man die Journal-Zeilen.
   (kein leases/endpointslices/configmaps/secrets), und eine zweite Regel wirft
   cAdvisor-Serien ohne `pod`-Label weg (Host-Cgroups; Host-Metriken kommen vom
   node_exporter des NixOS-Dienstes).
+- **Eine kube-state-metrics-Ressource braucht drei Stellen.** `--resources=`
+  in `workload.yaml`, das Leserecht in `rbac.yaml` und die `keep`-Regel in
+  `configmap.yaml`. Fehlt eine, ist der Effekt null, aber das Symptom
+  unterschiedlich: ohne Leserecht bleibt der Scrape-Endpunkt still und nur
+  kube-state-metrics protokolliert (`reflector.go … is forbidden`), ohne
+  `keep`-Regel steht die Serie lokal und kommt trotzdem nicht im zentralen
+  Prometheus an. Genau daran hing `cronjobs` bis zum 2026-08-22: `--resources`
+  und `keep`-Regel standen, das Recht fehlte, und
+  `sedware-vault-snapshot-missing-public` war wegen
+  `noDataState: Alerting` dauerhaft rot.
 - **Stream-Labels identisch zum lokalen Cluster.** Die acht
   `discovery.relabel "pods"`-Regeln sind zeichengleich aus
   `local-cluster-kubernetes/apps/alloy/values.yaml` übernommen. Abweichende

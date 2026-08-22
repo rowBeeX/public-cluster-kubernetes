@@ -119,14 +119,17 @@ spec:
         # kube-state-metrics keine Serie kube_cronjob_status_last_successful_time,
         # und sedware-vault-snapshot-missing-public
         # (local-cluster-kubernetes/apps/monitoring/values.yaml) kann per
-        # Konstruktion nie gruen werden. Kosten, nachgemessen an der lokalen
-        # Instanz (count by(__name__) je CronJob): zehn Metrikfamilien je
-        # CronJob. Der Public-Cluster traegt zwei CronJobs (descheduler, live;
-        # vault-raft-snapshot, in Auslieferung ueber public-cluster-nix) --
-        # macht 20 zusaetzliche Serien am Scrape, gegen ~332k Budget
-        # vernachlaessigbar. Nur eine der zehn Familien verlaesst den Cluster
+        # Konstruktion nie gruen werden. Das Resource allein reicht nicht: ohne
+        # das Leserecht in rbac.yaml laeuft der Reflector in eine Endlosschleife.
+        # Kosten, nachgemessen an der lokalen Instanz mit vier CronJobs
+        # (count by(__name__) auf kube_cronjob.*): elf Metrikfamilien, zusammen
+        # 40 Reihen -- neun Familien je CronJob immer, last_schedule_time erst
+        # nach dem ersten Lauf, starting_deadline_seconds nur wo gesetzt, macht
+        # ~10 Reihen je CronJob. Der Public-Cluster traegt zwei (descheduler,
+        # vault-raft-snapshot), also ~20 zusaetzliche Reihen am Scrape gegen ein
+        # Budget von ~332k. Nur eine Familie verlaesst den Cluster
         # (configmap.yaml, prometheus.relabel "budget"):
-        # kube_cronjob_status_last_successful_time, also 2 der 20 Serien.
+        # kube_cronjob_status_last_successful_time, also 2 der 20 Reihen.
         - --resources=cronjobs,daemonsets,deployments,jobs,namespaces,nodes,persistentvolumeclaims,pods,replicasets,statefulsets
         resources:
           requests: {cpu: 25m, memory: 96Mi}

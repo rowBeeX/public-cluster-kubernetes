@@ -424,7 +424,8 @@ data:
           "|kube_job_failed|kube_job_status_start_time" +
           // Traegt allein sedware-vault-snapshot-missing-public
           // (local-cluster-kubernetes/apps/monitoring/values.yaml). Braucht
-          // zusaetzlich --resources=cronjobs in workload.yaml, sonst liefert
+          // zusaetzlich --resources=cronjobs in workload.yaml UND das
+          // batch/cronjobs-Leserecht in rbac.yaml, sonst liefert
           // kube-state-metrics diese Familie gar nicht erst. Eine Serie je
           // CronJob, aktuell zwei (descheduler, vault-raft-snapshot).
           "|kube_cronjob_status_last_successful_time" +

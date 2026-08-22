@@ -45,8 +45,15 @@ rules:
 - apiGroups: [apps]
   resources: [daemonsets, deployments, replicasets, statefulsets]
   verbs: [list, watch]
+# cronjobs ist der dritte Punkt, ohne den die beiden anderen wirkungslos sind:
+# `--resources=cronjobs` (workload.yaml) und die keep-Regel auf
+# kube_cronjob_status_last_successful_time (configmap.yaml) standen schon, aber
+# kube-state-metrics lief in eine Endlosschleife
+# ("failed to list *v1.CronJob: cronjobs.batch is forbidden") und lieferte die
+# Familie nie aus. Die Alarmregel sedware-vault-snapshot-missing-public steht
+# auf `noDataState: Alerting` und war damit dauerhaft rot.
 - apiGroups: [batch]
-  resources: [jobs]
+  resources: [jobs, cronjobs]
   verbs: [list, watch]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
