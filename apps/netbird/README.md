@@ -21,6 +21,20 @@ WireGuard-basiertes VPN-Management für den Public-Cluster und verbundene Client
   `BackendTrafficPolicy` `netbird-longlived-streams` offengehalten
   (`requestTimeout: 0s`, `streamIdleTimeout: 24h`); ohne sie trennt Envoy
   Gateway den server-streaming Sync-RPC nach 15 Sekunden
+- `netbird.sedware.net` ist der einzige Edge-Name mit
+  `Strict-Transport-Security: max-age=31536000; includeSubDomains` — alle
+  anderen tragen nur `max-age`. Die Quelle ist weder das Gateway noch dieses
+  Manifest, sondern das Dashboard-Image selbst
+  (`/etc/nginx/http.d/default.conf` setzt den Header zweimal per `add_header …
+  always`). Der Gateway-weite Header steht in `public-cluster-nix`
+  (`manifests/platform/gateway/00-public-gateway.yaml.in`) bewusst als
+  `lateResponseHeaders.addIfAbsent` und lässt den Wert des Backends deshalb
+  stehen. Das ist unschädlich und bleibt so: `includeSubDomains` gilt nur für
+  `*.netbird.sedware.net`, nicht für `*.sedware.net` — der Grund für den
+  Verzicht am Edge (die Klartext-AdGuard-UI auf `*.nb.sedware.net:3000`) liegt
+  in einem anderen Namenszweig. Wer den Wert dennoch vereinheitlichen will,
+  braucht einen `ResponseHeaderModifier`-`set` auf der HTTPRoute hier, nicht
+  eine Änderung am Gateway.
 
 ## Der Sprung von Server 0.76.3 auf 0.77.1
 
