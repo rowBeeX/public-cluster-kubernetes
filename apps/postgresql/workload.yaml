@@ -142,7 +142,10 @@ apiVersion: barmancloud.cnpg.io/v1
 kind: ObjectStore
 metadata: {name: postgres-backup, namespace: app-postgresql}
 spec:
-  retentionPolicy: 14d
+  # 3 Tage, gleichlautend mit dem lokalen Cluster (Betreiberentscheidung vom
+  # 2026-08-26). Hier kostet es nichts — der Bucket misst 1,7 GB gegen 209 GB
+  # lokal; die Gleichheit dient der Vergleichbarkeit beider Cluster.
+  retentionPolicy: 3d
   configuration:
     destinationPath: s3://public-postgres-backups/
     endpointURL: https://s3.local.sedware.net
