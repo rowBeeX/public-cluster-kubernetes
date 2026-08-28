@@ -24,7 +24,12 @@ spec:
   type: LoadBalancer
   loadBalancerClass: io.cilium/node
   allocateLoadBalancerNodePorts: false
-  externalTrafficPolicy: Cluster
+  # Cluster SNATtet beim Node-Hop zum einzigen Endpoint (auf host-1) — STUN
+  # antwortet dann mit einer cluster-internen Pod-Adresse statt der echten
+  # Client-IP, genau der Information, wegen der es STUN gibt (gemessen
+  # 2026-08-28). Local liefert am Node ohne lokalen Endpoint keine Antwort statt
+  # einer falschen; siehe validate.sh spread_exempt fuer die Begruendung.
+  externalTrafficPolicy: Local
   ports:
   - {name: stun, protocol: UDP, port: 3478, targetPort: stun}
 ---
@@ -103,6 +108,7 @@ kind: Deployment
 metadata: {name: netbird-dashboard, namespace: app-netbird}
 spec:
   replicas: 2
+  revisionHistoryLimit: 3
   selector:
     matchLabels: {app.kubernetes.io/name: netbird-dashboard}
   template:

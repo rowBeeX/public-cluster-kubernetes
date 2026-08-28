@@ -25,7 +25,7 @@ dann braucht man die Journal-Zeilen.
   Aus demselben Grund `strategy: Recreate`.
 - **Kein hostPath, kein root.** `loki.source.kubernetes` liest über die API,
   deshalb erfüllt der Namespace `pod-security.kubernetes.io/enforce: restricted`
-  und steht nicht in `docs/exceptions.md`.
+  und steht nicht in `gates/exceptions.md`.
 - **Multi-Arch-Digest.** Host 2 ist aarch64; der Alloy-Digest ist der
   Index-Digest, nicht der amd64-Child-Digest aus `local-cluster-kubernetes`.
 - **Serienbudget.** Vor `prometheus.remote_write` steht eine `keep`-Liste

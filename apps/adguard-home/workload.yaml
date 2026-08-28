@@ -13,6 +13,7 @@ kind: Deployment
 metadata: {name: adguard-home, namespace: app-adguard-home}
 spec:
   replicas: 1
+  revisionHistoryLimit: 3
   # hostNetwork-Port 53 ist auf dem Ziel-Node exklusiv: nie einen zweiten Pod
   # starten, bevor der alte beendet wurde.
   strategy:

@@ -15,7 +15,7 @@ eingeführt wird.
 ## Validierung
 
 ```bash
-bash cluster-testing/public-cluster/kubernetes/validate.sh
+bash <Monorepo>/public-cluster-kubernetes/validate.sh
 ```
 
 Das Skript rendert jede App unter `apps/` und validiert die YAML-/Kustomize-

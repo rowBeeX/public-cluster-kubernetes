@@ -2,7 +2,7 @@
 # (Alloy + kube-state-metrics-Sidecar) UND Vault-Login. Die generische
 # Vault-Rolle `apps` bindet `bound_service_account_names='*'` und selektiert nur
 # ueber das Namespace-Label, ein zweiter `*-vault`-SA braechte also nichts.
-# `app-alloy:alloy` steht bereits in cluster-testing/lib/service_account_policy.py
+# `app-alloy:alloy` steht bereits in gates/service_account_policy.py
 # und darf deshalb einen automatischen API-Token mounten.
 apiVersion: v1
 kind: ServiceAccount

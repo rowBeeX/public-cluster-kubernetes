@@ -2,9 +2,10 @@
 
 Diese Datei gibt Claude Code Hinweise für die Arbeit in diesem Repository.
 
-Was mehr als ein Repository betrifft, steht in `../docs/` und wird hier nicht
-wiederholt — `../CLAUDE.md` nennt die Regeln, `../../docs/10-repo-wegweiser.md`
-beantwortet „ich will X ändern, wo?", `../../docs/05-deploy.md` beschreibt, wie
+Was mehr als ein Repository betrifft, steht in `../../cluster-docs/` und wird
+hier nicht wiederholt — `../CLAUDE.md` nennt die Regeln,
+`../../cluster-docs/10-repo-wegweiser.md`
+beantwortet „ich will X ändern, wo?", `../../cluster-docs/05-deploy.md` beschreibt, wie
 eine Änderung live geht.
 
 Skills hier: `argocd` und `kubernetes`. Plattform und Edge liegen in
@@ -20,7 +21,7 @@ Gateway, cert-manager, CrowdSec, Vault, ArgoCD selbst) liegt in
 
 Weil hier alles am offenen Internet hängt, ist dieses Repo das strengere der
 beiden App-Repos: `restricted` ist der Default, jede Abweichung braucht einen
-Eintrag in `docs/exceptions.md`, und `validate.sh` erzwingt das.
+Eintrag in `gates/exceptions.md`, und `validate.sh` erzwingt das.
 
 ## Kustomize, kein Helm
 
@@ -37,7 +38,7 @@ arch-spezifischer Child.
 
 ```
 apps/
-  README.md             die einzige App-Liste des Repos (Namespace, PSA, Zweck)
+  README.md             Konventionen; die App-Liste selbst ist `ls apps/`
   <app>/
     argocd.yaml         ApplicationSet-Deskriptor (sourceType, optional namespace:)
     README.md           Pflicht je App
@@ -45,23 +46,22 @@ apps/
     namespace.yaml      Namespace, LimitRange, ResourceQuota
     workload.yaml       Workloads, Services, Routes, PVCs, Certificates, Vault*
     networkpolicy.yaml  CiliumNetworkPolicies (Default-Deny + Allow)
-docs/
-  app-layout.md         die Dreiteilung oben, samt Durchsetzung
-  architecture.md       nur die Applikationsschicht; Plattform/Edge in public-cluster-nix
-  exceptions.md         jede PSA-/Härtungs-Abweichung mit Owner, Risiko, Review-Datum
-  structure.md
+gates/
+  exceptions.md        jede PSA-/Härtungs-Abweichung mit Owner, Risiko, Review-Datum
 ```
 
-Es gibt kein `base/` und kein `overlays/`: es gibt genau eine Umgebung.
-Regeln zum Layout stehen in `docs/app-layout.md` — eine Datei, die einen
-`Namespace` **und** ein Workload/eine Policy enthält, lehnt `validate.sh` ab.
+Es gibt kein `base/` und kein `overlays/`: es gibt genau eine Umgebung. Eine
+Datei, die einen `Namespace` **und** ein Workload/eine Policy enthält, lehnt
+`validate.sh` ab — die Dreiteilung oben ist Pflicht, nicht nur Konvention.
+Applikationsarchitektur und Anfragewege stehen zentral in
+`../../cluster-docs/01-architektur.md` und `../../cluster-docs/02-anfragewege.md`.
 
 ## Kubernetes-Konventionen
 
 - **Nur `resources.requests`, keine `limits`.** `validate.sh` prüft das für
   jedes Deployment/StatefulSet/DaemonSet.
 - **Pod Security: `restricted` ist der Default.** Ein Namespace mit
-  `enforce != restricted` muss in `docs/exceptions.md` stehen, sonst schlägt
+  `enforce != restricted` muss in `gates/exceptions.md` stehen, sonst schlägt
   `validate.sh` fehl. Beim Ändern einer Ausnahme immer prüfen, ob die
   *Begründung* noch stimmt, nicht nur der Eintrag.
 - Namespace: jede App bekommt ihren eigenen `app-<name>`-Namespace, mit dem
@@ -104,12 +104,12 @@ StorageBox, RWX) für gemeinsame Bulk-Daten.
 Das ApplicationSet synchronisiert vom `release`-Branch, mit `selfHeal: true`
 **und `prune: true`** — ein aus dem Render verschwundenes Objekt wird live
 gelöscht. Ein Push nach `main` allein deployt nichts; nötig sind beide Refs
-(`../../docs/05-deploy.md`).
+(`../../cluster-docs/05-deploy.md`).
 
 ## Validieren
 
 ```bash
-bash cluster-testing/public-cluster/kubernetes/validate.sh   # muss 0 liefern
+bash <Monorepo>/public-cluster-kubernetes/validate.sh   # muss 0 liefern
 yamllint -f parsable .
 kubectl kustomize apps/<name>
 ```

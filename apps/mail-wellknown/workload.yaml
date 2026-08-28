@@ -59,6 +59,7 @@ kind: Deployment
 metadata: {name: mail-wellknown, namespace: app-mail-wellknown}
 spec:
   replicas: 1
+  revisionHistoryLimit: 3
   selector:
     matchLabels: {app.kubernetes.io/name: mail-wellknown}
   template:

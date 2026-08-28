@@ -15,7 +15,7 @@ metadata:
     # Alloy liest Pod-Logs ueber die Kubernetes-API (pods/log) statt ueber einen
     # /var/log/pods-hostPath. Damit braucht dieser Namespace — anders als der
     # Alloy-DaemonSet im lokalen Cluster (runAsUser: 0) — keine PSA-Ausnahme und
-    # steht nicht in docs/exceptions.md.
+    # steht nicht in gates/exceptions.md.
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/enforce-version: v1.36
     pod-security.kubernetes.io/audit: restricted

@@ -150,7 +150,7 @@ spec:
           requests: {cpu: 100m, memory: 128Mi}
         securityContext:
           # UID 0 und beschreibbares Root-FS sind beim boky-Image unvermeidbar
-          # (siehe docs/exceptions.md). Deshalb hier alle Capabilities weg und
+          # (siehe gates/exceptions.md). Deshalb hier alle Capabilities weg und
           # nur die tatsächlich benötigten zurück.
           allowPrivilegeEscalation: false
           seccompProfile: {type: RuntimeDefault}

@@ -33,6 +33,7 @@ rendered/
 *.bak
 *.log
 *.tmp
+__pycache__/
 
 # Editor-Workspace-Dateien
 *.code-workspace

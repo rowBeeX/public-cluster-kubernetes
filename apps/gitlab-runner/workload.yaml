@@ -190,6 +190,7 @@ metadata:
     app.kubernetes.io/part-of: public-cluster
 spec:
   replicas: 1
+  revisionHistoryLimit: 3
   # Zwei Manager mit demselben Token teilten sich waehrend eines RollingUpdate
   # kurzzeitig dieselben Jobs.
   strategy:
@@ -218,7 +219,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: runner
-        image: docker.io/gitlab/gitlab-runner:alpine-v19.3.0@sha256:0dfd45aafbd125c3d2ef31e1a57f585ac6eea32f69135cbf45af978700f6a5de
+        image: docker.io/gitlab/gitlab-runner:alpine-v19.3.1@sha256:af0325804248aee217e055e753add77ccaaba6c8f5e2143b01108fd401165ef3
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
@@ -273,6 +274,7 @@ metadata:
     app.kubernetes.io/part-of: public-cluster
 spec:
   replicas: 1
+  revisionHistoryLimit: 3
   strategy:
     type: Recreate
   selector:
@@ -299,7 +301,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: runner
-        image: docker.io/gitlab/gitlab-runner:alpine-v19.3.0@sha256:0dfd45aafbd125c3d2ef31e1a57f585ac6eea32f69135cbf45af978700f6a5de
+        image: docker.io/gitlab/gitlab-runner:alpine-v19.3.1@sha256:af0325804248aee217e055e753add77ccaaba6c8f5e2143b01108fd401165ef3
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false

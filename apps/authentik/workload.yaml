@@ -62,6 +62,7 @@ spec:
   # überstünden einen Ausfall von Host 1 daher trotzdem nicht und suggerierten
   # nur HA. Ein Rollout unterbricht SSO im Cluster kurzzeitig.
   replicas: 1
+  revisionHistoryLimit: 3
   selector:
     matchLabels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: server}
   template:
@@ -168,6 +169,7 @@ kind: Deployment
 metadata: {name: authentik-worker, namespace: app-authentik}
 spec:
   replicas: 1
+  revisionHistoryLimit: 3
   selector:
     matchLabels: {app.kubernetes.io/name: authentik, app.kubernetes.io/component: worker}
   template:

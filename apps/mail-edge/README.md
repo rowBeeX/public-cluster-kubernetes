@@ -52,7 +52,7 @@ und ohne Accounts.
   Open-Relay-Risiko erzeugt. Die Relay-Client-Identität ist deklarativ in
   NetBird modelliert (Gruppen
   `mail-edge` / `mail-relay-client` + Policy `mail-relay`, provisioniert durch
-  `cluster-testing/public-cluster/nix/cluster/provision_mail_relay_policy.py`);
+  `<Monorepo>/cluster-tools/public/nix/cluster/provision_mail_relay_policy.py`);
   seit der NetBird-Least-Privilege-Umstellung `Default All→All` entfernt hat,
   ist diese Policy die durchsetzende Zugriffskontrolle für den Relay-Pfad.
 - **Empfängerprüfung** — `smtpd_recipient_restrictions =
@@ -108,7 +108,7 @@ und ohne Accounts.
 - PSA: Der Namespace erzwingt **baseline** (Audit/Warn restricted). Der
   Postfix-Master benötigt UID 0 (privilege-separated Design), restricted ist
   daher nicht erreichbar; der Container droppt `ALL` und ergänzt nur die acht
-  von Postfix benötigten Capabilities (siehe `docs/exceptions.md`), nutzt
+  von Postfix benötigten Capabilities (siehe `gates/exceptions.md`), nutzt
   seccomp RuntimeDefault und deaktiviert Privilege-Escalation.
 - StatefulSet mit 2 Replicas und je Pod einem eigenen RWO-Volume aus
   `volumeClaimTemplates` (`spool-mail-edge-0` und `spool-mail-edge-1`).

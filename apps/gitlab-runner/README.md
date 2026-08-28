@@ -73,18 +73,18 @@ Kubernetes-Executor tatsächlich braucht.
 `config.toml` entsteht beim Start per `sed` aus der ConfigMap-Vorlage in einem
 `emptyDir`; der Token kommt über eine Umgebungsvariable und steht damit nie in
 einer ConfigMap. Erzeugt wird er im lokalen Cluster
-(`cluster-testing/local-cluster/nix/cluster/provision_gitlab_runner.py`) und
+(`<Monorepo>/cluster-tools/local/nix/cluster/provision_gitlab_runner.py`) und
 von dort in den PUBLIC-Vault gespiegelt — nur der dortige Toolbox-Pod kann ihn
 am GitLab anlegen.
 
 ## Pod Security
 
 Der Namespace erzwingt `restricted` und steht deshalb **nicht** in
-`docs/exceptions.md`. Das gilt auch für die vom Runner selbst erzeugten
+`gates/exceptions.md`. Das gilt auch für die vom Runner selbst erzeugten
 Job-Pods: `config.toml` setzt für Build-, Helper- und Init-Container
 `run_as_non_root`, `cap_drop = ["ALL"]` und
 `allow_privilege_escalation = false`. Die letzte Zeile prüft
-`cluster-testing/public-cluster/kubernetes/validate.sh` ausdrücklich gegen
+`<Monorepo>/public-cluster-kubernetes/validate.sh` ausdrücklich gegen
 diese Datei — ein fehlender Schlüssel wäre per Default zwar sicher, aber
 nicht nachweisbar.
 
