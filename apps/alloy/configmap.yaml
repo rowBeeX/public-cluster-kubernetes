@@ -78,6 +78,26 @@ data:
         target_label = "cluster"
         replacement  = "public"
       }
+
+      // Neunte Regel, ebenfalls zeichengleich im lokalen Alloy — sie schreibt
+      // kein Stream-Label, sie entfernt ein Ziel.
+      //
+      // Ein Pod in einer Endphase ist kein Ziel mehr. Ohne sie tailt
+      // loki.source.kubernetes eine NodeShutdown-Leiche unbegrenzt weiter:
+      // shouldStopTailingContainer (kubetail/tailer.go) haelt `Terminated` bei
+      // `restartPolicy: Always` fuer voruebergehend und meldet "nicht
+      // beendet", worauf der Backoff alle 60 s erneut oeffnet. Gemessen
+      // 2026-08-28/29: vier cilium-operator-Leichen auf host-1, 8,4 h lang
+      // rund 300 Zeilen/h.
+      // Job- und CronJob-Pods bleiben ausgenommen: fuer die haelt Alloy eine
+      // eigene 60-s-Nachlauffrist, damit die letzten Zeilen eines
+      // fehlgeschlagenen Laufs noch ankommen.
+      rule {
+        source_labels = ["__meta_kubernetes_pod_phase", "__meta_kubernetes_pod_controller_kind"]
+        separator     = "/"
+        regex         = "(Succeeded|Failed)/(DaemonSet|Deployment|ReplicaSet|ReplicationController|StatefulSet|Node|)"
+        action        = "drop"
+      }
     }
 
     // Liest die Zeilen über die API (pods/log). Deshalb braucht dieser Pod
