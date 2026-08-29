@@ -1,9 +1,9 @@
-# Alloy-Pipeline des Public-Clusters. Ziel ist AUSSCHLIESSLICH der lokale
-# Cluster — hier laeuft weder Loki noch Prometheus.
+# Alloy-Pipeline des Public-Clusters. Ziel ist Ausschließlich der lokale
+# Cluster — hier läuft weder Loki noch Prometheus.
 #
 # Bewusst NICHT hier: loki.source.journal. Das Host-Journal bleibt beim
 # NixOS-Dienst (public-cluster-nix/modules/observability/alloy-journal.nix), weil
-# genau dann, wenn k3s ausfaellt, dieser Pod nicht mehr laeuft — und dann braucht
+# genau dann, wenn k3s ausfällt, dieser Pod nicht mehr läuft — und dann braucht
 # man die Journal-Zeilen am dringendsten.
 apiVersion: v1
 kind: ConfigMap
@@ -80,7 +80,7 @@ data:
       }
     }
 
-    // Liest die Zeilen ueber die API (pods/log). Deshalb braucht dieser Pod
+    // Liest die Zeilen über die API (pods/log). Deshalb braucht dieser Pod
     // weder einen /var/log/pods-hostPath noch runAsUser: 0 — anders als der
     // DaemonSet im lokalen Cluster.
     loki.source.kubernetes "pods" {
@@ -92,10 +92,10 @@ data:
     // "ip filter". Der cilium-agent kann die Tabelle danach nicht mehr
     // auflisten und meldet den Abgleich alle 10 s als Fehler — gemessen
     // 2026-08-11: 234 Zeilen/h auf host-1, 188/h auf host-2. Es ist KEIN
-    // Datapath-Defekt: das nft-Ruleset enthaelt 0 OLD_CILIUM-Ketten, es
+    // Datapath-Defekt: das nft-Ruleset enthält 0 OLD_CILIUM-Ketten, es
     // sammelt sich also nichts an. Begruendung, warum der Datapath NICHT
-    // umgebaut wird, und die Bedingung fuer den Rueckbau dieser Regel stehen
-    // in public-cluster-nix/docs/hetzner-workarounds.md, Abschnitt 3.
+    // umgebaut wird, und die Bedingung für den Rückbau dieser Regel stehen
+    // in cluster-docs/betrieb/hetzner-eigenheiten.md, Abschnitt 3.
     // Der Ausdruck verlangt BEIDE Textstellen — jeder andere
     // cilium-agent-Fehler bleibt sichtbar.
     loki.process "pods" {
@@ -119,12 +119,12 @@ data:
           password_file = "/etc/alloy-secrets/password"
         }
       }
-      // Ohne wal-Block haelt loki.write die Zeilen nur in einer
+      // Ohne wal-Block hält loki.write die Zeilen nur in einer
       // In-Memory-Queue und wirft sie nach erschoepften Wiederholungen
-      // endgueltig weg. Gemessen 2026-08-19 bis 2026-08-21: 26 von 73
+      // endgültig weg. Gemessen 2026-08-19 bis 2026-08-21: 26 von 73
       // Stundenfenstern kamen deswegen gar nicht in Loki an. Der lokale
       // Alloy braucht diesen Block nicht -- er schreibt cluster-intern ohne
-      // den fehleranfaelligen NetBird-Hop. max_segment_age haelt eine Zeile
+      // den fehleranfaelligen NetBird-Hop. max_segment_age hält eine Zeile
       // so lange auf Platte vor, wie eine mehrstuendige Streckenstoerung
       // dauern darf, ohne dass sie verlorengeht.
       wal {
@@ -133,9 +133,9 @@ data:
       }
     }
 
-    // ── kubelet + cAdvisor ueber den API-Server-Proxy ─────────────────────
-    // Der Umweg ueber /api/v1/nodes/<n>/proxy/... spart es, :10250 auf beiden
-    // Nodes fuer Pods zu oeffnen; autorisiert wird ueber nodes/proxy.
+    // ── kubelet + cAdvisor über den API-Server-Proxy ─────────────────────
+    // Der Umweg über /api/v1/nodes/<n>/proxy/... spart es, :10250 auf beiden
+    // Nodes für Pods zu oeffnen; autorisiert wird über nodes/proxy.
     discovery.kubernetes "nodes" {
       role = "node"
     }
@@ -201,11 +201,11 @@ data:
       }
     }
 
-    // job = "kubelet" fuer beide Pfade, exakt wie im lokalen Cluster; die
+    // job = "kubelet" für beide Pfade, exakt wie im lokalen Cluster; die
     // Standard-Dashboards des kube-prometheus-stack selektieren darauf.
-    // 60 s statt der lokalen 30 s: der Empfaenger ist ein Node, der bis gestern
-    // 35x taeglich neu startete — die halbe Samplerate ist hier billiger als
-    // eine hoehere Aufloesung.
+    // 60 s statt der lokalen 30 s: der Empfaenger rebootete zeitweise bis zu
+    // 35x täglich — die halbe Samplerate ist hier billiger als eine hoehere
+    // Auflösung.
     prometheus.scrape "kubelet" {
       targets           = discovery.relabel.kubelet.output
       forward_to        = [prometheus.relabel.budget.receiver]
@@ -230,7 +230,7 @@ data:
       }
     }
 
-    // kube-state-metrics laeuft als Sidecar und lauscht nur auf 127.0.0.1
+    // kube-state-metrics läuft als Sidecar und lauscht nur auf 127.0.0.1
     // (s. workload.yaml). Deshalb kein Service und keine Ingress-Regel.
     prometheus.scrape "kube_state_metrics" {
       targets         = [{__address__ = "127.0.0.1:8080"}]
@@ -240,7 +240,7 @@ data:
     }
 
     // cert-manager. Diese Zertifikate sind die Internet-Edge-Zertifikate;
-    // der Exporter laeuft auf :9402. Vorgeschichte: README.md.
+    // der Exporter läuft auf :9402. Vorgeschichte: README.md.
     discovery.relabel "certmanager" {
       targets = discovery.kubernetes.pods.targets
 
@@ -310,13 +310,13 @@ data:
     //
     // An der EnvoyProxy-Ressource ist NICHTS zu aendern —
     // telemetry.metrics.prometheus ist in Envoy Gateway per Default aktiv. Live
-    // geprueft auf host-1: hostPort 19001 (Portname "metrics"),
+    // geprüft auf host-1: hostPort 19001 (Portname "metrics"),
     // `curl 127.0.0.1:19001/stats/prometheus` liefert HTTP 200 mit 4878
     // envoy_-Reihen. Der Admin auf 127.0.0.1:19000 ist NICHT der Metrikpfad,
     // und `/metrics` gibt es auf :19001 nicht.
     //
     // Der Envoy-Gateway-CONTROLLER liegt im selben Namespace und hat ebenfalls
-    // einen Port 19001 — aber unter /metrics. Er traegt kein
+    // einen Port 19001 — aber unter /metrics. Er trägt kein
     // app.kubernetes.io/managed-by, die erste Regel schliesst ihn deshalb aus;
     // sonst haette der Job ein Ziel mit HTTP 404 und dauerhaft up=0.
     discovery.relabel "envoy" {
@@ -358,17 +358,17 @@ data:
     }
 
     // ── Serienbudget ─────────────────────────────────────────────────────
-    // Der empfangende Prometheus haelt ~332k Serien auf einem Node mit 30 GiB
+    // Der empfangende Prometheus hält ~332k Serien auf einem Node mit 30 GiB
     // RAM und startete deswegen im 31-Minuten-Takt neu. Es verlassen deshalb nur
     // die Metriken den Cluster, die die Standard-Dashboards des
     // kube-prometheus-stack wirklich auswerten. Jeder Name unten wurde gegen
-    // `group by(__name__)` der laufenden lokalen Instanz geprueft; das naheliegende
+    // `group by(__name__)` der laufenden lokalen Instanz geprüft; das naheliegende
     // kube_pod_container_status_waiting_reason steht absichtlich NICHT hier, weil
     // es das im Local-Cluster nicht gibt.
     //
-    // Fuer kubelet_volume_stats_* galt dieselbe Begruendung — und sie war falsch:
+    // Für kubelet_volume_stats_* galt dieselbe Begruendung — und sie war falsch:
     // gemessen an der LOKALEN Instanz (dort nur hostPath-PVs, also wirklich keine
-    // Serie), waehrend der Public-kubelet sie fuer die eine CSI-PVC sehr wohl
+    // Serie), während der Public-kubelet sie für die eine CSI-PVC sehr wohl
     // liefert. Die vier KubePersistentVolume*FillingUp-Regeln standen deshalb ohne
     // Eingangsserie da und taeuschten Abdeckung vor. Wer hier etwas streicht, misst
     // am Public-kubelet, nicht am lokalen Prometheus.
@@ -399,7 +399,7 @@ data:
           "|kube_persistentvolumeclaim_(status_phase|resource_requests_storage_bytes)" +
           // Der Public-Cluster hat genau EINE CSI-PVC (app-authentik/authentik-media,
           // smb.csi.k8s.io, StorageClass public-shared-bulk). Der kubelet auf host-2
-          // liefert dafuer sechs kubelet_volume_stats_-Serien — sie sind die
+          // liefert dafür sechs kubelet_volume_stats_-Serien — sie sind die
           // Eingangsserie der vier KubePersistentVolume*FillingUp-Regeln. Sechs
           // Serien gegen ein Budget von ~332k.
           "|kubelet_volume_stats_((available|capacity|used)_bytes|inodes(_free|_used)?)" +
@@ -410,10 +410,10 @@ data:
           // ~332k.
           "|cnpg_pg_stat_archiver_seconds_since_last_archival" +
           "|cnpg_collector_last_failed_backup_timestamp" +
-          // Zertifikatsablauf am Internet-Edge. Zwei Namen, fuenf Zertifikate.
+          // Zertifikatsablauf am Internet-Edge. Zwei Namen, fünf Zertifikate.
           "|certmanager_certificate_expiration_timestamp_seconds" +
           "|certmanager_certificate_ready_status" +
-          // Ohne diese Serien koennen die mitgelieferten Chart-Alarme fuer
+          // Ohne diese Serien können die mitgelieferten Chart-Alarme für
           // Deployments, StatefulSets, DaemonSets und Jobs im Public-Cluster
           // NIE feuern — sie stehen namentlich im Regelwerk, fanden hier aber
           // keine Daten. Betroffen sind unter anderem KubeDeploymentReplicasMismatch,
@@ -422,19 +422,19 @@ data:
           "|kube_statefulset_status_(replicas|replicas_updated|current_revision|update_revision)" +
           "|kube_daemonset_status_current_number_scheduled" +
           "|kube_job_failed|kube_job_status_start_time" +
-          // Traegt allein sedware-vault-snapshot-missing-public
+          // Trägt allein sedware-vault-snapshot-missing-public
           // (local-cluster-kubernetes/apps/monitoring/values.yaml). Braucht
-          // zusaetzlich --resources=cronjobs in workload.yaml UND das
+          // zusätzlich --resources=cronjobs in workload.yaml UND das
           // batch/cronjobs-Leserecht in rbac.yaml, sonst liefert
           // kube-state-metrics diese Familie gar nicht erst. Eine Serie je
           // CronJob, aktuell zwei (descheduler, vault-raft-snapshot).
           "|kube_cronjob_status_last_successful_time" +
-          // Die einzige Internetkante. envoy_http_downstream_rq_xx traegt die
+          // Die einzige Internetkante. envoy_http_downstream_rq_xx trägt die
           // 5xx-Rate je Listener, _time_(sum|count) die mittlere Latenz,
           // envoy_cluster_upstream_rq_(xx|timeout) ordnet einen Fehler der
           // HTTPRoute zu und trennt Route-Timeout von Backend-Fehler.
           // Gemessen 63 Reihen je Proxy-Pod, also ~126 gegen ein Budget von
-          // ~332k. Die _bucket-Reihen bleiben draussen — dieselbe Entscheidung
+          // ~332k. Die _bucket-Reihen bleiben draußen — dieselbe Entscheidung
           // wie beim PodMonitor `envoy-proxy` im lokalen Cluster; allein
           // envoy_http_downstream_rq_time_bucket waeren 200 weitere Reihen.
           "|envoy_http_downstream_rq_xx" +
@@ -442,7 +442,7 @@ data:
           "|envoy_cluster_upstream_rq_xx|envoy_cluster_upstream_rq_timeout"
       }
 
-      // cAdvisor liefert dieselben container_*-Namen auch fuer die Cgroups des
+      // cAdvisor liefert dieselben container_*-Namen auch für die Cgroups des
       // Hosts (id="/", "/system.slice/..."). Die tragen kein pod-Label, sind in
       // keinem Pod-Dashboard sichtbar und verdoppeln die cAdvisor-Serien
       // beinahe. Host-CPU/RAM liefert ohnehin der node_exporter im

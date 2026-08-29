@@ -20,7 +20,7 @@ source "$_script_dir/gates/kube-lint.sh"
 source "$_script_dir/gates/manifest-gates.sh"
 
 # Alle Apps rendern und den Gesamt-Output strukturell (kubeconform) sowie gegen
-# die Security-Policies (conftest) prüfen (#17).
+# die Security-Policies (conftest) prüfen.
 combined="$(mktemp)"
 for app in apps/*/; do
   [[ -f "$app/kustomization.yaml" ]] || continue
@@ -43,11 +43,11 @@ rm -f "$combined"
 gate_sources || failed=1
 python3 "$_script_dir/gates/manifest_contract.py" || failed=1
 
-# #29: CI-Builds laufen rootless. Der Runner-Executor muss das ausdruecklich
-# erklaeren -- ein fehlender Schluessel waere zwar per Default sicher, aber
+# CI-Builds laufen rootless. Der Runner-Executor muss das ausdrücklich
+# erklären -- ein fehlender Schluessel waere zwar per Default sicher, aber
 # nicht nachweisbar.
 rg -q 'allow_privilege_escalation[[:space:]]*=[[:space:]]*false' apps/gitlab-runner || {
-  printf 'gitlab-runner: allow_privilege_escalation = false fehlt in der config.toml (#29)\n' >&2
+  printf 'gitlab-runner: allow_privilege_escalation = false fehlt in der config.toml\n' >&2
   failed=1
 }
 
@@ -57,9 +57,9 @@ if rg -n --glob '!*.md' \
   failed=1
 fi
 
-# Anti-Open-Relay-Gate (Issue #2/#3): ein Postfix `mynetworks` darf außer dem
-# Loopback keine breiten Netze vertrauen. `100.64.0.0/10` (gesamtes NetBird/
-# CGNAT-Overlay) oder ein IPv4-CIDR < /24 wären ein Open-Relay-Risiko.
+# Anti-Open-Relay-Gate: ein Postfix `mynetworks` darf außer dem Loopback keine
+# breiten Netze vertrauen. `100.64.0.0/10` (gesamtes NetBird/CGNAT-Overlay)
+# oder ein IPv4-CIDR < /24 wären ein Open-Relay-Risiko.
 if python3 - <<'PY'
 import glob, ipaddress, re, sys
 loopback = {ipaddress.ip_network("127.0.0.0/8"), ipaddress.ip_network("::1/128")}
@@ -81,14 +81,14 @@ for path in glob.glob("apps/**/*.yaml", recursive=True):
             if (net.version == 4 and net.prefixlen < 24) or (net.version == 6 and net.prefixlen < 112):
                 bad.append(f"{path}: POSTFIX_mynetworks vertraut zu breitem Netz {tok}")
 if bad:
-    print("Mail-Relay mynetworks zu breit (Issue #2/#3):", file=sys.stderr)
+    print("Mail-Relay mynetworks zu breit:", file=sys.stderr)
     for b in bad:
         print("  " + b, file=sys.stderr)
     sys.exit(1)
 PY
 then :; else failed=1; fi
 
-# #7: Direkte L4-Node-Exposition verwendet ausschließlich Cilium Node IPAM.
+# Direkte L4-Node-Exposition verwendet ausschließlich Cilium Node IPAM.
 # Kubernetes 1.36 deprecatet Service externalIPs. Der Node-IPAM-Controller
 # übernimmt die Gateway-Node-Adressen dynamisch; NodePorts bleiben deaktiviert.
 if python3 - <<'PY'
@@ -115,7 +115,7 @@ policy_by_service = {
 # strukturell unerreichbar. Trotzdem ist Local richtig: STUN beantwortet die
 # Frage "welche Adresse siehst du von mir" — eine falsche Antwort (Cluster-
 # SNAT liefert eine Pod-IP statt der Client-IP) ist schlimmer als keine. Der
-# Knoten ohne lokalen Endpoint bleibt fuer STUN bewusst stumm.
+# Knoten ohne lokalen Endpoint bleibt für STUN bewusst stumm.
 spread_exempt = {("app-netbird", "netbird-stun")}
 bad = []
 spread_required = set()
@@ -182,14 +182,14 @@ for app in sorted(glob.glob("apps/*/")):
 if found != expected:
     bad.append(f"Node-IPAM-Services {sorted(found)!r}, erwartet {sorted(expected)!r}")
 
-# Fuer Local-Services muss der Workload nachweislich auf jedem Gateway-Node
+# Für Local-Services muss der Workload nachweislich auf jedem Gateway-Node
 # landen. Ohne diesen Nachweis waere Local ein stiller Schwarzlochfehler: der
 # Node ohne lokalen Endpoint nimmt die Verbindung an und verwirft sie.
 selector_label, _, selector_value = expected_selector.partition("=")
 for ns, svc in sorted(spread_required - spread_exempt):
     wl = workloads.get((ns, svc.removesuffix("-smtp")))
     if wl is None:
-        # Service- und Workload-Name muessen nicht uebereinstimmen; ueber den
+        # Service- und Workload-Name müssen nicht übereinstimmen; über den
         # Selector suchen.
         for (wns, _wname), cand in workloads.items():
             if wns != ns:
@@ -217,14 +217,14 @@ for ns, svc in sorted(spread_required - spread_exempt):
         )
 
 if bad:
-    print("Verstoß gegen den Cilium-Node-IPAM-Service-Vertrag (#7):", file=sys.stderr)
+    print("Verstoß gegen den Cilium-Node-IPAM-Service-Vertrag:", file=sys.stderr)
     for item in bad:
         print("  " + item, file=sys.stderr)
     sys.exit(1)
 PY
 then :; else failed=1; fi
 
-# #37: einheitliches App-Layout — keine Monolith-Datei. Eine Manifest-Datei, die
+# Einheitliches App-Layout — keine Monolith-Datei. Eine Manifest-Datei, die
 # einen Namespace definiert, darf keine Workloads/Policies enthalten (Namespace-
 # Gerüst gehört in namespace.yaml, siehe apps/README.md).
 if python3 - <<'PY'

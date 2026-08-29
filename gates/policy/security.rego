@@ -1,6 +1,6 @@
-# Security-Policies als Code (Issue #17), ausgewertet auf dem gerenderten
-# GitOps-Output. Strukturelle Regeln stehen hier, einfache String- und
-# Leak-Prüfungen bleiben in validate.sh.
+# Security-Policies als Code, ausgewertet auf dem gerenderten GitOps-Output.
+# Strukturelle Regeln stehen hier, einfache String- und Leak-Prüfungen bleiben
+# in validate.sh.
 package main
 
 import rego.v1
@@ -32,7 +32,7 @@ deny contains msg if {
 }
 
 # Schreibbare Root-Dateisysteme sind nur als bewusste, dokumentierte Ausnahme
-# zulässig (#12). Schlüssel für eigene Workloads: "<Workload>/<Container>".
+# zulässig. Schlüssel für eigene Workloads: "<Workload>/<Container>".
 _rootfs_exceptions := {
 	# Drittanbieter-Images ohne unterstützte Read-only-Option. Dauerhafte Daten
 	# liegen auf PVCs; betroffen ist nur die flüchtige Container-Schicht.
@@ -42,7 +42,7 @@ _rootfs_exceptions := {
 	"homepage/homepage": "Homepage writes its rendered config/cache under the image root",
 	# Public Cluster: Postfix-Master läuft konzeptbedingt als root und erzeugt
 	# /etc/postfix beim Start neu; Capabilities sind stattdessen minimiert.
-	"mail-edge/postfix": "root Postfix master + boky regenerates /etc/postfix at startup (#11)",
+	"mail-edge/postfix": "root Postfix master + boky regenerates /etc/postfix at startup",
 	"adguard-home/bootstrap-config": "AdGuard bootstrap writes its generated config at startup",
 	"authentik-server/authentik": "Authentik writes blueprints/media/cache under the image root",
 	"authentik-worker/authentik": "Authentik worker writes cache/tmp under the image root",
@@ -90,7 +90,7 @@ deny contains msg if {
 	key := sprintf("%s/%s", [input.metadata.name, c.name])
 	not _rootfs_exceptions[key]
 	not _helm_rootfs_exception(input)
-	msg := sprintf("%s/%s: container %q has a writable root filesystem — set readOnlyRootFilesystem: true or add a documented exception (#12)", [input.kind, input.metadata.name, c.name])
+	msg := sprintf("%s/%s: container %q has a writable root filesystem — set readOnlyRootFilesystem: true or add a documented exception", [input.kind, input.metadata.name, c.name])
 }
 
 # App-Namespaces tragen das vollständige Pod-Security-Triple.

@@ -1,4 +1,3 @@
-# Default-Deny: Kommunikation ist nur über die folgenden Policies erlaubt.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata: {name: default-deny, namespace: app-mailedge}

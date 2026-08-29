@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Gemeinsame Strukturvalidierung und Policy-as-Code für beide validate.sh (#17).
+# Gemeinsame Strukturvalidierung und Policy-as-Code für beide validate.sh.
 # kubeconform übernimmt die Schema-Validierung einschließlich CRDs aus dem
 # datreeio-Katalog; conftest prüft die OPA-/Rego-Security-Policies aus
 # policy/*.rego. Beide laufen in gepinnten Podman-Images, sodass keine

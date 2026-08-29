@@ -1,8 +1,8 @@
 # shellcheck shell=bash
-# Gemeinsame Regex-Gates beider validate.sh. Hier stehen ausschliesslich
+# Gemeinsame Regex-Gates beider validate.sh. Hier stehen ausschließlich
 # einfache Leak-/String-Regeln; der Cluster-Vertrag (Namespace-Labels, PSA,
-# Limits, Jobs, NodePorts) liegt in lib/checks/manifest_contract.py, Schema und
-# Policies in lib/kube-lint.sh.
+# Limits, Jobs, NodePorts) liegt in gates/manifest_contract.py, Schema und
+# Policies in gates/kube-lint.sh.
 #
 # Vendorte Charts sind ueberall ausgenommen: sie tragen Upstream-Templates
 # ({{ .Values… }} statt Images) und Upstream-Defaults.
@@ -10,7 +10,7 @@
 # gate_rendered <rendered.yaml> <label> — Pruefungen auf EINEM gerenderten Overlay.
 gate_rendered() {
   local rendered="$1" label="$2" rc=0 hits
-  # Jedes gerenderte Image traegt einen sichtbaren Tag UND einen
+  # Jedes gerenderte Image trägt einen sichtbaren Tag UND einen
   # unveraenderlichen sha256-Digest.
   hits="$(rg -o '^\s*image:\s*\S+' "$rendered" \
     | rg -v ':[^/@[:space:]]+@sha256:[0-9a-f]{64}$' || true)"
@@ -53,10 +53,9 @@ gate_sources() {
     rc=1
   fi
 
-  # #38: owner-Label muss team-/rollenbasiert sein — kein persoenlicher Marker.
   if rg -n --glob '*.yaml' --glob '*.yaml.in' --glob '!**/vendor/**' \
       'core\.sedware\.net/owner:[[:space:]]*(tobias|[a-z0-9._%+-]+@)' apps; then
-    printf 'persoenlicher owner-Marker gefunden — team-/rollenbasiert verwenden (#38)\n' >&2
+    printf 'persoenlicher owner-Marker gefunden — team-/rollenbasiert verwenden\n' >&2
     rc=1
   fi
 

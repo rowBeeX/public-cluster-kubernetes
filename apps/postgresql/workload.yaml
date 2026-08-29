@@ -59,7 +59,7 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: 4
-  # BeforeHookCreation raeumt den Pod erst beim naechsten Sync auf; ohne TTL
+  # BeforeHookCreation räumt den Pod erst beim nächsten Sync auf; ohne TTL
   # blieb er nach dem letzten Sync 3 Tage als Completed liegen.
   ttlSecondsAfterFinished: 86400
   template:
@@ -187,19 +187,11 @@ spec:
     # Nur die Standardabfragen liefern pg_stat_archiver -- die einzige Sicht,
     # die "steht die WAL-Archivierung" beantwortet. Vorgeschichte: README.md.
     disableDefaultQueries: false
-  # WAL-Volumen. Base-Backups laufen einmal taeglich (ScheduledBackup unten),
-  # die WAL-Archivierung dauernd — nur sie erlaubt eine Wiederherstellung auf
-  # einen Zeitpunkt. Ziel ist der RustFS-Bucket im LOKALEN Cluster ueber
-  # NetBird, jedes Byte geht also durch den Tunnel.
-  #
-  # Gemessen am 2026-08-11: 19 GB WAL in 2 d 16 h bei zwei kleinen Datenbanken
-  # (Authentik, NetBird). Der groessere Teil davon war Polsterung —
-  # archive_timeout=300 erzwingt alle 5 Minuten einen Segmentwechsel, und
-  # archiviert wird immer ein volles 16-MB-Segment, egal wie leer es ist.
-  # 900 s drittelt das und begrenzt den maximalen Datenverlust auf 15 Minuten.
-  # wal_compression=zstd halbiert den Rest; max_wal_size streckt den Abstand
-  # zwischen Checkpoints, nach denen Postgres beim ersten Zugriff auf eine
-  # Seite die ganze Seite statt des Deltas ins WAL schreibt (full_page_writes).
+  # Diese vier Werte druecken das WAL-Volumen: Ziel der Archivierung ist der
+  # RustFS-Bucket im LOKALEN Cluster, jedes Byte geht durch den NetBird-Tunnel
+  # auf ein gesättigtes raidz1. archive_timeout=900 ist der Preis dafür —
+  # bis zu 15 Minuten Datenverlust bei einem Totalausfall.
+  # Rechnung und Messung: <Monorepo>/cluster-docs/06-storage.md, Abschnitt 3.
   postgresql:
     parameters:
       max_wal_size: "2GB"

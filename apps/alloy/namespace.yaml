@@ -6,13 +6,13 @@ metadata:
     argocd.argoproj.io/sync-wave: "-10"
   labels:
     # part-of: public-cluster ist nicht kosmetisch — der Vault-Namespace-Selektor
-    # der generischen `apps`-Rolle (vault-bootstrap.nix:308) matcht genau darauf.
+    # der generischen `apps`-Rolle (vault-bootstrap.nix) matcht genau darauf.
     # Ohne das Label liefert VSO 403 und das Ingest-Passwort fehlt.
     app.kubernetes.io/part-of: public-cluster
     app.kubernetes.io/managed-by: argocd
     core.sedware.net/owner: platform
     core.sedware.net/purpose: platform
-    # Alloy liest Pod-Logs ueber die Kubernetes-API (pods/log) statt ueber einen
+    # Alloy liest Pod-Logs über die Kubernetes-API (pods/log) statt über einen
     # /var/log/pods-hostPath. Damit braucht dieser Namespace — anders als der
     # Alloy-DaemonSet im lokalen Cluster (runAsUser: 0) — keine PSA-Ausnahme und
     # steht nicht in gates/exceptions.md.
@@ -38,7 +38,7 @@ spec:
   hard:
     requests.cpu: "1"
     requests.memory: 1Gi
-    # Ein Pod mit drei Containern; der Rest ist Luft fuer VPA-Anhebungen.
+    # Ein Pod mit drei Containern; der Rest ist Luft für VPA-Anhebungen.
     pods: "4"
     # Alloys WAL/Positions liegen bewusst in einem emptyDir: nach einem Neustart
     # ein paar Sekunden Log-Luecke ist billiger als ein PVC, das den Pod an

@@ -7,7 +7,7 @@ Geprueft wird je Overlay genau einmal gerendert:
 * App-Namespaces (``app-<name>``) tragen die vollstaendige
   Pod-Security-Triple und die ``core.sedware.net``-Labels.
 * Eine PSA-Abschwaechung (``enforce != restricted``) ist eine bewusste
-  Security-Ausnahme und braucht einen Eintrag in ``gates/exceptions.md`` (#11).
+  Security-Ausnahme und braucht einen Eintrag in ``gates/exceptions.md``.
 * Workloads setzen nur ``resources.requests``. CPU-Limits drosseln auch im
   Leerlauf (CFS), Memory-Limits brauchen einen Eintrag in ``gates/exceptions.md``.
 * Jobs tragen die Argo-CD-Hook-Annotation — ohne sie sind sie bei
@@ -62,7 +62,7 @@ def check_overlay(overlay: str, exceptions: str) -> list[str]:
             if enforce and enforce != "restricted" and name not in exceptions:
                 bad.append(
                     f"{name}: PSA enforce={enforce} (nicht restricted) ohne Eintrag "
-                    "in gates/exceptions.md (#11)"
+                    "in gates/exceptions.md"
                 )
         if kind in ("Deployment", "StatefulSet", "DaemonSet"):
             pod = doc.get("spec", {}).get("template", {}).get("spec", {})
@@ -74,9 +74,9 @@ def check_overlay(overlay: str, exceptions: str) -> list[str]:
                         "(CFS-Drosselung, ausnahmslos verboten)"
                     )
                 for key in sorted(set(limits) - {"cpu"}):
-                    # Gleiche Ausnahme wie in render_helm.py: erweiterte
+                    # Gleiche Ausnahme wie in local-cluster-kubernetes/gates/render_helm.py: erweiterte
                     # Ressourcen (Device-Plugins, Domäne im Schlüssel) gehen
-                    # ausschliesslich als Limit. Beide Prüfer müssen dieselbe
+                    # ausschließlich als Limit. Beide Prüfer müssen dieselbe
                     # Regel kennen — sonst nimmt der eine an, was der andere
                     # ablehnt, je nachdem ob eine App Helm oder Kustomize nutzt.
                     if "/" in key:

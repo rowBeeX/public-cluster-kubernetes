@@ -1,4 +1,4 @@
-# CI-Runner fuer das GitLab im LOKALEN Cluster, erreicht ueber NetBird.
+# CI-Runner für das GitLab im LOKALEN Cluster, erreicht über NetBird.
 # Warum handgeschrieben, warum zwei Deployments, warum eigene Tokens: README.md.
 apiVersion: v1
 kind: ServiceAccount
@@ -17,11 +17,10 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-5"
 rules:
-  # Job-Pods anlegen, ueberwachen und abraeumen.
   - apiGroups: [""]
     resources: [pods, pods/status]
     verbs: [get, list, watch, create, delete]
-  # Der Executor haengt sich zum Ausfuehren der Job-Skripte in den Container.
+  # Der Executor hängt sich zum Ausführen der Job-Skripte in den Container.
   - apiGroups: [""]
     resources: [pods/exec, pods/attach]
     verbs: [create, get]
@@ -32,7 +31,7 @@ rules:
   - apiGroups: [""]
     resources: [secrets, configmaps]
     verbs: [get, list, create, delete, update]
-  # `services` nur fuer Job-Services (CI-`services:`-Schluessel).
+  # `services` nur für Job-Services (CI-`services:`-Schluessel).
   - apiGroups: [""]
     resources: [services]
     verbs: [get, list, create, delete]
@@ -121,7 +120,7 @@ metadata:
     app.kubernetes.io/name: gitlab-runner
     app.kubernetes.io/part-of: public-cluster
 data:
-  # Vorlage fuer `config.toml`; die beiden PLACEHOLDER ersetzt das
+  # Vorlage für `config.toml`; die beiden PLACEHOLDER ersetzt das
   # Container-Kommando beim Start.
   config.toml.tmpl: |
     concurrent = 2
@@ -153,7 +152,7 @@ data:
         helper_cpu_request = "50m"
         helper_memory_request = "64Mi"
         # Job-Pods bleiben auf dem Host ihres Managers: nur dort passt die
-        # Architektur des gewaehlten Runners zu den Job-Images.
+        # Architektur des gewählten Runners zu den Job-Images.
         [runners.kubernetes.node_selector]
           "kubernetes.io/arch" = "ARCH_PLACEHOLDER"
         [runners.kubernetes.pod_labels]
@@ -191,7 +190,7 @@ metadata:
 spec:
   replicas: 1
   revisionHistoryLimit: 3
-  # Zwei Manager mit demselben Token teilten sich waehrend eines RollingUpdate
+  # Zwei Manager mit demselben Token teilten sich während eines RollingUpdate
   # kurzzeitig dieselben Jobs.
   strategy:
     type: Recreate

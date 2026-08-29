@@ -184,11 +184,7 @@ spec:
           - labelSelector:
               matchLabels:
                 cnpg.io/cluster: postgres
-            # ZWINGEND: `labelSelector` in podAntiAffinity durchsucht per
-            # Default NUR den eigenen Namespace. Ohne diese Zeile findet die
-            # Regel in app-authentik gar keinen postgres-Pod, ist
-            # damit trivial erfuellt und der Scheduler platziert frei -- genau
-            # das passierte beim ersten Rollout.
+            # ZWINGEND, siehe Server-Deployment oben (namespaces-Angabe).
             namespaces: [app-postgresql]
             topologyKey: kubernetes.io/hostname
       # Siehe Deployment oben.
