@@ -1,0 +1,14 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: adguard-home
+  namespace: app-adguard-home
+  annotations: {argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true}
+spec:
+  targetRef: {apiVersion: apps/v1, kind: Deployment, name: adguard-home}
+  updatePolicy: {updateMode: "Off"}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "*"
+      controlledResources: [cpu, memory]
+      controlledValues: RequestsOnly

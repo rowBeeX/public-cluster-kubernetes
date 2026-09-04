@@ -1,0 +1,29 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: netbird-server
+  namespace: app-netbird
+  annotations: {argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true}
+spec:
+  targetRef: {apiVersion: apps/v1, kind: StatefulSet, name: netbird-server}
+  updatePolicy: {updateMode: "Off"}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "*"
+      controlledResources: [cpu, memory]
+      controlledValues: RequestsOnly
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: netbird-dashboard
+  namespace: app-netbird
+  annotations: {argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true}
+spec:
+  targetRef: {apiVersion: apps/v1, kind: Deployment, name: netbird-dashboard}
+  updatePolicy: {updateMode: "Off"}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "*"
+      controlledResources: [cpu, memory]
+      controlledValues: RequestsOnly

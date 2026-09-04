@@ -1,0 +1,14 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: alloy
+  namespace: app-alloy
+  annotations: {argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true}
+spec:
+  targetRef: {apiVersion: apps/v1, kind: Deployment, name: alloy}
+  updatePolicy: {updateMode: "Off"}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "*"
+      controlledResources: [cpu, memory]
+      controlledValues: RequestsOnly

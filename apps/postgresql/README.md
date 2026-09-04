@@ -23,6 +23,15 @@ Vault plus einen Seed-`Job` (kein gemeinsamer Superuser). Aktuelle Consumer:
 
 - **authentik** (`app-authentik`) — Datenbank `authentik`
 
+## Kein VPA für den CNPG-`Cluster`
+
+Alle übrigen Apps dieses Repos tragen einen `VerticalPodAutoscaler` mit
+`updateMode: Off`. Hier fehlt er bewusst: der `Cluster`-CR ist kein
+Deployment/StatefulSet mit `scale`-Subresource, sondern eine
+Operator-verwaltete Custom Resource — ein VPA-`targetRef` darauf liefert keine
+Empfehlung. Rightsizing des Instanz-Pods bleibt manuell über
+`spec.resources.requests` in `workload.yaml`.
+
 ## Monitoring: warum die Standardabfragen an sind
 
 Nur `disableDefaultQueries: false` liefert die `pg_stat_archiver`-Sicht, die

@@ -5,4 +5,5 @@ resources:
 - rbac.yaml
 - configmap.yaml
 - workload.yaml
+- vpa.yaml
 - networkpolicy.yaml

@@ -1,0 +1,29 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: authentik-server
+  namespace: app-authentik
+  annotations: {argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true}
+spec:
+  targetRef: {apiVersion: apps/v1, kind: Deployment, name: authentik-server}
+  updatePolicy: {updateMode: "Off"}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "*"
+      controlledResources: [cpu, memory]
+      controlledValues: RequestsOnly
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: authentik-worker
+  namespace: app-authentik
+  annotations: {argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true}
+spec:
+  targetRef: {apiVersion: apps/v1, kind: Deployment, name: authentik-worker}
+  updatePolicy: {updateMode: "Off"}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "*"
+      controlledResources: [cpu, memory]
+      controlledValues: RequestsOnly
