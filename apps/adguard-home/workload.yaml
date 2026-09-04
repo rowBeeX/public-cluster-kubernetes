@@ -49,6 +49,7 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           capabilities: {drop: [ALL]}
+          readOnlyRootFilesystem: true
         volumeMounts:
         - {name: data, mountPath: /data}
         - {name: bootstrap, mountPath: /bootstrap, readOnly: true}
@@ -137,3 +138,4 @@ spec:
       principal:
         clientCIDRs:
         - 100.64.0.0/10
+        - fd16:92d2:c3a2:72fc::/64

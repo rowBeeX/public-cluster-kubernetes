@@ -43,7 +43,6 @@ _rootfs_exceptions := {
 	# Public Cluster: Postfix-Master läuft konzeptbedingt als root und erzeugt
 	# /etc/postfix beim Start neu; Capabilities sind stattdessen minimiert.
 	"mail-edge/postfix": "root Postfix master + boky regenerates /etc/postfix at startup",
-	"adguard-home/bootstrap-config": "AdGuard bootstrap writes its generated config at startup",
 	"authentik-server/authentik": "Authentik writes blueprints/media/cache under the image root",
 	"authentik-worker/authentik": "Authentik worker writes cache/tmp under the image root",
 	"netbird-dashboard/dashboard": "nginx-based dashboard writes its templated config at startup",
