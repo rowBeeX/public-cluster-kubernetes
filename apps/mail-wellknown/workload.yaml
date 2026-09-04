@@ -1,6 +1,7 @@
 # Hintergrund und Exposition: siehe README.md.
-# Inhalt MUSS mit local-cluster-kubernetes/apps/mail-autoconfig/
-# mail-autoconfig-config/config-v1.1.xml synchron bleiben.
+# Kopie von local-cluster-kubernetes/apps/mail-autoconfig/
+# mail-autoconfig-config/config-v1.1.xml. Gleichheit prüft
+# cluster-tools/lib/checks/mail_autoconfig_kopie.py.
 apiVersion: v1
 kind: ConfigMap
 metadata: {name: mail-wellknown-config, namespace: app-mail-wellknown}

@@ -40,5 +40,6 @@ Derselbe Bug betrifft `autodiscover.sedware.net`.
 
 Der XML-Inhalt MUSS mit
 `local-cluster-kubernetes/apps/mail-autoconfig/mail-autoconfig-config/config-v1.1.xml`
-übereinstimmen. Zwei Antworten mit unterschiedlichen Ports oder Hostnamen
-ergeben ein Mail-Konto, das je nach Abrufreihenfolge anders konfiguriert wird.
+übereinstimmen; `cluster-tools/lib/checks/mail_autoconfig_kopie.py` prüft die
+Gleichheit. Zwei Antworten mit unterschiedlichen Ports oder Hostnamen ergeben
+ein Mail-Konto, das je nach Abrufreihenfolge anders konfiguriert wird.
