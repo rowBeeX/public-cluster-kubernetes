@@ -28,3 +28,17 @@ spec:
   limits:
   - type: Container
     defaultRequest: {cpu: 50m, memory: 128Mi}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata: {name: quota, namespace: app-postgresql}
+spec:
+  hard:
+    # Cluster-Instanz (100m/256Mi, workload.yaml) plus Barman-Cloud-Sidecar
+    # (20m/64Mi, ObjectStore instanceSidecarConfiguration) plus Reserve für
+    # den Seed-Job (LimitRange-Default 50m/128Mi) und künftige Consumer-Rollen.
+    requests.cpu: "500m"
+    requests.memory: 768Mi
+    requests.storage: 20Gi
+    persistentvolumeclaims: "2"
+    pods: "6"

@@ -36,6 +36,11 @@ _REQUIRED_NS_LABELS = {
     "core.sedware.net/owner", "core.sedware.net/purpose", "app.kubernetes.io/part-of",
 }
 
+# Schlüssel, die jede App-ResourceQuota traegt — unabhaengig davon, ob sie
+# ueberhaupt PVCs anlegt (mail-wellknown z.B. nicht, deshalb kein
+# requests.storage/persistentvolumeclaims in der gemeinsamen Menge).
+_REQUIRED_QUOTA_KEYS = {"requests.cpu", "requests.memory", "pods"}
+
 
 def _overlays() -> list[str]:
     candidates = sorted(glob.glob("apps/*/")) + sorted(glob.glob("apps/*/resources/"))
@@ -48,12 +53,15 @@ def check_overlay(overlay: str, exceptions: str) -> list[str]:
         return [f"{overlay}: Kustomize-Rendering fehlgeschlagen"]
 
     bad: list[str] = []
+    app_namespaces: set[str] = set()
+    quota_hard_keys: dict[str, set[str]] = {}
     for doc in yaml.safe_load_all(out.stdout):
         if not doc:
             continue
         kind, meta = doc.get("kind"), doc.get("metadata", {})
         name = str(meta.get("name", ""))
         if kind == "Namespace" and name.startswith("app-"):
+            app_namespaces.add(name)
             labels = meta.get("labels") or {}
             missing = _REQUIRED_NS_LABELS - set(labels)
             if missing:
@@ -64,6 +72,10 @@ def check_overlay(overlay: str, exceptions: str) -> list[str]:
                     f"{name}: PSA enforce={enforce} (nicht restricted) ohne Eintrag "
                     "in gates/exceptions.md"
                 )
+        if kind == "ResourceQuota":
+            quota_hard_keys[str(meta.get("namespace", ""))] = set(
+                (doc.get("spec", {}) or {}).get("hard", {}) or {}
+            )
         if kind in ("Deployment", "StatefulSet", "DaemonSet"):
             pod = doc.get("spec", {}).get("template", {}).get("spec", {})
             for container in pod.get("containers", []) + pod.get("initContainers", []):
@@ -90,6 +102,14 @@ def check_overlay(overlay: str, exceptions: str) -> list[str]:
                 f"{meta.get('namespace')}/{name}: Job ohne Argo-CD-Hook-Annotation "
                 "ist bei Template-Aenderungen unveraenderlich"
             )
+    for ns in sorted(app_namespaces):
+        hard = quota_hard_keys.get(ns)
+        if hard is None:
+            bad.append(f"{ns}: keine ResourceQuota im Render")
+            continue
+        missing = _REQUIRED_QUOTA_KEYS - hard
+        if missing:
+            bad.append(f"{ns}: ResourceQuota fehlt Pflichtschlüssel {sorted(missing)}")
     return bad
 
 
