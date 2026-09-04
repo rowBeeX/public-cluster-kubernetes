@@ -29,12 +29,11 @@ Paketregistries zu erreichen.
 GitLab liefert Runner und Server als eine Versionsreihe aus und stützt sich
 darauf, dass der Runner höchstens so neu ist wie die Instanz, gegen die er
 registriert ist. Der Server ist das GitLab in
-`local-cluster-kubernetes/apps/gitlab` — ein **anderes Repository**, und
-gemessen am 2026-08-22 läuft er auf `v19.2.1`.
+`local-cluster-kubernetes/apps/gitlab` — ein **anderes Repository**.
 
-Der hier gepinnte `alpine-v19.3.0` ist damit **eine Minor-Version vor dem
-Server**. Vor dem Ausrollen dieses Repos muss deshalb der GitLab-Bump auf
-`v19.3.0` im lokalen Repo liegen. Ohne ihn läuft der Runner voraussichtlich
+Vor dem Ausrollen dieses Repos deshalb prüfen, dass der hier gepinnte
+Runner-Tag höchstens dieselbe Minor-Version trägt wie der dort laufende
+GitLab-Server. Ein Runner, der neuer als der Server ist, läuft voraussichtlich
 weiter, aber in einer von Upstream nicht abgedeckten Kombination.
 
 Kein `helper_image` ist gepinnt (`config.toml` in `workload.yaml`) — der Runner
