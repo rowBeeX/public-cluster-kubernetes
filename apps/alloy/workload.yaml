@@ -163,8 +163,8 @@ spec:
         secret: {secretName: alloy-ingest}
       # WAL und Log-Positionen. Bewusst fluechtig: ein PVC bände den Pod an
       # einen Node und höbe den Vorteil des Deployments auf.
-      # 1Gi statt vormals 512Mi: max_segment_age = 6h in configmap.yaml soll
-      # eine mehrstuendige Streckenstoerung ueberbruecken. Gemessen an Loki
+      # max_segment_age = 6h in configmap.yaml soll eine mehrstuendige
+      # Streckenstoerung ueberbruecken. Gemessen an Loki
       # (sum(bytes_over_time({cluster="public"}[1h])), 7-Tage-Fenster,
       # 2026-08-21): das schlechteste zusammenhaengende 6h-Fenster lud 297 MiB
       # Rohtext, Einzelspitze 58 MiB/h. 512Mi liess dafuer nur ~40 % Puffer --

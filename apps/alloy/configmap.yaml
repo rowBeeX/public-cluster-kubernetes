@@ -250,6 +250,98 @@ data:
       }
     }
 
+    // ── Cilium-Agent, -Operator und Hubble ───────────────────────────────
+    // Alle drei Ports liegen auf dem internen Interface jedes Nodes, nicht
+    // hinter dem API-Server-Proxy wie kubelet/cAdvisor oben (dort bleibt
+    // :10250 firewallseitig zu). discovery.kubernetes liefert die
+    // Node-Adresse dynamisch statt sie hart zu kodieren -- ein getauschter
+    // oder neuer Node braucht keine Alloy-Änderung.
+    //
+    // WIRKSAM ERST nach dem Rollout aus public-cluster-nix
+    // (modules/kubernetes/k3s-networking.nix), der 9962/9963/9965 auf
+    // ${internalInterfaceName} freigibt: bis dahin liefert der Scrape
+    // connection refused/timeout und up=0.
+    discovery.relabel "cilium_agent" {
+      targets = discovery.kubernetes.nodes.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_node_address_InternalIP"]
+        regex         = "(.+)"
+        target_label  = "__address__"
+        replacement   = "${1}:9962"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        target_label  = "node"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        target_label  = "instance"
+      }
+    }
+
+    prometheus.scrape "cilium_agent" {
+      targets         = discovery.relabel.cilium_agent.output
+      forward_to      = [prometheus.relabel.budget.receiver]
+      job_name        = "cilium-agent"
+      scrape_interval = "60s"
+    }
+
+    discovery.relabel "cilium_operator" {
+      targets = discovery.kubernetes.nodes.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_node_address_InternalIP"]
+        regex         = "(.+)"
+        target_label  = "__address__"
+        replacement   = "${1}:9963"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        target_label  = "node"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        target_label  = "instance"
+      }
+    }
+
+    // Der Operator läuft nur auf einem Node (eine Replika); der Scrape des
+    // Nodes ohne laufenden Operator liefert dauerhaft up=0 -- das ist der
+    // Normalzustand, kein Fehler.
+    prometheus.scrape "cilium_operator" {
+      targets         = discovery.relabel.cilium_operator.output
+      forward_to      = [prometheus.relabel.budget.receiver]
+      job_name        = "cilium-operator"
+      scrape_interval = "60s"
+    }
+
+    discovery.relabel "hubble" {
+      targets = discovery.kubernetes.nodes.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_node_address_InternalIP"]
+        regex         = "(.+)"
+        target_label  = "__address__"
+        replacement   = "${1}:9965"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        target_label  = "node"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        target_label  = "instance"
+      }
+    }
+
+    prometheus.scrape "hubble" {
+      targets         = discovery.relabel.hubble.output
+      forward_to      = [prometheus.relabel.budget.receiver]
+      job_name        = "hubble"
+      scrape_interval = "60s"
+    }
+
     // kube-state-metrics läuft als Sidecar und lauscht nur auf 127.0.0.1
     // (s. workload.yaml). Deshalb kein Service und keine Ingress-Regel.
     prometheus.scrape "kube_state_metrics" {
@@ -459,7 +551,17 @@ data:
           // envoy_http_downstream_rq_time_bucket waeren 200 weitere Reihen.
           "|envoy_http_downstream_rq_xx" +
           "|envoy_http_downstream_rq_time_(sum|count)" +
-          "|envoy_cluster_upstream_rq_xx|envoy_cluster_upstream_rq_timeout"
+          "|envoy_cluster_upstream_rq_xx|envoy_cluster_upstream_rq_timeout" +
+          // Cilium/Hubble: die Ports sind bis zum Nix-Rollout aus 5.2 (siehe
+          // discovery.relabel "cilium_agent"/"cilium_operator"/"hubble" oben)
+          // firewallseitig zu, die Namen sind deshalb NICHT wie der Rest
+          // dieser Liste an einer laufenden Instanz nachgemessen, sondern aus
+          // Ciliums Metrik-Referenz übernommen. Nach der Freigabe gegen
+          // `group by(__name__)` prüfen wie überall sonst in dieser Datei.
+          "|cilium_drop_count_total|cilium_forward_count_total" +
+          "|cilium_policy_l7_total|cilium_endpoint_state|cilium_unreachable_nodes" +
+          "|hubble_flows_processed_total|hubble_drop_total" +
+          "|hubble_dns_queries_total|hubble_dns_responses_total"
       }
 
       // cAdvisor liefert dieselben container_*-Namen auch für die Cgroups des
