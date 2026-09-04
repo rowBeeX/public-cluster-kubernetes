@@ -2,10 +2,10 @@
 
 Diese Datei gibt Claude Code Hinweise für die Arbeit in diesem Repository.
 
-Was mehr als ein Repository betrifft, steht in `../../cluster-docs/` und wird
-hier nicht wiederholt — `../CLAUDE.md` nennt die Regeln,
-`../../cluster-docs/10-repo-wegweiser.md`
-beantwortet „ich will X ändern, wo?", `../../cluster-docs/05-deploy.md` beschreibt, wie
+Was mehr als ein Repository betrifft, steht in `<Monorepo>/cluster-docs/` und
+wird hier nicht wiederholt — `<Monorepo>/CLAUDE.md` nennt die Regeln,
+`<Monorepo>/cluster-docs/10-repo-wegweiser.md`
+beantwortet „ich will X ändern, wo?", `<Monorepo>/cluster-docs/05-deploy.md` beschreibt, wie
 eine Änderung live geht.
 
 Skills hier: `argocd` und `kubernetes`. Plattform und Edge liegen in
@@ -54,7 +54,7 @@ Es gibt kein `base/` und kein `overlays/`: es gibt genau eine Umgebung. Eine
 Datei, die einen `Namespace` **und** ein Workload/eine Policy enthält, lehnt
 `validate.sh` ab — die Dreiteilung oben ist Pflicht, nicht nur Konvention.
 Applikationsarchitektur und Anfragewege stehen zentral in
-`../../cluster-docs/01-architektur.md` und `../../cluster-docs/02-anfragewege.md`.
+`<Monorepo>/cluster-docs/01-architektur.md` und `<Monorepo>/cluster-docs/02-anfragewege.md`.
 
 ## Kubernetes-Konventionen
 
@@ -104,7 +104,7 @@ StorageBox, RWX) für gemeinsame Bulk-Daten.
 Das ApplicationSet synchronisiert vom `release`-Branch, mit `selfHeal: true`
 **und `prune: true`** — ein aus dem Render verschwundenes Objekt wird live
 gelöscht. Ein Push nach `main` allein deployt nichts; nötig sind beide Refs
-(`../../cluster-docs/05-deploy.md`).
+(`<Monorepo>/cluster-docs/05-deploy.md`).
 
 ## Validieren
 
