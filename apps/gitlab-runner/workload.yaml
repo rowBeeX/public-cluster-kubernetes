@@ -9,6 +9,19 @@ metadata:
     argocd.argoproj.io/sync-wave: "-5"
 automountServiceAccountToken: false
 ---
+# Die Job-Pods des Kubernetes-Executors legt der Runner zur Laufzeit an, mit dem
+# `default`-ServiceAccount und dessen automatisch eingehängtem API-Token. Kein
+# CI-Job spricht mit dem API-Server; ohne diese Zeile traegt jeder fremde
+# Build-Container ein gueltiges Token im Dateisystem.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: default
+  namespace: app-gitlab-runner
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+automountServiceAccountToken: false
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
