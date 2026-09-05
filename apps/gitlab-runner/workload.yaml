@@ -108,6 +108,18 @@ spec:
   path: apps/app-gitlab-runner/auth
   refreshAfter: 1h
   vaultAuthRef: vault
+  # Die `config.toml` entsteht GENAU EINMAL beim Start per `sed` aus der
+  # ConfigMap-Vorlage und $RUNNER_TOKEN; danach pollt der Manager unbegrenzt
+  # mit dem Token, den er beim Start gesehen hat. Eine Pruefsummen-Annotation
+  # wie `checksum/apache-keepalive` traegt hier nicht: der Teil, der sich
+  # stuendlich aendert, ist der Token, und der steht in diesem Secret — er darf
+  # weder in ein Manifest noch in eine Annotation. Bleibt der Neustart durch
+  # VSO. Beide Architektur-Manager lesen aus demselben Secret.
+  rolloutRestartTargets:
+  - kind: Deployment
+    name: gitlab-runner-amd64
+  - kind: Deployment
+    name: gitlab-runner-arm64
   destination:
     create: true
     name: gitlab-runner-auth
