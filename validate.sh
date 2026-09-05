@@ -291,4 +291,38 @@ if bad:
 PY
 then :; else failed=1; fi
 
+# `optional: true` laesst den Pod ohne die Abhaengigkeit starten. Der
+# gefaehrliche Fall ist nicht der CrashLoop — der heilt sich —, sondern der
+# stille Einmal-Versuch: der Dienst konfiguriert etwas genau einmal, die Quelle
+# fehlt, er laeuft trotzdem weiter, und ein Teil seiner Funktion fehlt bis zum
+# naechsten Prozessstart, ohne Fehlerzustand. Jede Stelle braucht deshalb eine
+# Begruendung als Kommentar.
+if python3 - <<'PY'
+import glob, re, sys
+
+bad = []
+pfade = sorted(
+    p
+    for muster in ("apps/**/*.yaml", "apps/**/*.yaml.in")
+    for p in glob.glob(muster, recursive=True)
+    if "/vendor/" not in p
+)
+for pfad in pfade:
+    zeilen = open(pfad).read().splitlines()
+    for i, zeile in enumerate(zeilen):
+        treffer = re.match(r"\s*optional:\s*true\s*(#.*)?$", zeile)
+        # Eine Begruendung in derselben Zeile zaehlt ebenfalls.
+        if not treffer or treffer.group(1):
+            continue
+        nachbarn = zeilen[max(i - 1, 0):i] + zeilen[i + 1:i + 2]
+        if not any(n.lstrip().startswith("#") for n in nachbarn):
+            bad.append(f"{pfad}:{i + 1}")
+if bad:
+    print("`optional: true` ohne Begruendung:", file=sys.stderr)
+    for b in bad:
+        print(f"  {b} — Grund als Kommentar in die Zeile darueber oder darunter", file=sys.stderr)
+    sys.exit(1)
+PY
+then :; else failed=1; fi
+
 exit "$failed"
